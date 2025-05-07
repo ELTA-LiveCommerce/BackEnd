@@ -1,10 +1,17 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { Request, Response } from 'express';
 
 import { AuthService } from '@/module/auth/auth.service';
 import { LoginDto, RefreshTokenDto, TokenResponseDto } from '@/module/auth/dto/auth.dto';
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
+
+class KakaoMobileLoginDto {
+  @IsString()
+  @IsNotEmpty()
+  accessToken: string;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -78,5 +85,10 @@ export class AuthController {
     });
 
     res.redirect(frontendUrl);
+  }
+
+  @Post('kakao/mobile')
+  async kakaoMobileLogin(@Body() body: KakaoMobileLoginDto): Promise<TokenResponseDto> {
+    return this.authService.kakaoMobileLogin(body.accessToken);
   }
 }

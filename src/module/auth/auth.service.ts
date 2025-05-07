@@ -49,52 +49,10 @@ export class AuthService {
 
   async validateKakaoUser(kakaoUserDto: KakaoUserDto): Promise<AuthResponse> {
     try {
-      // 기존 카카오 ID로 등록된 로그인 정보가 있는지 확인
-      const login = await this.loginService.findByProviderId(LoginProvider.KAKAO, kakaoUserDto.kakaoId.toString());
+      // 새로 구현한 메서드 활용
+      const user = await this.validateKakaoUserAndGetUser(kakaoUserDto);
 
-      let user: User | null = null;
-
-      // 기존 로그인 정보가 있으면 해당 사용자 정보 반환
-      if (login) {
-        user = login.user;
-
-        // 로그인 정보 업데이트
-        await this.loginService.updateLoginInfo(login, {
-          nickname: kakaoUserDto.nickname,
-          profileImage: kakaoUserDto.profileImage,
-        });
-      } else {
-        // 이메일로 기존 사용자 찾기
-        if (kakaoUserDto.email) {
-          user = await this.userService.findByEmail(kakaoUserDto.email);
-        }
-
-        // 기존 사용자가 없으면 새로 생성
-        if (!user) {
-          const createUserDto = {
-            email: kakaoUserDto.email || `kakao_${kakaoUserDto.kakaoId}@example.com`,
-            name: kakaoUserDto.nickname,
-            role: UserRole.VIEWER,
-            // 카카오 로그인은 비밀번호가 없으므로 랜덤 문자열 생성
-            password: await bcrypt.hash(Math.random().toString(36).slice(-10), 10),
-          };
-
-          user = await this.userService.create(createUserDto);
-          this.logger.log(`새 사용자 등록: ${user.id}`);
-        }
-
-        // 로그인 정보 생성
-        await this.loginService.createLoginInfo(user, LoginProvider.KAKAO, kakaoUserDto.kakaoId.toString(), {
-          email: kakaoUserDto.email,
-          nickname: kakaoUserDto.nickname,
-          profileImage: kakaoUserDto.profileImage,
-        });
-      }
-
-      if (!user) {
-        throw new Error('사용자 생성 또는 로그인 정보 연결에 실패했습니다');
-      }
-
+      // 인증 응답 생성
       return this.buildAuthResponse(user, true);
     } catch (error) {
       this.logger.error(
@@ -193,6 +151,115 @@ export class AuthService {
         error instanceof Error ? error.stack : undefined,
       );
       throw new UnauthorizedException('로그아웃에 실패했습니다.');
+    }
+  }
+
+  async kakaoMobileLogin(accessToken: string): Promise<TokenResponseDto> {
+    try {
+      // 카카오 AccessToken을 사용하여 사용자 정보 요청
+      const userData = await this.getKakaoUserInfo(accessToken);
+
+      const kakaoUserDto: KakaoUserDto = {
+        kakaoId: userData.id,
+        email: userData.kakao_account?.email,
+        nickname: userData.kakao_account?.profile?.nickname || '카카오 사용자',
+        profileImage: userData.kakao_account?.profile?.profile_image_url,
+      };
+
+      // 사용자 검증 후 User 객체 반환 (토큰 생성 X)
+      const user = await this.validateKakaoUserAndGetUser(kakaoUserDto);
+
+      // 토큰 생성 및 반환
+      return this.generateTokens(user);
+    } catch (error) {
+      this.logger.error(
+        `카카오 모바일 로그인 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new UnauthorizedException('카카오 모바일 로그인에 실패했습니다.');
+    }
+  }
+
+  // 사용자 검증 후 User 객체 반환 (토큰 생성 X)
+  private async validateKakaoUserAndGetUser(kakaoUserDto: KakaoUserDto): Promise<User> {
+    try {
+      // 기존 카카오 ID로 등록된 로그인 정보가 있는지 확인
+      const login = await this.loginService.findByProviderId(LoginProvider.KAKAO, kakaoUserDto.kakaoId.toString());
+
+      let user: User | null = null;
+
+      // 기존 로그인 정보가 있으면 해당 사용자 정보 반환
+      if (login) {
+        user = login.user;
+
+        // 로그인 정보 업데이트
+        await this.loginService.updateLoginInfo(login, {
+          nickname: kakaoUserDto.nickname,
+          profileImage: kakaoUserDto.profileImage,
+        });
+      } else {
+        // 이메일로 기존 사용자 찾기
+        if (kakaoUserDto.email) {
+          user = await this.userService.findByEmail(kakaoUserDto.email);
+        }
+
+        // 기존 사용자가 없으면 새로 생성
+        if (!user) {
+          const createUserDto = {
+            email: kakaoUserDto.email || `kakao_${kakaoUserDto.kakaoId}@example.com`,
+            name: kakaoUserDto.nickname,
+            role: UserRole.VIEWER,
+            // 카카오 로그인은 비밀번호가 없으므로 랜덤 문자열 생성
+            password: await bcrypt.hash(Math.random().toString(36).slice(-10), 10),
+          };
+
+          user = await this.userService.create(createUserDto);
+          this.logger.log(`새 사용자 등록: ${user.id}`);
+        }
+
+        // 로그인 정보 생성
+        await this.loginService.createLoginInfo(user, LoginProvider.KAKAO, kakaoUserDto.kakaoId.toString(), {
+          email: kakaoUserDto.email,
+          nickname: kakaoUserDto.nickname,
+          profileImage: kakaoUserDto.profileImage,
+        });
+      }
+
+      if (!user) {
+        throw new Error('사용자 생성 또는 로그인 정보 연결에 실패했습니다');
+      }
+
+      return user;
+    } catch (error) {
+      this.logger.error(
+        `카카오 인증 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new UnauthorizedException('카카오 인증에 실패했습니다.');
+    }
+  }
+
+  private async getKakaoUserInfo(accessToken: string): Promise<any> {
+    try {
+      // 카카오 API를 통해 사용자 정보 요청
+      const response = await fetch('https://kapi.kakao.com/v2/user/me', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`카카오 API 요청 실패: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      this.logger.error(
+        `카카오 사용자 정보 요청 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new UnauthorizedException('카카오 사용자 정보를 가져오는데 실패했습니다.');
     }
   }
 
