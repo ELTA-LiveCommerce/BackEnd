@@ -206,3 +206,67 @@ fun sendTokenToServer(token: String) {
 2. 클라이언트에서 서버로 전송 시 HTTPS를 사용하여 통신하세요.
 3. 앱 등록 시 카카오 개발자 콘솔에서 iOS/Android 플랫폼을 등록해야 합니다.
 4. 각 플랫폼별 카카오 로그인 설정(네이티브 앱 키, 리다이렉트 URI 등)을 올바르게 구성해야 합니다.
+
+## 카카오 API 응답 구조
+
+카카오 API의 사용자 정보 응답 구조는 다음과 같습니다. 필요한 권한에 따라 실제로 반환되는 항목이 달라질 수 있습니다.
+
+```typescript
+interface KakaoUserInfo {
+  id: number; // 회원번호
+  connected_at: string; // 서비스에 연결된 시각
+  properties?: {
+    nickname?: string; // 사용자 닉네임
+    profile_image?: string; // 프로필 이미지 URL
+    thumbnail_image?: string; // 썸네일 이미지 URL
+  };
+  kakao_account?: {
+    profile_nickname_needs_agreement?: boolean; // 닉네임 제공 동의 여부
+    profile_image_needs_agreement?: boolean; // 프로필 이미지 제공 동의 여부
+    profile?: {
+      nickname?: string; // 닉네임
+      thumbnail_image_url?: string; // 썸네일 이미지 URL
+      profile_image_url?: string; // 프로필 이미지 URL
+      is_default_image?: boolean; // 기본 이미지 여부
+    };
+    name_needs_agreement?: boolean; // 이름 제공 동의 여부
+    name?: string; // 이름
+    email_needs_agreement?: boolean; // 이메일 제공 동의 여부
+    is_email_valid?: boolean; // 이메일 유효 여부
+    is_email_verified?: boolean; // 이메일 인증 여부
+    email?: string; // 이메일
+    age_range_needs_agreement?: boolean; // 연령대 제공 동의 여부
+    age_range?: string; // 연령대
+    birthyear_needs_agreement?: boolean; // 생년 제공 동의 여부
+    birthyear?: string; // 생년
+    birthday_needs_agreement?: boolean; // 생일 제공 동의 여부
+    birthday?: string; // 생일
+    birthday_type?: string; // 생일 타입 (SOLAR 또는 LUNAR)
+    gender_needs_agreement?: boolean; // 성별 제공 동의 여부
+    gender?: string; // 성별 (female/male)
+    phone_number_needs_agreement?: boolean; // 전화번호 제공 동의 여부
+    phone_number?: string; // 전화번호
+    ci_needs_agreement?: boolean; // CI 제공 동의 여부
+    ci?: string; // CI 값
+    ci_authenticated_at?: string; // CI 발급 시각
+  };
+  for_partner?: {
+    uuid: string; // 고유 ID
+  };
+}
+```
+
+### 권한별 필요 동의 항목
+
+카카오 API로 사용자 정보를 가져오기 위해서는 필요한 동의 항목을 사용자로부터 받아야 합니다. 주요 동의 항목은 다음과 같습니다:
+
+1. 프로필 정보 (닉네임/프로필 사진)
+2. 카카오계정 (이메일)
+3. 연령대
+4. 출생 연도
+5. 생일
+6. 성별
+7. 전화번호
+8. CI 정보
+
+각 동의 항목은 앱 설정의 '카카오 로그인 > 동의항목' 메뉴에서 설정할 수 있습니다.

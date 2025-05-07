@@ -8,7 +8,7 @@ import { UserService } from '@/module/user/user.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 import { TokenResponseDto } from './dto/auth.dto';
-import { KakaoUserDto } from './dto/kakao-auth.dto';
+import { KakaoUserDto, KakaoUserInfo } from './dto/kakao-auth.dto';
 import { LoginProvider } from './entity/login.entity';
 import { LoginService } from './login.service';
 import { TokenBlacklistService } from './token-blacklist.service';
@@ -157,13 +157,13 @@ export class AuthService {
   async kakaoMobileLogin(accessToken: string): Promise<TokenResponseDto> {
     try {
       // 카카오 AccessToken을 사용하여 사용자 정보 요청
-      const userData = await this.getKakaoUserInfo(accessToken);
+      const userData: KakaoUserInfo = await this.getKakaoUserInfo(accessToken);
 
       const kakaoUserDto: KakaoUserDto = {
         kakaoId: userData.id,
         email: userData.kakao_account?.email,
-        nickname: userData.kakao_account?.profile?.nickname || '카카오 사용자',
-        profileImage: userData.kakao_account?.profile?.profile_image_url,
+        nickname: userData.kakao_account?.profile?.nickname || userData.properties?.nickname || '카카오 사용자',
+        profileImage: userData.kakao_account?.profile?.profile_image_url || userData.properties?.profile_image,
       };
 
       // 사용자 검증 후 User 객체 반환 (토큰 생성 X)
@@ -239,7 +239,7 @@ export class AuthService {
     }
   }
 
-  private async getKakaoUserInfo(accessToken: string): Promise<any> {
+  private async getKakaoUserInfo(accessToken: string): Promise<KakaoUserInfo> {
     try {
       // 카카오 API를 통해 사용자 정보 요청
       const response = await fetch('https://kapi.kakao.com/v2/user/me', {
