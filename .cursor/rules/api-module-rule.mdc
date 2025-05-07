@@ -1,0 +1,212 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# ELTA 백엔드 프로젝트 개발 규칙
+
+## 1. 프로젝트 구조
+
+```
+elta-backend
+├── src/
+│   ├── api/              # API 컨트롤러 관련 코드
+│   │   ├── health/
+│   │   │   ├── health.controller.ts
+│   │   │   ├── health-controller.module.ts
+│   │   │   └── health.controller.spec.ts
+│   │   └── ...
+│   ├── module/           # 서비스 및 비즈니스 로직 관련 코드
+│   │   ├── health/
+│   │   │   ├── health.service.ts
+│   │   │   ├── health.module.ts
+│   │   │   └── health.service.spec.ts
+│   │   └── ...
+│   ├── infra/            # 인프라 관련 코드
+│   │   └── database/
+│   ├── shared/           # 공유 코드
+│   │   ├── common/
+│   │   └── filter/
+│   ├── app.module.ts
+│   └── main.ts
+├── test/                 # E2E 테스트
+│   ├── app.e2e-spec.ts
+│   └── jest-e2e.json
+└── ...
+```
+
+## 2. 네이밍 규칙
+
+### 파일 네이밍
+
+- 모든 파일명은 `kebab-case`를 사용한다. (예: `health-controller.module.ts`)
+- 특별한 용도를 가진 파일은 확장자 앞에 명확한 접미사를 붙인다:
+  - `.controller.ts`: 컨트롤러 파일
+  - `.service.ts`: 서비스 파일
+  - `.module.ts`: 모듈 파일
+  - `.spec.ts`: 테스트 파일
+  - `.interface.ts`: 인터페이스 파일
+  - `.dto.ts`: DTO(Data Transfer Object) 파일
+  - `.entity.ts`: 엔티티 파일
+
+### 클래스 네이밍
+
+- 모든 클래스명은 `PascalCase`를 사용한다.
+- 컨트롤러 모듈 클래스: `[기능명]ControllerModule` (예: `HealthControllerModule`)
+- 서비스 모듈 클래스: `[기능명]Module` (예: `HealthModule`)
+- 컨트롤러 클래스: `[기능명]Controller` (예: `HealthController`)
+- 서비스 클래스: `[기능명]Service` (예: `HealthService`)
+- DTO 클래스: `[목적][기능명]Dto` (예: `CreateUserDto`, `UpdateUserDto`)
+
+## 3. 모듈 구조 규칙
+
+### 컨트롤러 (API 레이어)
+
+- 위치: `src/api/[기능명]/`
+- 역할: HTTP 요청 처리, 라우팅, 요청 유효성 검사
+- 파일:
+  - `[기능명].controller.ts`: 컨트롤러 클래스
+  - `[기능명]-controller.module.ts`: 컨트롤러 모듈 클래스
+  - `[기능명].controller.spec.ts`: 컨트롤러 테스트
+
+### 서비스 (비즈니스 로직 레이어)
+
+- 위치: `src/module/[기능명]/`
+- 역할: 비즈니스 로직 처리, 데이터 접근, 외부 서비스 통합
+- 파일:
+  - `[기능명].service.ts`: 서비스 클래스
+  - `[기능명].module.ts`: 서비스 모듈 클래스
+  - `[기능명].service.spec.ts`: 서비스 테스트
+
+### 모듈 의존성 구조
+
+```
+AppModule
+  └── [기능명]ControllerModule (API 레이어)
+        └── [기능명]Module (비즈니스 로직 레이어)
+```
+
+- API 레이어가 비즈니스 로직 레이어에 의존하며, 반대 방향으로의 의존성은 허용하지 않는다.
+- 각 레이어는 자신의 책임 범위만 처리한다.
+
+## 4. 코드 작성 규칙
+
+### 컨트롤러 작성 규칙
+
+```typescript
+import { Controller, Get } from '@nestjs/common';
+
+import { HealthService } from '../../module/health/health.service';
+
+@Controller('health')
+export class HealthController {
+  constructor(private readonly healthService: HealthService) {}
+
+  @Get()
+  healthCheck() {
+    return this.healthService.check();
+  }
+}
+```
+
+- 컨트롤러는 가능한 한 가볍게 유지한다.
+- 비즈니스 로직은 서비스에 위임한다.
+- 응답 형식과 상태 코드를 명확히 정의한다.
+
+### 컨트롤러 모듈 작성 규칙
+
+```typescript
+import { Module } from '@nestjs/common';
+
+import { HealthController } from './health.controller';
+import { HealthModule } from '../../module/health/health.module';
+
+@Module({
+  imports: [HealthModule],
+  controllers: [HealthController],
+})
+export class HealthControllerModule {}
+```
+
+- 컨트롤러 모듈은 해당 기능의 컨트롤러와 필요한 서비스 모듈을 import한다.
+- 컨트롤러 모듈에는 providers를 정의하지 않는다.
+
+### 서비스 작성 규칙
+
+```typescript
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class HealthService {
+  check() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+```
+
+- 서비스는 모든 비즈니스 로직을 담당한다.
+- 데이터 접근, 외부 API 호출, 비즈니스 규칙 처리 등을 수행한다.
+- 가능한 한 순수 함수로 작성한다.
+
+### 서비스 모듈 작성 규칙
+
+```typescript
+import { Module } from '@nestjs/common';
+
+import { HealthService } from './health.service';
+
+@Module({
+  providers: [HealthService],
+  exports: [HealthService],
+})
+export class HealthModule {}
+```
+
+- 서비스 모듈은 해당 기능의 서비스를 제공한다.
+- 다른 모듈에서 사용할 수 있도록 필요한 서비스는 exports에 명시한다.
+
+## 5. 테스트 작성 규칙
+
+### 단위 테스트
+
+- 컨트롤러와 서비스는 각각 별도의 단위 테스트를 작성한다.
+- 파일명은 테스트 대상 파일명에 `.spec.ts`를 붙인다.
+- 테스트 수행 명령어: `pnpm test`
+
+### E2E 테스트
+
+- 위치: `test/` 디렉토리
+- 엔드투엔드 테스트는 실제 API 호출을 통해 전체 기능을 테스트한다.
+- 테스트 수행 명령어: `pnpm test:e2e`
+
+## 6. 환경 설정 및 배포
+
+### 환경 변수
+
+- `.env` 파일을 사용하여 환경 변수를 관리한다.
+- `.env.template` 파일에 필요한 환경 변수의 예시를 제공한다.
+- 민감한 정보는 `.env` 파일에만 저장하고 `.gitignore`에 등록한다.
+
+### Docker 배포
+
+- 개발 환경: `docker-compose -f docker-compose.dev.yml up`
+- 프로덕션 환경: `docker-compose up`
+
+## 7. 코딩 스타일
+
+- 들여쓰기: 2 스페이스
+- 줄바꿈: LF
+- 세미콜론: 항상 사용
+- 따옴표: 작은따옴표 ('') 사용
+- 중괄호: 같은 줄에 시작
+- 임포트 순서:
+  1. 외부 라이브러리 (`@nestjs/*`, `@mikro-orm/*` 등)
+  2. 내부 모듈 (`import { ... } from '../../...'`)
+  3. 상대 경로 모듈 (`import { ... } from './'`)
+
+이 규칙을 준수하여 일관성 있고 유지보수하기 쉬운 코드를 작성해주세요.
+

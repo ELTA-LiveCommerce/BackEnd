@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/migrations
+**/package.json
+**/package-lock.json
+**/pnpm-lock.yaml
+**/.eslintrc.js
+**/tsconfig.json
+**/readme.md

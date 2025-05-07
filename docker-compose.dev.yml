@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: elta-backend-dev
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres-dev
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: pnpm start:dev
+    depends_on:
+      - postgres-dev
+
+  postgres-dev:
+    image: postgres:16-alpine
+    container_name: elta-postgres-dev
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_DB=${DATABASE_NAME}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_dev_data: 
