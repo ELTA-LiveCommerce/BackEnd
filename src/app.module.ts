@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AuthControllerModule } from './api/auth/auth-controller.module';
 import { HealthControllerModule } from './api/health/health-controller.module';
+import { ProductControllerModule } from './api/product/product-controller.module';
 import { UserControllerModule } from './api/user/user-controller.module';
 
 @Module({
@@ -14,6 +15,7 @@ import { UserControllerModule } from './api/user/user-controller.module';
     HealthControllerModule,
     UserControllerModule,
     AuthControllerModule,
+    ProductControllerModule,
   ],
   controllers: [],
   providers: [],
