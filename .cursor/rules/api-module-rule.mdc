@@ -3,7 +3,6 @@ description:
 globs: 
 alwaysApply: true
 ---
-
 # ELTA 백엔드 프로젝트 개발 규칙
 
 ## 1. 프로젝트 구조
@@ -180,10 +179,82 @@ export class HealthModule {}
 ### E2E 테스트
 
 - 위치: `test/` 디렉토리
+- 파일명: `[기능명].e2e-spec.ts` 형식으로 작성한다.
 - 엔드투엔드 테스트는 실제 API 호출을 통해 전체 기능을 테스트한다.
 - 테스트 수행 명령어: `pnpm test:e2e`
+- 테스트 모듈 구성 시 필요한 의존성을 모두 모킹하여 제공한다.
+- 인증이 필요한 API의 경우 테스트용 JWT 토큰을 생성하여 테스트한다.
 
-## 6. 환경 설정 및 배포
+```typescript
+// E2E 테스트 작성 예시
+function generateTestToken(
+  jwtService: JwtService,
+  userId = 'test-user-id',
+  email = 'test@example.com',
+  role = UserRole.VIEWER,
+): string {
+  return jwtService.sign({
+    sub: userId,
+    email,
+    role,
+  });
+}
+
+describe('ProductController (e2e)', () => {
+  let app: INestApplication;
+  let jwtService: JwtService;
+  let testToken: string;
+  
+  beforeEach(async () => {
+    // 테스트 모듈 설정
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [ProductControllerModule],
+    })
+      .overrideProvider(getRepositoryToken(Product))
+      .useValue(mockProductRepository)
+      // 그 외 필요한 오버라이드
+      .compile();
+      
+    // 테스트용 JWT 토큰 생성
+    jwtService = new JwtService({
+      secret: 'test-secret',
+      signOptions: { expiresIn: '1h' },
+    });
+    testToken = generateTestToken(jwtService);
+    
+    app = module.createNestApplication();
+    await app.init();
+  });
+  
+  // 테스트 케이스 작성
+  // ...
+});
+```
+
+## 6. 권한 관리 규칙
+
+### 역할 기반 권한 관리
+
+- `UserRole` 열거형을 사용하여 사용자 역할을 정의한다.
+- `@Roles()` 데코레이터를 사용하여 엔드포인트에 필요한 역할을 지정한다.
+- `RolesGuard`를 사용하여 요청자의 역할이 필요한 역할과 일치하는지 확인한다.
+
+```typescript
+// Roles 데코레이터 사용 예시
+@Controller('products')
+export class ProductController {
+  constructor(private readonly productService: ProductService) {}
+  
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN)
+  create(@Body() createProductDto: CreateProductDto): Promise<Product> {
+    return this.productService.create(createProductDto);
+  }
+}
+```
+
+## 7. 환경 설정 및 배포
 
 ### 환경 변수
 
@@ -196,7 +267,7 @@ export class HealthModule {}
 - 개발 환경: `docker-compose -f docker-compose.dev.yml up`
 - 프로덕션 환경: `docker-compose up`
 
-## 7. 코딩 스타일
+## 8. 코딩 스타일
 
 - 들여쓰기: 2 스페이스
 - 줄바꿈: LF

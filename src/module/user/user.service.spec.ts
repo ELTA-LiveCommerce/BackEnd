@@ -3,7 +3,9 @@ import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 
+import { AutocompleteDto } from '@/module/user/dto/autocomplete.dto';
 import { User } from '@/module/user/entity/user.entity';
+import { FollowService } from '@/module/user/follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 import { UserService } from './user.service';
@@ -13,17 +15,63 @@ jest.mock('bcrypt');
 describe('UserService', () => {
   let service: UserService;
   let mockUserRepository: any;
+  let mockFollowService: any;
   let mockEntityManager: any;
 
+  const mockUsers = [
+    {
+      id: 'user-id-1',
+      name: '김판매',
+      email: 'seller1@example.com',
+      profileImage: null,
+      role: UserRole.SELLER,
+    },
+    {
+      id: 'user-id-2',
+      name: '박판매',
+      email: 'seller2@example.com',
+      profileImage: null,
+      role: UserRole.SELLER,
+    },
+    {
+      id: 'user-id-3',
+      name: '최사용자',
+      email: 'user1@example.com',
+      profileImage: null,
+      role: UserRole.VIEWER,
+    },
+  ];
+
   beforeEach(async () => {
+    const queryBuilderMock = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      clone: jest.fn().mockReturnThis(),
+      count: jest.fn().mockResolvedValue(mockUsers.length),
+      getResult: jest.fn().mockImplementation(() => {
+        return Promise.resolve(mockUsers.slice(0, 2));
+      }),
+    };
+
     mockUserRepository = {
-      findAll: jest.fn(),
-      findOne: jest.fn(),
-      persistAndFlush: jest.fn(),
+      findOne: jest.fn().mockImplementation((criteria) => {
+        const user = mockUsers.find((u) => u.id === criteria.id);
+        return Promise.resolve(user || null);
+      }),
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
+    };
+
+    mockFollowService = {
+      isFollowing: jest.fn().mockResolvedValue(false),
     };
 
     mockEntityManager = {
       persistAndFlush: jest.fn(),
+      flush: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -36,6 +84,10 @@ describe('UserService', () => {
         {
           provide: EntityManager,
           useValue: mockEntityManager,
+        },
+        {
+          provide: FollowService,
+          useValue: mockFollowService,
         },
       ],
     }).compile();
@@ -203,6 +255,44 @@ describe('UserService', () => {
       expect(result.profileImage).toEqual(imageUrl);
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: userId });
       expect(mockEntityManager.persistAndFlush).toHaveBeenCalledWith(mockUser);
+    });
+  });
+
+  describe('autocomplete', () => {
+    it('should return empty array for short query', async () => {
+      const dto: AutocompleteDto = { query: 'a', limit: 5 };
+      const result = await service.autocomplete(dto);
+      expect(result).toEqual([]);
+    });
+
+    it('should return autocomplete results', async () => {
+      const dto: AutocompleteDto = { query: '판매', role: UserRole.SELLER, limit: 5 };
+      const result = await service.autocomplete(dto);
+
+      expect(mockUserRepository.createQueryBuilder).toHaveBeenCalled();
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe(mockUsers[0].name);
+      expect(result[1].name).toBe(mockUsers[1].name);
+    });
+
+    it('should limit results to specified number', async () => {
+      const dto: AutocompleteDto = { query: '판매', role: UserRole.SELLER, limit: 1 };
+
+      const queryBuilderMock = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getResult: jest.fn().mockResolvedValue([mockUsers[0]]),
+      };
+
+      mockUserRepository.createQueryBuilder.mockReturnValueOnce(queryBuilderMock);
+
+      const result = await service.autocomplete(dto);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe(mockUsers[0].name);
     });
   });
 });

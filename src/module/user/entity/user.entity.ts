@@ -2,6 +2,7 @@ import { Collection, Entity, Enum, OneToMany, PrimaryKey, Property } from '@mikr
 import { v4 } from 'uuid';
 
 import { Login } from '@/module/auth/entity/login.entity';
+import { Follow } from '@/module/user/entity/follow.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
@@ -39,4 +40,10 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Login, (login) => login.user)
   logins = new Collection<Login>(this);
+
+  @OneToMany(() => Follow, (follow) => follow.follower)
+  following = new Collection<Follow>(this);
+
+  @OneToMany(() => Follow, (follow) => follow.following)
+  followers = new Collection<Follow>(this);
 }
