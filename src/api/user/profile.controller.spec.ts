@@ -12,7 +12,7 @@ describe('ProfileController', () => {
   let controller: ProfileController;
   let userService: UserService;
 
-  const mockUser: User = {
+  const mockUser = {
     id: 'test-user-id',
     email: 'test@example.com',
     name: '홍길동',
@@ -22,11 +22,11 @@ describe('ProfileController', () => {
     phoneNumber: '010-1234-5678',
     accountNumber: '123-456-789012',
     bankName: '신한은행',
-    profileImage: null,
+    profileImage: undefined,
     createdAt: new Date(),
     updatedAt: new Date(),
-    logins: null,
-  } as User;
+    logins: undefined,
+  } as unknown as User;
 
   const mockRequest = {
     user: mockUser,
@@ -174,7 +174,10 @@ describe('ProfileController', () => {
     });
 
     it('should throw BadRequestException when no file is provided', async () => {
-      await expect(controller.uploadProfileImage(mockRequest as any, null)).rejects.toThrow(BadRequestException);
+      // 빈 파일 객체 생성 (undefined 대신 사용)
+      const emptyFile = undefined as unknown as Express.Multer.File;
+
+      await expect(controller.uploadProfileImage(mockRequest as any, emptyFile)).rejects.toThrow(BadRequestException);
       expect(userService.uploadProfileImage).not.toHaveBeenCalled();
     });
   });

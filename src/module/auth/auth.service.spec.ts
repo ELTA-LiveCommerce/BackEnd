@@ -11,6 +11,7 @@ import { AuthService } from './auth.service';
 import { KakaoUserDto } from './dto/kakao-auth.dto';
 import { LoginProvider } from './entity/login.entity';
 import { LoginService } from './login.service';
+import { TokenBlacklistService } from './token-blacklist.service';
 
 jest.mock('bcrypt');
 
@@ -43,6 +44,13 @@ describe('AuthService', () => {
           provide: JwtService,
           useValue: {
             sign: jest.fn().mockReturnValue('test-token'),
+          },
+        },
+        {
+          provide: TokenBlacklistService,
+          useValue: {
+            isTokenBlacklisted: jest.fn().mockResolvedValue(false),
+            addToBlacklist: jest.fn(),
           },
         },
       ],

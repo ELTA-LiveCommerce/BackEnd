@@ -43,7 +43,9 @@ describe('UserService', () => {
     service = module.get<UserService>(UserService);
 
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_password');
-    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    (bcrypt.compare as jest.Mock).mockImplementation((plaintext: string, hash: string) =>
+      Promise.resolve(plaintext === 'CurrentPass1!' && hash === 'hashed_old_password'),
+    );
   });
 
   it('should be defined', () => {
@@ -149,6 +151,7 @@ describe('UserService', () => {
       const mockUser = new User();
       mockUser.id = userId;
       mockUser.password = 'hashed_old_password';
+      const originalPassword = mockUser.password;
 
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockEntityManager.persistAndFlush.mockResolvedValue(undefined);
@@ -156,7 +159,7 @@ describe('UserService', () => {
       const result = await service.changePassword(userId, changePasswordDto);
 
       expect(result.password).toEqual('hashed_password');
-      expect(bcrypt.compare).toHaveBeenCalledWith(changePasswordDto.currentPassword, mockUser.password);
+      expect(bcrypt.compare).toHaveBeenCalledWith(changePasswordDto.currentPassword, originalPassword);
       expect(bcrypt.hash).toHaveBeenCalledWith(changePasswordDto.newPassword, 10);
       expect(mockEntityManager.persistAndFlush).toHaveBeenCalledWith(mockUser);
     });
@@ -190,7 +193,7 @@ describe('UserService', () => {
 
       const mockUser = new User();
       mockUser.id = userId;
-      mockUser.profileImage = null;
+      mockUser.profileImage = undefined;
 
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockEntityManager.persistAndFlush.mockResolvedValue(undefined);

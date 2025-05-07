@@ -183,7 +183,7 @@ export class AuthService {
       // 소셜 로그인이 아닌 경우 리프레시 토큰 삭제
       const login = await this.loginService.findByProviderId(LoginProvider.EMAIL, userId);
       if (login) {
-        await this.loginService.updateLoginInfo(login, { refreshToken: null });
+        await this.loginService.updateLoginInfo(login, { refreshToken: undefined });
       }
 
       this.logger.log(`사용자 로그아웃: ${userId}`);
