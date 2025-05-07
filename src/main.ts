@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import { join } from 'path';
 
 import { AppModule } from './app.module';
 import { initDatabase } from './database';
@@ -24,6 +25,11 @@ async function bootstrap() {
   const NODE_ENV = configService.get<string>('NODE_ENV', 'development');
 
   app.use(cookieParser());
+
+  // 정적 파일 제공 설정
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   app.enableCors({
     origin: true,

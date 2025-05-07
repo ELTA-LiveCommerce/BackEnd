@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
 
 import { CreateUserDto } from '@/module/user/dto/create-user.dto';
+import { UpdateBankInfoDto } from '@/module/user/dto/update-profile.dto';
 import { UserService } from '@/module/user/user.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
@@ -29,12 +30,8 @@ export class UserController {
   }
 
   @Put(':id/bank-info')
-  async updateBankInfo(
-    @Param('id') id: string,
-    @Body('accountNumber') accountNumber: string,
-    @Body('bankName') bankName: string,
-  ) {
-    return this.userService.updateBankInfo(id, accountNumber, bankName);
+  async updateBankInfo(@Param('id') id: string, @Body() updateBankInfoDto: UpdateBankInfoDto) {
+    return this.userService.updateBankInfo(id, updateBankInfoDto);
   }
 
   @Put(':id/verify')
