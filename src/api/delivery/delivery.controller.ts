@@ -1,15 +1,31 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  Request,
+  UseGuards,
+  ClassSerializerInterceptor,
+  UseInterceptors,
+} from '@nestjs/common';
 
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { DeliveryService } from '@/module/delivery/delivery.service';
 import { CreateDeliveryDto } from '@/module/delivery/dto/create-delivery.dto';
+import { DeliveryResponseDto } from '@/module/delivery/dto/delivery-response.dto';
+import { SearchDeliveryDto } from '@/module/delivery/dto/search-delivery.dto';
 import { UpdateDeliveryDto } from '@/module/delivery/dto/update-delivery.dto';
-import { Delivery } from '@/module/delivery/entity/delivery.entity';
+import { DeliveryStatus } from '@/module/delivery/entity/delivery.entity';
 import { Roles } from '@/shared/common/roles.decorator';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 @Controller('deliveries')
+@UseInterceptors(ClassSerializerInterceptor)
 export class DeliveryController {
   constructor(private readonly deliveryService: DeliveryService) {}
 
@@ -19,8 +35,20 @@ export class DeliveryController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SELLER, UserRole.ADMIN)
-  findAll(@Request() req): Promise<Delivery[]> {
-    return this.deliveryService.findAll(req.user);
+  async findAll(@Request() req): Promise<DeliveryResponseDto[]> {
+    const deliveries = await this.deliveryService.findAll(req.user);
+    return DeliveryResponseDto.fromEntities(deliveries);
+  }
+
+  /**
+   * 배송 정보를 검색합니다. (키워드, 상태, 기간별)
+   */
+  @Get('search')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN)
+  async search(@Query() searchDto: SearchDeliveryDto, @Request() req): Promise<DeliveryResponseDto[]> {
+    const deliveries = await this.deliveryService.search(searchDto, req.user);
+    return DeliveryResponseDto.fromEntities(deliveries);
   }
 
   /**
@@ -28,8 +56,9 @@ export class DeliveryController {
    */
   @Get('order/:orderId')
   @UseGuards(JwtAuthGuard)
-  findByOrder(@Param('orderId') orderId: string, @Request() req): Promise<Delivery[]> {
-    return this.deliveryService.findByOrder(orderId, req.user);
+  async findByOrder(@Param('orderId') orderId: string, @Request() req): Promise<DeliveryResponseDto[]> {
+    const deliveries = await this.deliveryService.findByOrder(orderId, req.user);
+    return DeliveryResponseDto.fromEntities(deliveries);
   }
 
   /**
@@ -37,8 +66,9 @@ export class DeliveryController {
    */
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string): Promise<Delivery> {
-    return this.deliveryService.findOne(id);
+  async findOne(@Param('id') id: string): Promise<DeliveryResponseDto> {
+    const delivery = await this.deliveryService.findOne(id);
+    return DeliveryResponseDto.fromEntity(delivery);
   }
 
   /**
@@ -48,8 +78,9 @@ export class DeliveryController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SELLER, UserRole.ADMIN)
-  create(@Body() createDeliveryDto: CreateDeliveryDto, @Request() req): Promise<Delivery> {
-    return this.deliveryService.create(createDeliveryDto, req.user);
+  async create(@Body() createDeliveryDto: CreateDeliveryDto, @Request() req): Promise<DeliveryResponseDto> {
+    const delivery = await this.deliveryService.create(createDeliveryDto, req.user);
+    return DeliveryResponseDto.fromEntity(delivery);
   }
 
   /**
@@ -59,8 +90,28 @@ export class DeliveryController {
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SELLER, UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() updateDeliveryDto: UpdateDeliveryDto, @Request() req): Promise<Delivery> {
-    return this.deliveryService.update(id, updateDeliveryDto, req.user);
+  async update(
+    @Param('id') id: string,
+    @Body() updateDeliveryDto: UpdateDeliveryDto,
+    @Request() req,
+  ): Promise<DeliveryResponseDto> {
+    const delivery = await this.deliveryService.update(id, updateDeliveryDto, req.user);
+    return DeliveryResponseDto.fromEntity(delivery);
+  }
+
+  /**
+   * 선택한 배송 정보의 상태를 일괄 변경합니다.
+   * 셀러 또는 관리자 권한이 필요합니다.
+   */
+  @Put('status/bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN)
+  async updateStatus(
+    @Body() body: { ids: string[]; status: DeliveryStatus },
+    @Request() req,
+  ): Promise<{ success: boolean; message: string }> {
+    await this.deliveryService.updateStatus(body.ids, body.status, req.user);
+    return { success: true, message: '배송 상태가 성공적으로 변경되었습니다.' };
   }
 
   /**
@@ -70,7 +121,8 @@ export class DeliveryController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SELLER, UserRole.ADMIN)
-  remove(@Param('id') id: string, @Request() req): Promise<void> {
-    return this.deliveryService.remove(id, req.user);
+  async remove(@Param('id') id: string, @Request() req): Promise<{ success: boolean; message: string }> {
+    await this.deliveryService.remove(id, req.user);
+    return { success: true, message: '배송 정보가 성공적으로 삭제되었습니다.' };
   }
 }

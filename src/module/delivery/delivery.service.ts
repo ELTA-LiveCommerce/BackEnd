@@ -6,6 +6,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 import { CreateDeliveryDto } from './dto/create-delivery.dto';
+import { SearchDeliveryDto } from './dto/search-delivery.dto';
 import { UpdateDeliveryDto } from './dto/update-delivery.dto';
 import { Delivery, DeliveryStatus } from './entity/delivery.entity';
 import { Order } from '../order/entity/order.entity';
@@ -72,11 +73,69 @@ export class DeliveryService {
    */
   async findAll(user: User): Promise<Delivery[]> {
     if (user.role === UserRole.ADMIN) {
-      return this.deliveryRepository.findAll({ populate: ['order', 'product', 'seller'] });
+      return this.deliveryRepository.findAll({
+        populate: ['order', 'order.items', 'order.user', 'product', 'seller'],
+      });
     }
 
     // 판매자인 경우 자신의 상품 배송만 조회
-    return this.deliveryRepository.find({ seller: user }, { populate: ['order', 'product', 'seller'] });
+    return this.deliveryRepository.find(
+      { seller: user },
+      { populate: ['order', 'order.items', 'order.user', 'product', 'seller'] },
+    );
+  }
+
+  /**
+   * 배송 정보를 검색합니다.
+   * 키워드, 상태, 기간으로 필터링할 수 있습니다.
+   */
+  async search(searchDto: SearchDeliveryDto, user: User): Promise<Delivery[]> {
+    const where: any = {};
+
+    // 판매자인 경우 자신의 상품 배송만 조회 가능
+    if (user.role !== UserRole.ADMIN) {
+      where.seller = user;
+    }
+
+    // 배송 상태로 필터링
+    if (searchDto.status) {
+      where.status = searchDto.status;
+    }
+
+    // 날짜 범위로 필터링
+    const dateFilter: any = {};
+    if (searchDto.startDate) {
+      dateFilter.gte = searchDto.startDate;
+    }
+    if (searchDto.endDate) {
+      dateFilter.lte = searchDto.endDate;
+      // 종료일은 해당일의 마지막 시간(23:59:59)까지 포함
+      dateFilter.lte.setHours(23, 59, 59, 999);
+    }
+
+    if (Object.keys(dateFilter).length > 0) {
+      where.createdAt = dateFilter;
+    }
+
+    // 키워드 검색을 위해 수동으로 쿼리를 작성
+    const qb = this.entityManager.createQueryBuilder(Delivery, 'd');
+    qb.where(where)
+      .leftJoinAndSelect('d.order', 'order')
+      .leftJoinAndSelect('order.items', 'items')
+      .leftJoinAndSelect('order.user', 'user')
+      .leftJoinAndSelect('d.product', 'product')
+      .leftJoinAndSelect('d.seller', 'seller')
+      .orderBy({ 'd.createdAt': 'DESC' });
+
+    // 키워드 검색
+    if (searchDto.keyword) {
+      qb.andWhere(
+        '(product.name LIKE :keyword OR user.username LIKE :keyword OR user.name LIKE :keyword OR d.trackingNumber LIKE :keyword)',
+        { keyword: `%${searchDto.keyword}%` },
+      );
+    }
+
+    return qb.getResult();
   }
 
   /**
@@ -98,14 +157,20 @@ export class DeliveryService {
       }
     }
 
-    return this.deliveryRepository.find({ order }, { populate: ['order', 'product', 'seller'] });
+    return this.deliveryRepository.find(
+      { order },
+      { populate: ['order', 'order.items', 'order.user', 'product', 'seller'] },
+    );
   }
 
   /**
    * ID로 배송 정보를 조회합니다.
    */
   async findOne(id: string): Promise<Delivery> {
-    const delivery = await this.deliveryRepository.findOne({ id }, { populate: ['order', 'product', 'seller'] });
+    const delivery = await this.deliveryRepository.findOne(
+      { id },
+      { populate: ['order', 'order.items', 'order.user', 'product', 'seller'] },
+    );
 
     if (!delivery) {
       throw new NotFoundException(`Delivery with ID ${id} not found`);
@@ -158,5 +223,42 @@ export class DeliveryService {
     }
 
     await this.entityManager.removeAndFlush(delivery);
+  }
+
+  /**
+   * 배송 상태 일괄 변경
+   */
+  async updateStatus(ids: string[], status: DeliveryStatus, user: User): Promise<void> {
+    // 배송 정보 조회
+    const deliveries = await this.deliveryRepository.find({ id: { $in: ids } });
+
+    if (deliveries.length === 0) {
+      throw new NotFoundException('선택한 배송 정보를 찾을 수 없습니다');
+    }
+
+    // 모든 배송이 해당 판매자/관리자의 것인지 확인
+    const hasPermission = deliveries.every(
+      (delivery) => delivery.seller.id === user.id || user.role === UserRole.ADMIN,
+    );
+
+    if (!hasPermission) {
+      throw new ForbiddenException('일부 배송 정보에 대한 수정 권한이 없습니다');
+    }
+
+    // 상태 및 날짜 업데이트
+    for (const delivery of deliveries) {
+      delivery.status = status;
+
+      // 상태에 따른 날짜 업데이트
+      if (status === DeliveryStatus.SHIPPING) {
+        delivery.shippedAt = new Date();
+      } else if (status === DeliveryStatus.DELIVERED) {
+        delivery.deliveredAt = new Date();
+      } else if (status === DeliveryStatus.CANCELED) {
+        delivery.canceledAt = new Date();
+      }
+    }
+
+    await this.entityManager.flush();
   }
 }
