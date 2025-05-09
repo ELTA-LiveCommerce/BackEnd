@@ -6,6 +6,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { SearchPaymentDto } from './dto/search-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { Payment, PaymentStatus } from './entity/payment.entity';
 import { Order } from '../order/entity/order.entity';
@@ -62,11 +63,73 @@ export class PaymentService {
    */
   async findAll(user: User): Promise<Payment[]> {
     if (user.role === UserRole.ADMIN) {
-      return this.paymentRepository.findAll({ populate: ['order', 'seller'] });
+      return this.paymentRepository.findAll({
+        populate: ['order', 'order.items', 'order.user', 'seller'],
+        orderBy: { createdAt: 'DESC' },
+      });
     }
 
     // 판매자인 경우 자신의 상품 입금만 조회
-    return this.paymentRepository.find({ seller: user }, { populate: ['order', 'seller'] });
+    return this.paymentRepository.find(
+      { seller: user },
+      {
+        populate: ['order', 'order.items', 'order.user', 'seller'],
+        orderBy: { createdAt: 'DESC' },
+      },
+    );
+  }
+
+  /**
+   * 입금 정보를 검색합니다.
+   * 키워드, 상태, 기간으로 필터링할 수 있습니다.
+   */
+  async search(searchDto: SearchPaymentDto, user: User): Promise<Payment[]> {
+    const where: any = {};
+
+    // 판매자인 경우 자신의 상품 입금만 조회 가능
+    if (user.role !== UserRole.ADMIN) {
+      where.seller = user;
+    }
+
+    // 입금 상태로 필터링
+    if (searchDto.status) {
+      where.status = searchDto.status;
+    }
+
+    // 날짜 범위로 필터링
+    const dateFilter: any = {};
+    if (searchDto.startDate) {
+      dateFilter.gte = searchDto.startDate;
+    }
+    if (searchDto.endDate) {
+      dateFilter.lte = searchDto.endDate;
+      // 종료일은 해당일의 마지막 시간(23:59:59)까지 포함
+      dateFilter.lte.setHours(23, 59, 59, 999);
+    }
+
+    if (Object.keys(dateFilter).length > 0) {
+      where.createdAt = dateFilter;
+    }
+
+    // 키워드 검색을 위해 수동으로 쿼리를 작성
+    const qb = this.entityManager.createQueryBuilder(Payment, 'p');
+    qb.where(where)
+      .leftJoinAndSelect('p.order', 'order')
+      .leftJoinAndSelect('order.items', 'items')
+      .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('order.user', 'user')
+      .leftJoinAndSelect('p.seller', 'seller')
+      .orderBy({ 'p.createdAt': 'DESC' });
+
+    // 키워드 검색
+    if (searchDto.keyword) {
+      qb.andWhere(
+        '(product.name LIKE :keyword OR user.username LIKE :keyword OR user.name LIKE :keyword OR p.transactionId LIKE :keyword OR seller.name LIKE :keyword)',
+        { keyword: `%${searchDto.keyword}%` },
+      );
+    }
+
+    return qb.getResult();
   }
 
   /**
@@ -88,14 +151,23 @@ export class PaymentService {
       }
     }
 
-    return this.paymentRepository.find({ order }, { populate: ['order', 'seller'] });
+    return this.paymentRepository.find(
+      { order },
+      {
+        populate: ['order', 'order.items', 'order.user', 'seller'],
+        orderBy: { createdAt: 'DESC' },
+      },
+    );
   }
 
   /**
    * ID로 입금 정보를 조회합니다.
    */
   async findOne(id: string): Promise<Payment> {
-    const payment = await this.paymentRepository.findOne({ id }, { populate: ['order', 'seller'] });
+    const payment = await this.paymentRepository.findOne(
+      { id },
+      { populate: ['order', 'order.items', 'order.user', 'seller'] },
+    );
 
     if (!payment) {
       throw new NotFoundException(`Payment with ID ${id} not found`);
@@ -153,5 +225,44 @@ export class PaymentService {
     }
 
     await this.entityManager.removeAndFlush(payment);
+  }
+
+  /**
+   * 입금 상태 일괄 변경
+   */
+  async updateStatus(ids: string[], status: PaymentStatus, user: User): Promise<void> {
+    // 입금 정보 조회
+    const payments = await this.paymentRepository.find({ id: { $in: ids } });
+
+    if (payments.length === 0) {
+      throw new NotFoundException('선택한 입금 정보를 찾을 수 없습니다');
+    }
+
+    // 모든 입금이 해당 판매자/관리자의 것인지 확인
+    const hasPermission = payments.every((payment) => payment.seller.id === user.id || user.role === UserRole.ADMIN);
+
+    if (!hasPermission) {
+      throw new ForbiddenException('일부 입금 정보에 대한 수정 권한이 없습니다');
+    }
+
+    // 상태 및 날짜 업데이트
+    for (const payment of payments) {
+      payment.status = status;
+
+      // 상태에 따른 날짜 업데이트
+      switch (status) {
+        case PaymentStatus.COMPLETED:
+          payment.completedAt = new Date();
+          break;
+        case PaymentStatus.CANCELED:
+          payment.canceledAt = new Date();
+          break;
+        case PaymentStatus.REFUNDED:
+          payment.refundedAt = new Date();
+          break;
+      }
+    }
+
+    await this.entityManager.flush();
   }
 }
