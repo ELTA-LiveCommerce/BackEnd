@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 
-import { SellerSearchControllerModule } from './seller-search/seller-search-controller.module';
+import { SellerControllerModule } from './seller/seller-controller.module';
 
 @Module({
-  imports: [SellerSearchControllerModule],
+  imports: [SellerControllerModule],
 })
 export class ViewerControllerModule {}
