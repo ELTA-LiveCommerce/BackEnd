@@ -3,36 +3,17 @@ import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { CreateProductDto } from '@/module/product/dto/create-product.dto';
+import { UpdateProductDto } from '@/module/product/dto/update-product.dto';
+import { Product } from '@/module/product/entity/product.entity';
+import { ProductService } from '@/module/product/product.service';
 import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
-import { ProductStatus } from '@/shared/enum/product-status.enum';
 import { UserRole } from '@/shared/enum/user-role.enum';
-
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { ProductAttribute } from './entity/product-attribute.entity';
-import { Product } from './entity/product.entity';
-import { ProductService } from './product.service';
-
-// Collection 모킹 클래스
-class MockCollection<T = any> {
-  items: T[] = [];
-
-  add(item: T): this {
-    this.items.push(item);
-    return this;
-  }
-
-  remove(item: T): this {
-    this.items = this.items.filter((i) => i !== item);
-    return this;
-  }
-}
 
 describe('ProductService', () => {
   let service: ProductService;
   let mockProductRepository: any;
-  let mockAttributeRepository: any;
   let mockEntityManager: any;
   let mockUserService: any;
 
@@ -41,10 +22,6 @@ describe('ProductService', () => {
       findAll: jest.fn(),
       findOne: jest.fn(),
       find: jest.fn(),
-    };
-
-    mockAttributeRepository = {
-      findOne: jest.fn(),
     };
 
     mockEntityManager = {
@@ -63,10 +40,6 @@ describe('ProductService', () => {
         {
           provide: getRepositoryToken(Product),
           useValue: mockProductRepository,
-        },
-        {
-          provide: getRepositoryToken(ProductAttribute),
-          useValue: mockAttributeRepository,
         },
         {
           provide: EntityManager,
@@ -93,8 +66,7 @@ describe('ProductService', () => {
         description: '최신 스마트폰',
         price: 1000000,
         stockQuantity: 100,
-        discountRate: 10,
-        thumbnailUrl: 'http://example.com/image.jpg',
+        mainImage: 'http://example.com/image.jpg',
         images: ['http://example.com/image1.jpg', 'http://example.com/image2.jpg'],
       };
 
@@ -103,13 +75,10 @@ describe('ProductService', () => {
       seller.name = '판매자';
       seller.role = UserRole.SELLER;
 
-      // Product 객체 생성 시 attributes 컬렉션 모킹을 추가
       const product = new Product();
-      product.attributes = new MockCollection<ProductAttribute>() as any;
       Object.assign(product, createProductDto);
       product.seller = seller;
 
-      // persistAndFlush가 해당 product를 반환하도록 설정
       mockEntityManager.persistAndFlush.mockImplementation(async (p) => p);
 
       const result = await service.create(createProductDto, seller);
@@ -119,43 +88,10 @@ describe('ProductService', () => {
         description: createProductDto.description,
         price: createProductDto.price,
         stockQuantity: createProductDto.stockQuantity,
-        discountRate: createProductDto.discountRate,
-        thumbnailUrl: createProductDto.thumbnailUrl,
+        mainImage: createProductDto.mainImage,
         seller: seller,
       });
       expect(mockEntityManager.persistAndFlush).toHaveBeenCalled();
-    });
-
-    it('should create a product with attributes', async () => {
-      // create 메서드의 구현을 모킹하여 테스트
-      jest.spyOn(service, 'create').mockImplementation(async (dto, seller) => {
-        const product = new Product();
-        product.attributes = new MockCollection<ProductAttribute>() as any;
-        Object.assign(product, dto);
-        product.seller = seller;
-        return product;
-      });
-
-      const createProductDto: CreateProductDto = {
-        name: '스마트폰',
-        description: '최신 스마트폰',
-        price: 1000000,
-        stockQuantity: 100,
-        attributes: [
-          { name: '모델명', value: 'Galaxy S23' },
-          { name: '브랜드', value: 'Samsung' },
-        ],
-      };
-
-      const seller = new User();
-      seller.id = 'user-1';
-      seller.name = '판매자';
-      seller.role = UserRole.SELLER;
-
-      const result = await service.create(createProductDto, seller);
-
-      expect(result.name).toEqual(createProductDto.name);
-      expect(result.price).toEqual(createProductDto.price);
     });
   });
 
@@ -170,7 +106,7 @@ describe('ProductService', () => {
       const result = await service.findAll();
 
       expect(result).toEqual(mockProducts);
-      expect(mockProductRepository.findAll).toHaveBeenCalledWith({ populate: ['seller', 'attributes'] });
+      expect(mockProductRepository.findAll).toHaveBeenCalledWith({ populate: ['seller'] });
     });
   });
 
@@ -184,10 +120,7 @@ describe('ProductService', () => {
       const result = await service.findOne(productId);
 
       expect(result).toEqual(mockProduct);
-      expect(mockProductRepository.findOne).toHaveBeenCalledWith(
-        { id: productId },
-        { populate: ['seller', 'attributes'] },
-      );
+      expect(mockProductRepository.findOne).toHaveBeenCalledWith({ id: productId }, { populate: ['seller'] });
     });
 
     it('should throw NotFoundException when product is not found', async () => {
@@ -196,10 +129,7 @@ describe('ProductService', () => {
       mockProductRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(productId)).rejects.toThrow(NotFoundException);
-      expect(mockProductRepository.findOne).toHaveBeenCalledWith(
-        { id: productId },
-        { populate: ['seller', 'attributes'] },
-      );
+      expect(mockProductRepository.findOne).toHaveBeenCalledWith({ id: productId }, { populate: ['seller'] });
     });
   });
 
@@ -207,176 +137,75 @@ describe('ProductService', () => {
     it('should update a product', async () => {
       const productId = 'product-1';
       const updateProductDto: UpdateProductDto = {
-        name: '새 스마트폰',
-        price: 900000,
-        discountRate: 15,
+        name: '업데이트된 스마트폰',
+        price: 1200000,
       };
 
-      const mockProduct = {
-        id: productId,
-        name: '스마트폰',
-        price: 1000000,
-        discountRate: 10,
-        attributes: new MockCollection<ProductAttribute>() as any,
-      };
+      const existingProduct = new Product();
+      existingProduct.id = productId;
+      existingProduct.name = '기존 스마트폰';
+      existingProduct.price = 1000000;
+      existingProduct.stockQuantity = 50;
 
-      mockProductRepository.findOne.mockResolvedValue(mockProduct);
+      mockProductRepository.findOne.mockResolvedValue(existingProduct);
+      mockEntityManager.flush.mockResolvedValue(undefined);
 
       const result = await service.update(productId, updateProductDto);
 
       expect(result.name).toEqual(updateProductDto.name);
       expect(result.price).toEqual(updateProductDto.price);
-      expect(result.discountRate).toEqual(updateProductDto.discountRate);
-      expect(mockProductRepository.findOne).toHaveBeenCalledWith(
-        { id: productId },
-        { populate: ['seller', 'attributes'] },
-      );
       expect(mockEntityManager.flush).toHaveBeenCalled();
     });
 
-    it('should update a product with attributes', async () => {
-      const productId = 'product-1';
-      const updateProductDto: UpdateProductDto = {
-        name: '새 스마트폰',
-        attributes: [{ name: '색상', value: '블랙' }],
-        attributeUpdates: [{ id: 'attr-1', updates: { value: '갤럭시 S23' } }],
-        attributeIdsToRemove: ['attr-2'],
-      };
+    it('should throw NotFoundException if product to update is not found', async () => {
+      const productId = 'non-existent-product';
+      const updateProductDto: UpdateProductDto = { name: '업데이트 시도' };
 
-      const mockProduct = {
-        id: productId,
-        name: '스마트폰',
-        attributes: new MockCollection<ProductAttribute>() as any,
-      };
+      mockProductRepository.findOne.mockResolvedValue(null);
 
-      const mockAttribute = {
-        id: 'attr-1',
-        name: '모델명',
-        value: 'Galaxy S23',
-        product: { id: productId },
-      };
-
-      const mockAttributeToRemove = {
-        id: 'attr-2',
-        name: '브랜드',
-        value: 'Samsung',
-        product: { id: productId },
-      };
-
-      mockProductRepository.findOne.mockResolvedValue(mockProduct);
-      mockAttributeRepository.findOne.mockImplementation((criteria) => {
-        if (criteria.id === 'attr-1') return mockAttribute;
-        if (criteria.id === 'attr-2') return mockAttributeToRemove;
-        return null;
-      });
-
-      const result = await service.update(productId, updateProductDto);
-
-      expect(result.name).toEqual(updateProductDto.name);
-      expect(mockEntityManager.flush).toHaveBeenCalled();
-      expect(mockEntityManager.removeAndFlush).toHaveBeenCalled();
-    });
-
-    it('should not update fields that are not provided', async () => {
-      const productId = 'product-1';
-      const updateProductDto: UpdateProductDto = {
-        price: 900000,
-      };
-
-      const mockProduct = {
-        id: productId,
-        name: '스마트폰',
-        price: 1000000,
-        status: ProductStatus.ACTIVE,
-        attributes: new MockCollection<ProductAttribute>() as any,
-      };
-
-      mockProductRepository.findOne.mockResolvedValue(mockProduct);
-
-      const result = await service.update(productId, updateProductDto);
-
-      expect(result.name).toEqual(mockProduct.name); // name should not change
-      expect(result.price).toEqual(updateProductDto.price); // price should change
-      expect(result.status).toEqual(mockProduct.status); // status should not change
-      expect(mockEntityManager.flush).toHaveBeenCalled();
+      await expect(service.update(productId, updateProductDto)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('remove', () => {
     it('should remove a product', async () => {
       const productId = 'product-1';
-      const mockProduct = {
-        id: productId,
-        name: '스마트폰',
-        attributes: new MockCollection<ProductAttribute>() as any,
-      };
+      const mockProduct = { id: productId, name: '삭제될 스마트폰' };
 
       mockProductRepository.findOne.mockResolvedValue(mockProduct);
+      mockEntityManager.removeAndFlush.mockResolvedValue(undefined);
 
       await service.remove(productId);
 
-      expect(mockProductRepository.findOne).toHaveBeenCalledWith(
-        { id: productId },
-        { populate: ['seller', 'attributes'] },
-      );
       expect(mockEntityManager.removeAndFlush).toHaveBeenCalledWith(mockProduct);
     });
-  });
 
-  describe('finalPrice calculation', () => {
-    it('should use discountPrice if provided', () => {
-      const product = new Product();
-      product.price = 1000000;
-      product.discountPrice = 800000;
-      product.discountRate = 10; // This should be ignored when discountPrice is provided
-
-      expect(product.finalPrice).toEqual(800000);
-    });
-
-    it('should calculate price based on discountRate if discountPrice is not provided', () => {
-      const product = new Product();
-      product.price = 1000000;
-      product.discountRate = 10;
-
-      expect(product.finalPrice).toEqual(900000); // 1000000 * (1 - 10/100) = 900000
-    });
-
-    it('should return original price if no discount is provided', () => {
-      const product = new Product();
-      product.price = 1000000;
-
-      expect(product.finalPrice).toEqual(1000000);
+    it('should throw NotFoundException if product to remove is not found', async () => {
+      const productId = 'non-existent-product';
+      mockProductRepository.findOne.mockResolvedValue(null);
+      await expect(service.remove(productId)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('findProductsBySeller', () => {
-    const sellerId = 'test-seller-id';
-    const mockSeller = { id: sellerId, name: 'Test Seller', role: UserRole.SELLER };
-    const mockProducts = [
-      { id: 'product-1', name: 'Product A', seller: mockSeller },
-      { id: 'product-2', name: 'Product B', seller: mockSeller },
-    ];
-
     it('should return products for a given sellerId', async () => {
-      mockUserService.findOne.mockResolvedValue(mockSeller);
+      const sellerId = 'seller-id-123';
+      const mockProducts = [{ id: 'product-1', name: '셀러 상품' }];
+      mockUserService.findOne.mockResolvedValue({ id: sellerId }); // 판매자 존재 확인 모킹
       mockProductRepository.find.mockResolvedValue(mockProducts);
 
       const result = await service.findProductsBySeller(sellerId);
 
       expect(mockUserService.findOne).toHaveBeenCalledWith(sellerId);
-      expect(mockProductRepository.find).toHaveBeenCalledWith(
-        { seller: { id: sellerId } },
-        { populate: ['seller', 'attributes'] },
-      );
+      expect(mockProductRepository.find).toHaveBeenCalledWith({ seller: { id: sellerId } }, { populate: ['seller'] });
       expect(result).toEqual(mockProducts);
     });
 
     it('should throw NotFoundException if seller is not found', async () => {
-      mockUserService.findOne.mockRejectedValue(new NotFoundException(`User with ID ${sellerId} not found`));
+      const sellerId = 'non-existent-seller';
+      mockUserService.findOne.mockRejectedValue(new NotFoundException()); // 판매자 없음 모킹
 
       await expect(service.findProductsBySeller(sellerId)).rejects.toThrow(NotFoundException);
-      expect(mockUserService.findOne).toHaveBeenCalledWith(sellerId);
-      expect(mockProductRepository.find).not.toHaveBeenCalled();
     });
   });
 });

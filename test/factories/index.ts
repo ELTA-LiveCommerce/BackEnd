@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { Product } from '@/module/product/entity/product.entity';
 import { User } from '@/module/user/entity/user.entity';
-import { ProductStatus } from '@/shared/enum/product-status.enum';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 // 테스트용 사용자 생성 팩토리
@@ -28,7 +27,6 @@ export function createProductFactory(overrides?: Partial<Product>): Product {
   product.description = overrides?.description || '테스트 상품 설명';
   product.price = overrides?.price || 10000;
   product.stockQuantity = overrides?.stockQuantity || 100;
-  product.status = overrides?.status || ProductStatus.ACTIVE;
   if (overrides?.seller) {
     product.seller = overrides.seller;
   }
