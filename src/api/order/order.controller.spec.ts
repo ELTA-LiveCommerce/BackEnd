@@ -1,16 +1,20 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { OrderController } from '@/api/order/order.controller';
 import { OrderService } from '@/module/order/order.service';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
-
-import { OrderController } from './order.controller';
+import { UserRole } from '@/shared/enum/user-role.enum';
 
 describe('OrderController', () => {
   let controller: OrderController;
   let mockOrderService: any;
 
-  const mockUser = { id: 'user-id', email: 'test@example.com' };
+  const mockUser = {
+    id: 'user-id',
+    email: 'test@example.com',
+    role: UserRole.VIEWER,
+  };
 
   const mockOrderResponse = {
     id: 'order-id',

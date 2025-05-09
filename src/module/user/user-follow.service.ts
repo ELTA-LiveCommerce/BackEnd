@@ -7,7 +7,7 @@ import { Follow } from '@/module/user/entity/follow.entity';
 import { User } from '@/module/user/entity/user.entity';
 
 @Injectable()
-export class FollowService {
+export class UserFollowService {
   constructor(
     @InjectRepository(Follow)
     private followRepository: EntityRepository<Follow>,

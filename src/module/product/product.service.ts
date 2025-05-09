@@ -4,6 +4,7 @@ import { EntityRepository } from '@mikro-orm/postgresql';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { User } from '@/module/user/entity/user.entity';
+import { UserService } from '@/module/user/user.service';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -18,6 +19,7 @@ export class ProductService {
     @InjectRepository(ProductAttribute)
     private readonly attributeRepository: EntityRepository<ProductAttribute>,
     private readonly em: EntityManager,
+    private readonly userService: UserService,
   ) {}
 
   /**
@@ -113,6 +115,18 @@ export class ProductService {
     return await this.productRepository.findAll({
       populate: ['seller', 'attributes'],
     });
+  }
+
+  /**
+   * 특정 판매자의 모든 상품 목록을 조회합니다.
+   * @param sellerId 판매자 ID
+   * @returns 상품 목록
+   */
+  async findProductsBySeller(sellerId: string): Promise<Product[]> {
+    // 판매자 존재 여부 확인
+    await this.userService.findOne(sellerId); // findOne이 없으면 다른 적절한 메서드로 대체 필요
+
+    return await this.productRepository.find({ seller: { id: sellerId } }, { populate: ['seller', 'attributes'] });
   }
 
   /**

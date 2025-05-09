@@ -18,9 +18,10 @@ export class CursorPage<T> {
 
 export class BaseCursorPageResponse<T> extends BaseResponse<CursorPage<T>> {
   @ApiPropertyOptional({ type: () => CursorPage })
-  data?: CursorPage<T>;
+  data: CursorPage<T>;
 
   constructor(data: CursorPage<T>) {
     super(true, data);
+    this.data = data;
   }
 }

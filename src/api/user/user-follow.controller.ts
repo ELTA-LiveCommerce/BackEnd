@@ -3,7 +3,7 @@ import { Request } from 'express';
 
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
 import { FollowUserDto, FollowerResponseDto, FollowingResponseDto } from '@/module/user/dto/follow.dto';
-import { FollowService } from '@/module/user/follow.service';
+import { UserFollowService } from '@/module/user/user-follow.service';
 
 // 요청 사용자 정보를 포함하는 커스텀 인터페이스 정의
 interface RequestWithUser extends Request {
@@ -15,8 +15,8 @@ interface RequestWithUser extends Request {
 }
 
 @Controller('users')
-export class FollowController {
-  constructor(private readonly followService: FollowService) {}
+export class UserFollowController {
+  constructor(private readonly followService: UserFollowService) {}
 
   /**
    * 사용자를 팔로우합니다.

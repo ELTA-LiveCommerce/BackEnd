@@ -1,11 +1,15 @@
 import { BaseMessageResponse, BaseResponse, BaseResponseError } from './base.dto';
 
 export class SuccessEmptyResponse extends BaseResponse<undefined> {
-  success!: boolean;
-  error?: BaseResponseError;
+  success = true;
+  error?: BaseResponseError = undefined;
+
+  constructor() {
+    super(true);
+  }
 
   static onSuccess(): SuccessEmptyResponse {
-    return new SuccessEmptyResponse(true);
+    return new SuccessEmptyResponse();
   }
 }
 

@@ -30,6 +30,15 @@ export class ProductController {
   }
 
   /**
+   * 특정 판매자의 모든 상품 목록을 조회합니다.
+   * @param sellerId 판매자 ID
+   */
+  @Get('seller/:sellerId')
+  findProductsBySeller(@Param('sellerId') sellerId: string): Promise<Product[]> {
+    return this.productService.findProductsBySeller(sellerId);
+  }
+
+  /**
    * 새 상품을 생성합니다.
    * 셀러 또는 관리자 권한이 필요합니다.
    */

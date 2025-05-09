@@ -1,17 +1,18 @@
 import { EntityManager } from '@mikro-orm/core';
-import { getRepositoryToken } from '@mikro-orm/nestjs';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 
-import { ProductControllerModule } from '../src/api/product/product-controller.module';
-import { JwtAuthGuard } from '../src/module/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../src/module/auth/guards/roles.guard';
-import { ProductAttribute } from '../src/module/product/entity/product-attribute.entity';
-import { Product } from '../src/module/product/entity/product.entity';
-import { ProductStatus } from '../src/shared/enum/product-status.enum';
-import { UserRole } from '../src/shared/enum/user-role.enum';
+import { AppModule } from '@/app.module';
+import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/module/auth/guards/roles.guard';
+import { CreateProductDto } from '@/module/product/dto/create-product.dto';
+import { UpdateProductDto } from '@/module/product/dto/update-product.dto';
+import { Product } from '@/module/product/entity/product.entity';
+import { User } from '@/module/user/entity/user.entity';
+import { ProductStatus } from '@/shared/enum/product-status.enum';
+import { UserRole } from '@/shared/enum/user-role.enum';
 
 // 테스트용 JWT 토큰 생성 함수
 function generateTestToken(
@@ -30,119 +31,83 @@ function generateTestToken(
 describe('ProductController (e2e)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
-  let mockProductRepository: any;
-  let mockAttributeRepository: any;
-  let mockEntityManager: any;
-  let testToken: string;
+  let entityManager: EntityManager | undefined;
+  let sellerToken: string;
+  let testSeller: User;
+  let createdProduct: Product;
 
-  const mockSeller = {
-    id: 'seller-id-1',
-    email: 'seller@example.com',
-    role: UserRole.SELLER,
-  };
-
-  const mockProduct = {
-    id: 'product-id-1',
-    name: '테스트 상품',
-    description: '테스트 상품 설명',
-    price: 10000,
-    stockQuantity: 100,
-    status: ProductStatus.ACTIVE,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    seller: mockSeller,
-    attributes: {
-      getItems: () => [],
-      count: () => 0,
-      add: jest.fn(),
-      remove: jest.fn(),
-    },
-  };
-
-  beforeEach(async () => {
-    mockProductRepository = {
-      findAll: jest.fn().mockResolvedValue([mockProduct]),
-      findOne: jest.fn().mockImplementation((criteria) => {
-        if (criteria.id === 'product-id-1') {
-          return Promise.resolve(mockProduct);
-        }
-        return Promise.resolve(null);
-      }),
-    };
-
-    mockAttributeRepository = {
-      findOne: jest.fn(),
-    };
-
-    mockEntityManager = {
-      persistAndFlush: jest.fn().mockImplementation(async (entity) => {
-        if (entity instanceof Product) {
-          entity.id = 'product-id-1';
-          return entity;
-        }
-        return entity;
-      }),
-      flush: jest.fn(),
-      removeAndFlush: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [ProductControllerModule],
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
     })
-      .overrideProvider(getRepositoryToken(Product))
-      .useValue(mockProductRepository)
-      .overrideProvider(getRepositoryToken(ProductAttribute))
-      .useValue(mockAttributeRepository)
-      .overrideProvider(EntityManager)
-      .useValue(mockEntityManager)
       .overrideGuard(JwtAuthGuard)
-      .useValue({
-        canActivate: () => true,
-      })
+      .useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard)
-      .useValue({
-        canActivate: () => true,
-      })
+      .useValue({ canActivate: () => true })
       .compile();
 
-    jwtService = new JwtService({
-      secret: 'test-secret',
-      signOptions: { expiresIn: '1h' },
-    });
-
-    testToken = generateTestToken(jwtService, mockSeller.id, mockSeller.email, mockSeller.role);
-
-    app = module.createNestApplication();
+    app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe());
     await app.init();
+
+    entityManager = app.get(EntityManager);
+    jwtService = app.get(JwtService);
+
+    if (!entityManager) throw new Error('EntityManager not initialized');
+
+    testSeller = new User();
+    testSeller.email = 'seller.product.e2e@example.com';
+    testSeller.name = 'E2E Product Seller';
+    testSeller.role = UserRole.SELLER;
+    testSeller.password = 'testpassword';
+    testSeller.isVerified = true;
+    await entityManager.persistAndFlush(testSeller);
+
+    sellerToken = generateTestToken(jwtService, testSeller.id, testSeller.email, testSeller.role);
+
+    createdProduct = new Product();
+    createdProduct.name = 'Initial E2E Product';
+    createdProduct.description = 'Description for initial product';
+    createdProduct.price = 99.99;
+    createdProduct.stockQuantity = 10;
+    createdProduct.status = ProductStatus.ACTIVE;
+    createdProduct.seller = testSeller;
+    await entityManager.persistAndFlush(createdProduct);
   });
 
-  afterEach(async () => {
-    await app.close();
+  afterAll(async () => {
+    if (entityManager && typeof entityManager.getUnitOfWork === 'function') {
+      if (createdProduct && createdProduct.id) {
+        const productToDelete = await entityManager.findOne(Product, { id: createdProduct.id });
+        if (productToDelete) await entityManager.removeAndFlush(productToDelete);
+      }
+      if (testSeller && testSeller.id) {
+        const userToDelete = await entityManager.findOne(User, { id: testSeller.id });
+        if (userToDelete) await entityManager.removeAndFlush(userToDelete);
+      }
+    }
+    if (app) await app.close();
   });
 
   describe('/products (GET)', () => {
-    it('should return all products', () => {
-      return request(app.getHttpServer())
-        .get('/products')
-        .expect(200)
-        .expect((res) => {
-          expect(Array.isArray(res.body)).toBeTruthy();
-          expect(res.body).toHaveLength(1);
-          expect(res.body[0].id).toEqual(mockProduct.id);
-          expect(res.body[0].name).toEqual(mockProduct.name);
-        });
+    it('should return all products', async () => {
+      const response = await request(app.getHttpServer()).get('/products').expect(200);
+
+      const body = response.body as Product[];
+      expect(Array.isArray(body)).toBeTruthy();
+      expect(body.length).toBeGreaterThanOrEqual(1);
+      const found = body.find((p) => p.id === createdProduct.id);
+      expect(found).toBeDefined();
+      if (found) expect(found.name).toEqual(createdProduct.name);
     });
   });
 
   describe('/products/:id (GET)', () => {
-    it('should return a product by id', () => {
-      return request(app.getHttpServer())
-        .get('/products/product-id-1')
-        .expect(200)
-        .expect((res) => {
-          expect(res.body.id).toEqual(mockProduct.id);
-          expect(res.body.name).toEqual(mockProduct.name);
-        });
+    it('should return a product by id', async () => {
+      const response = await request(app.getHttpServer()).get(`/products/${createdProduct.id}`).expect(200);
+      const body = response.body as Product;
+      expect(body.id).toEqual(createdProduct.id);
+      expect(body.name).toEqual(createdProduct.name);
     });
 
     it('should return 404 for non-existent product', () => {
@@ -151,67 +116,96 @@ describe('ProductController (e2e)', () => {
   });
 
   describe('/products (POST)', () => {
-    it('should create new product', () => {
-      const createProductDto = {
-        name: '새 상품',
-        description: '새 상품 설명',
-        price: 15000,
-        stockQuantity: 50,
+    let newProductId: string;
+    it('should create new product', async () => {
+      if (!entityManager) throw new Error('EntityManager not initialized for POST test');
+      const createDto: CreateProductDto = {
+        name: 'New E2E Product',
+        description: 'Newly created E2E product',
+        price: 150.5,
+        stockQuantity: 25,
       };
 
-      return request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .post('/products')
-        .set('Authorization', `Bearer ${testToken}`)
-        .send(createProductDto)
-        .expect(201)
-        .expect((res) => {
-          expect(res.body.id).toBeDefined();
-          expect(res.body.name).toEqual(createProductDto.name);
-          expect(res.body.price).toEqual(createProductDto.price);
-        });
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send(createDto)
+        .expect(201);
+
+      const body = response.body as Product;
+      expect(body.id).toBeDefined();
+      newProductId = body.id;
+      expect(body.name).toEqual(createDto.name);
+      expect(body.price).toEqual(createDto.price);
+      expect(body.seller?.id).toEqual(testSeller.id);
+    });
+
+    afterAll(async () => {
+      if (newProductId && entityManager && typeof entityManager.getUnitOfWork === 'function') {
+        const productToDelete = await entityManager.findOne(Product, { id: newProductId });
+        if (productToDelete) await entityManager.removeAndFlush(productToDelete);
+      }
     });
   });
 
   describe('/products/:id (PUT)', () => {
-    it('should update product', () => {
-      const updateProductDto = {
-        name: '업데이트된 상품',
-        price: 12000,
+    it('should update product', async () => {
+      const updateDto: UpdateProductDto = {
+        name: 'Updated E2E Product Name',
+        price: 125.75,
       };
 
-      return request(app.getHttpServer())
-        .put('/products/product-id-1')
-        .set('Authorization', `Bearer ${testToken}`)
-        .send(updateProductDto)
-        .expect(200)
-        .expect((res) => {
-          expect(res.body.id).toEqual(mockProduct.id);
-          expect(res.body.name).toEqual(updateProductDto.name);
-          expect(res.body.price).toEqual(updateProductDto.price);
-        });
+      const response = await request(app.getHttpServer())
+        .put(`/products/${createdProduct.id}`)
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send(updateDto)
+        .expect(200);
+
+      const body = response.body as Product;
+      expect(body.id).toEqual(createdProduct.id);
+      expect(body.name).toEqual(updateDto.name);
+      expect(body.price).toEqual(updateDto.price);
     });
 
     it('should return 404 for non-existent product', () => {
       return request(app.getHttpServer())
         .put('/products/non-existent-id')
-        .set('Authorization', `Bearer ${testToken}`)
+        .set('Authorization', `Bearer ${sellerToken}`)
         .send({ name: '업데이트된 상품' })
         .expect(404);
     });
   });
 
   describe('/products/:id (DELETE)', () => {
-    it('should delete product', () => {
-      return request(app.getHttpServer())
-        .delete('/products/product-id-1')
-        .set('Authorization', `Bearer ${testToken}`)
+    let productToDeleteId: string;
+    beforeAll(async () => {
+      if (!entityManager || !testSeller) throw new Error('Test setup incomplete for DELETE');
+      const tempProduct = new Product();
+      tempProduct.name = 'To Be Deleted Product';
+      tempProduct.price = 10;
+      tempProduct.seller = testSeller;
+      tempProduct.description = 'delete me';
+      tempProduct.stockQuantity = 1;
+      await entityManager.persistAndFlush(tempProduct);
+      productToDeleteId = tempProduct.id;
+    });
+
+    it('should delete product', async () => {
+      await request(app.getHttpServer())
+        .delete(`/products/${productToDeleteId}`)
+        .set('Authorization', `Bearer ${sellerToken}`)
         .expect(200);
+
+      if (entityManager) {
+        const deleted = await entityManager.findOne(Product, { id: productToDeleteId });
+        expect(deleted).toBeNull();
+      }
     });
 
     it('should return 404 for non-existent product', () => {
       return request(app.getHttpServer())
         .delete('/products/non-existent-id')
-        .set('Authorization', `Bearer ${testToken}`)
+        .set('Authorization', `Bearer ${sellerToken}`)
         .expect(404);
     });
   });

@@ -4,6 +4,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { User } from '@/module/user/entity/user.entity';
+import { UserService } from '@/module/user/user.service';
 import { ProductStatus } from '@/shared/enum/product-status.enum';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
@@ -33,11 +34,13 @@ describe('ProductService', () => {
   let mockProductRepository: any;
   let mockAttributeRepository: any;
   let mockEntityManager: any;
+  let mockUserService: any;
 
   beforeEach(async () => {
     mockProductRepository = {
       findAll: jest.fn(),
       findOne: jest.fn(),
+      find: jest.fn(),
     };
 
     mockAttributeRepository = {
@@ -48,6 +51,10 @@ describe('ProductService', () => {
       persistAndFlush: jest.fn(),
       flush: jest.fn(),
       removeAndFlush: jest.fn(),
+    };
+
+    mockUserService = {
+      findOne: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -64,6 +71,10 @@ describe('ProductService', () => {
         {
           provide: EntityManager,
           useValue: mockEntityManager,
+        },
+        {
+          provide: UserService,
+          useValue: mockUserService,
         },
       ],
     }).compile();
@@ -335,6 +346,37 @@ describe('ProductService', () => {
       product.price = 1000000;
 
       expect(product.finalPrice).toEqual(1000000);
+    });
+  });
+
+  describe('findProductsBySeller', () => {
+    const sellerId = 'test-seller-id';
+    const mockSeller = { id: sellerId, name: 'Test Seller', role: UserRole.SELLER };
+    const mockProducts = [
+      { id: 'product-1', name: 'Product A', seller: mockSeller },
+      { id: 'product-2', name: 'Product B', seller: mockSeller },
+    ];
+
+    it('should return products for a given sellerId', async () => {
+      mockUserService.findOne.mockResolvedValue(mockSeller);
+      mockProductRepository.find.mockResolvedValue(mockProducts);
+
+      const result = await service.findProductsBySeller(sellerId);
+
+      expect(mockUserService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(mockProductRepository.find).toHaveBeenCalledWith(
+        { seller: { id: sellerId } },
+        { populate: ['seller', 'attributes'] },
+      );
+      expect(result).toEqual(mockProducts);
+    });
+
+    it('should throw NotFoundException if seller is not found', async () => {
+      mockUserService.findOne.mockRejectedValue(new NotFoundException(`User with ID ${sellerId} not found`));
+
+      await expect(service.findProductsBySeller(sellerId)).rejects.toThrow(NotFoundException);
+      expect(mockUserService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(mockProductRepository.find).not.toHaveBeenCalled();
     });
   });
 });

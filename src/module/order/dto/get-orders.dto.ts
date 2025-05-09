@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min, IsUUID } from 'class-validator';
 
 import { OrderStatus } from '@/shared/enum/order-status.enum';
 
@@ -23,4 +23,20 @@ export class GetOrdersDto {
   @Min(1)
   @IsOptional()
   limit?: number = 10;
+
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
+
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
+
+  @IsOptional()
+  @IsEnum({ ASC: 'ASC', DESC: 'DESC' })
+  order?: 'ASC' | 'DESC';
+
+  @IsOptional()
+  @IsString()
+  after?: string;
 }

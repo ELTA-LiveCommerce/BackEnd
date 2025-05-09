@@ -2,12 +2,13 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import cookieParser from 'cookie-parser';
+import * as cookieParser from 'cookie-parser';
 import { join } from 'path';
 
 import { AppModule } from './app.module';
 import { initDatabase } from './database';
 import { HttpExceptionFilter } from './shared/filter';
+import { swagger } from './swagger';
 
 const logger = new Logger('Bootstrap');
 

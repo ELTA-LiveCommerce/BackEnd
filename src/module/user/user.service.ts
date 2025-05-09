@@ -8,8 +8,10 @@ import { AutocompleteDto, AutocompleteResultDto } from '@/module/user/dto/autoco
 import { CreateUserDto } from '@/module/user/dto/create-user.dto';
 import { PaginatedSearchResultDto, SearchUserDto, UserSearchResultDto } from '@/module/user/dto/search-user.dto';
 import { ChangePasswordDto, UpdateBankInfoDto, UpdateProfileDto } from '@/module/user/dto/update-profile.dto';
+import { UpdateUserStatusDto, UserStatus } from '@/module/user/dto/update-user-status.dto';
+import { UserSearchDto } from '@/module/user/dto/user-search.dto';
 import { User } from '@/module/user/entity/user.entity';
-import { FollowService } from '@/module/user/follow.service';
+import { UserFollowService } from '@/module/user/user-follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 @Injectable()
@@ -18,7 +20,7 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private readonly em: EntityManager,
-    private readonly followService: FollowService,
+    private readonly followService: UserFollowService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -208,5 +210,130 @@ export class UserService {
       email: user.email,
       profileImage: user.profileImage,
     }));
+  }
+
+  /**
+   * 회원 관리를 위한 검색 기능
+   * @param searchDto 검색 조건 (검색어, 날짜 범위, 페이지 등)
+   * @returns 검색 결과 및 페이지네이션 정보
+   */
+  async searchForAdmin(searchDto: UserSearchDto): Promise<any> {
+    const { searchTerm, startDate, endDate, page = 1, limit = 10 } = searchDto;
+    const skip = (page - 1) * limit;
+
+    let queryBuilder = this.userRepository.createQueryBuilder('u');
+
+    // 검색어 필터 (아이디 또는 이름)
+    if (searchTerm) {
+      queryBuilder = queryBuilder.andWhere({
+        $or: [{ email: { $like: `%${searchTerm}%` } }, { name: { $like: `%${searchTerm}%` } }],
+      });
+    }
+
+    // 날짜 필터
+    if (startDate && endDate) {
+      queryBuilder = queryBuilder.andWhere({ createdAt: { $gte: startDate, $lte: endDate } });
+    }
+
+    // 총 개수 조회
+    const total = await queryBuilder.clone().count();
+
+    // 결과 조회 (페이지네이션 적용)
+    const users = await queryBuilder.select('*').orderBy({ createdAt: 'DESC' }).limit(limit).offset(skip).getResult();
+
+    // 사용자 데이터 처리 및 결제 정보 등 추가
+    const items = await Promise.all(
+      users.map(async (user) => {
+        // 추가 정보 조회 (총 결제금액, 활동건수 등)
+        const totalPayment = await this.calculateTotalPayment();
+        const totalActiveCount = await this.calculateTotalActiveCount();
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          createdAt: user.createdAt,
+          phoneNumber: user.phoneNumber,
+          address: user.address,
+          totalPayment,
+          totalActiveCount,
+          bankName: user.bankName,
+          accountNumber: user.accountNumber,
+          gender: user.gender,
+          status: user.status || UserStatus.ACTIVE,
+        };
+      }),
+    );
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * 사용자의 총 결제금액 계산
+   * @returns 총 결제금액
+   */
+  private async calculateTotalPayment(): Promise<number> {
+    // 실제 구현에서는 결제 서비스 또는 레포지토리를 통해 계산
+    // 현재는 더미 데이터 반환
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return Math.floor(Math.random() * 1000000);
+  }
+
+  /**
+   * 사용자의 총 활동건수 계산 (주문, 리뷰 등)
+   * @returns 총 활동건수
+   */
+  private async calculateTotalActiveCount(): Promise<number> {
+    // 실제 구현에서는 주문, 리뷰 등의 서비스를 통해 계산
+    // 현재는 더미 데이터 반환
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return Math.floor(Math.random() * 20);
+  }
+
+  /**
+   * 회원 상태 업데이트 (차단/활성화 등)
+   * @param id 사용자 ID
+   * @param statusDto 상태 업데이트 정보
+   * @returns 업데이트된 사용자 정보
+   */
+  async updateStatus(id: string, statusDto: UpdateUserStatusDto): Promise<User> {
+    const user = await this.findOne(id);
+
+    user.status = statusDto.status;
+
+    // 차단 사유 저장 (차단 상태인 경우)
+    if (statusDto.status === UserStatus.BLOCKED && statusDto.blockReason) {
+      user.blockReason = statusDto.blockReason;
+    }
+
+    // 차단 해제 시 차단 사유 초기화
+    if (statusDto.status === UserStatus.ACTIVE) {
+      user.blockReason = undefined;
+    }
+
+    await this.em.persistAndFlush(user);
+    return user;
+  }
+
+  /**
+   * 회원 삭제 (또는 비활성화)
+   * @param id 사용자 ID
+   * @returns 성공 여부
+   */
+  async deleteUser(id: string): Promise<boolean> {
+    const user = await this.findOne(id);
+
+    // 실제 삭제 대신 비활성화 처리 (소프트 삭제)
+    user.status = UserStatus.INACTIVE;
+    user.deletedAt = new Date();
+
+    await this.em.persistAndFlush(user);
+    return true;
   }
 }

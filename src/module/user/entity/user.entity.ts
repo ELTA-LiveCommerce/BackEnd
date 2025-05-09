@@ -2,6 +2,7 @@ import { Collection, Entity, Enum, OneToMany, PrimaryKey, Property } from '@mikr
 import { v4 } from 'uuid';
 
 import { Login } from '@/module/auth/entity/login.entity';
+import { UserStatus } from '@/module/user/dto/update-user-status.dto';
 import { Follow } from '@/module/user/entity/follow.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { UserRole } from '@/shared/enum/user-role.enum';
@@ -37,6 +38,21 @@ export class User extends BaseEntity {
 
   @Property({ default: false })
   isVerified: boolean = false;
+
+  @Enum({ items: () => UserStatus, default: UserStatus.ACTIVE })
+  status: UserStatus = UserStatus.ACTIVE;
+
+  @Property({ nullable: true })
+  blockReason?: string;
+
+  @Property({ nullable: true })
+  address?: string;
+
+  @Property({ nullable: true })
+  gender?: string;
+
+  @Property({ nullable: true })
+  deletedAt?: Date;
 
   @OneToMany(() => Login, (login) => login.user)
   logins = new Collection<Login>(this);

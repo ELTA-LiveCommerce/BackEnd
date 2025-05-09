@@ -1,14 +1,15 @@
 import { EntityManager } from '@mikro-orm/core';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
+import { EntityManager as SqlEntityManager } from '@mikro-orm/postgresql';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { Follow } from '@/module/user/entity/follow.entity';
 import { User } from '@/module/user/entity/user.entity';
-import { FollowService } from '@/module/user/follow.service';
+import { UserFollowService } from '@/module/user/user-follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 describe('FollowService', () => {
-  let service: FollowService;
+  let service: UserFollowService;
   let mockFollowRepository: any;
   let mockUserRepository: any;
   let mockEntityManager: any;
@@ -78,7 +79,7 @@ describe('FollowService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        FollowService,
+        UserFollowService,
         {
           provide: getRepositoryToken(Follow),
           useValue: mockFollowRepository,
@@ -91,10 +92,14 @@ describe('FollowService', () => {
           provide: EntityManager,
           useValue: mockEntityManager,
         },
+        {
+          provide: SqlEntityManager,
+          useValue: mockEntityManager,
+        },
       ],
     }).compile();
 
-    service = module.get<FollowService>(FollowService);
+    service = module.get<UserFollowService>(UserFollowService);
   });
 
   it('should be defined', () => {

@@ -13,9 +13,9 @@ import { UserRole } from '@/shared/enum/user-role.enum';
  */
 export function generateTestToken(
   jwtService: JwtService,
-  userId: string = 'test-user-id',
-  email: string = 'test@example.com',
-  role: UserRole = UserRole.VIEWER,
+  userId = 'test-user-id',
+  email = 'test@example.com',
+  role = UserRole.VIEWER,
 ): string {
   return jwtService.sign({
     sub: userId,

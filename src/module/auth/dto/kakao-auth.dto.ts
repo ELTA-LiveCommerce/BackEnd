@@ -20,6 +20,7 @@ export interface KakaoUserDto {
   email?: string;
   nickname: string;
   profileImage?: string;
+  thumbnailImage?: string;
 }
 
 // 카카오 API 응답 타입 추가

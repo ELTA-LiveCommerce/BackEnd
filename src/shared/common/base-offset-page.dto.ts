@@ -18,9 +18,10 @@ export class OffsetPage<T> {
 
 export class BaseOffsetPageResponse<T> extends BaseResponse<OffsetPage<T>> {
   @ApiPropertyOptional({ type: () => OffsetPage })
-  data?: OffsetPage<T>;
+  data: OffsetPage<T>;
 
   constructor(data: OffsetPage<T>) {
     super(true, data);
+    this.data = data;
   }
 }

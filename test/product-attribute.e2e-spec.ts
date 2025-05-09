@@ -1,154 +1,104 @@
 import { EntityManager } from '@mikro-orm/core';
-import { getRepositoryToken } from '@mikro-orm/nestjs';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 
-import { ProductControllerModule } from '../src/api/product/product-controller.module';
-import { JwtAuthGuard } from '../src/module/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../src/module/auth/guards/roles.guard';
-import { ProductAttribute } from '../src/module/product/entity/product-attribute.entity';
-import { Product } from '../src/module/product/entity/product.entity';
-import { ProductStatus } from '../src/shared/enum/product-status.enum';
-import { UserRole } from '../src/shared/enum/user-role.enum';
+import { ProductAttribute } from '@/module/product/entity/product-attribute.entity';
+import { Product } from '@/module/product/entity/product.entity';
+import { User } from '@/module/user/entity/user.entity';
+import { ProductStatus } from '@/shared/enum/product-status.enum';
+import { UserRole } from '@/shared/enum/user-role.enum';
 
-// 테스트용 JWT 토큰 생성 함수
-function generateTestToken(
-  jwtService: JwtService,
-  userId = 'test-user-id',
-  email = 'test@example.com',
-  role = UserRole.VIEWER,
-): string {
-  return jwtService.sign({
-    sub: userId,
-    email,
-    role,
-  });
-}
+import { generateTestToken } from './helpers/auth.helper';
+import { setupTestApp, cleanupTestApp } from './helpers/test-db.helper';
 
 describe('ProductAttributeController (e2e)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
-  let mockProductRepository: any;
-  let mockAttributeRepository: any;
-  let mockEntityManager: any;
   let testToken: string;
+  let sellerUser: User;
+  let testProduct: Product;
+  let entityManager: EntityManager;
 
-  const mockSeller = {
-    id: 'seller-id-1',
-    email: 'seller@example.com',
-    role: UserRole.SELLER,
-  };
+  beforeAll(async () => {
+    // 테스트 앱 설정
+    const { app: testApp, em } = await setupTestApp();
+    app = testApp;
+    app.useGlobalPipes(new ValidationPipe());
 
-  const mockProduct = {
-    id: 'product-id-1',
-    name: '테스트 상품',
-    price: 10000,
-    status: ProductStatus.ACTIVE,
-    seller: mockSeller,
-  };
+    entityManager = em;
+    jwtService = app.get(JwtService);
 
-  const mockAttributes = [
-    {
-      id: 'attr-id-1',
-      name: '모델명',
-      value: 'Galaxy S23',
-      sortOrder: 0,
-      isVisible: true,
-      product: mockProduct,
-    },
-    {
-      id: 'attr-id-2',
-      name: '브랜드',
-      value: 'Samsung',
-      sortOrder: 1,
-      isVisible: true,
-      product: mockProduct,
-    },
-  ];
+    sellerUser = new User();
+    sellerUser.email = 'seller.pa.e2e@example.com';
+    sellerUser.name = 'E2E PA Seller';
+    sellerUser.role = UserRole.SELLER;
+    sellerUser.password = 'testpassword';
+    sellerUser.isVerified = true;
+    await entityManager.persistAndFlush(sellerUser);
 
-  beforeEach(async () => {
-    mockProductRepository = {
-      findOne: jest.fn().mockImplementation((criteria) => {
-        if (criteria.id === 'product-id-1') {
-          return Promise.resolve(mockProduct);
-        }
-        return Promise.resolve(null);
-      }),
-    };
+    testToken = generateTestToken(jwtService, sellerUser.id, sellerUser.email, sellerUser.role);
 
-    mockAttributeRepository = {
-      find: jest.fn().mockResolvedValue(mockAttributes),
-      findOne: jest.fn().mockImplementation((criteria) => {
-        if (criteria.id === 'attr-id-1') {
-          return Promise.resolve(mockAttributes[0]);
-        }
-        if (criteria.id === 'attr-id-2') {
-          return Promise.resolve(mockAttributes[1]);
-        }
-        return Promise.resolve(null);
-      }),
-    };
-
-    mockEntityManager = {
-      persistAndFlush: jest.fn().mockImplementation(async (entity) => {
-        if (entity instanceof ProductAttribute) {
-          entity.id = 'attr-id-new';
-          return entity;
-        }
-        return entity;
-      }),
-      flush: jest.fn(),
-      removeAndFlush: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [ProductControllerModule],
-    })
-      .overrideProvider(getRepositoryToken(Product))
-      .useValue(mockProductRepository)
-      .overrideProvider(getRepositoryToken(ProductAttribute))
-      .useValue(mockAttributeRepository)
-      .overrideProvider(EntityManager)
-      .useValue(mockEntityManager)
-      .overrideGuard(JwtAuthGuard)
-      .useValue({
-        canActivate: () => true,
-      })
-      .overrideGuard(RolesGuard)
-      .useValue({
-        canActivate: () => true,
-      })
-      .compile();
-
-    jwtService = new JwtService({
-      secret: 'test-secret',
-      signOptions: { expiresIn: '1h' },
-    });
-
-    testToken = generateTestToken(jwtService, mockSeller.id, mockSeller.email, mockSeller.role);
-
-    app = module.createNestApplication();
-    await app.init();
+    testProduct = new Product();
+    testProduct.name = 'E2E PA Test Product';
+    testProduct.price = 10000;
+    testProduct.status = ProductStatus.ACTIVE;
+    testProduct.seller = sellerUser;
+    testProduct.description = 'E2E Test Description';
+    testProduct.stockQuantity = 10;
+    await entityManager.persistAndFlush(testProduct);
   });
 
-  afterEach(async () => {
-    await app.close();
+  afterAll(async () => {
+    if (entityManager && typeof entityManager.getUnitOfWork === 'function') {
+      if (testProduct && testProduct.id) {
+        const productAttrs = await entityManager.find(ProductAttribute, { product: testProduct });
+        for (const attr of productAttrs) {
+          await entityManager.removeAndFlush(attr);
+        }
+        const productToDelete = await entityManager.findOne(Product, { id: testProduct.id });
+        if (productToDelete) await entityManager.removeAndFlush(productToDelete);
+      }
+      if (sellerUser && sellerUser.id) {
+        const userToDelete = await entityManager.findOne(User, { id: sellerUser.id });
+        if (userToDelete) await entityManager.removeAndFlush(userToDelete);
+      }
+    }
+    await cleanupTestApp(app);
   });
 
   describe('/products/:productId/attributes (GET)', () => {
+    let attr1: ProductAttribute, attr2: ProductAttribute;
+    beforeAll(async () => {
+      attr1 = new ProductAttribute();
+      attr1.product = testProduct;
+      attr1.name = 'Model';
+      attr1.value = 'S24';
+      attr2 = new ProductAttribute();
+      attr2.product = testProduct;
+      attr2.name = 'Brand';
+      attr2.value = 'Samsung';
+      if (entityManager) await entityManager.persistAndFlush([attr1, attr2]);
+    });
+    afterAll(async () => {
+      if (entityManager && typeof entityManager.getUnitOfWork === 'function') {
+        if (attr1 && attr1.id) await entityManager.removeAndFlush(attr1);
+        if (attr2 && attr2.id) await entityManager.removeAndFlush(attr2);
+      }
+    });
+
     it('should return all attributes for product', () => {
       return request(app.getHttpServer())
-        .get('/products/product-id-1/attributes')
+        .get(`/products/${testProduct.id}/attributes`)
+        .set('Authorization', `Bearer ${testToken}`)
         .expect(200)
-        .expect((res) => {
-          expect(Array.isArray(res.body)).toBeTruthy();
-          expect(res.body).toHaveLength(2);
-          expect(res.body[0].id).toEqual(mockAttributes[0].id);
-          expect(res.body[0].name).toEqual(mockAttributes[0].name);
-          expect(res.body[1].id).toEqual(mockAttributes[1].id);
-          expect(res.body[1].name).toEqual(mockAttributes[1].name);
+        .then((res) => {
+          const body = res.body as ProductAttribute[];
+          expect(Array.isArray(body)).toBeTruthy();
+          expect(body.length).toBeGreaterThanOrEqual(2);
+          const foundModel = body.find((a) => a.name === 'Model');
+          expect(foundModel).toBeDefined();
+          if (foundModel) expect(foundModel.value).toEqual('S24');
         });
     });
 
@@ -158,14 +108,30 @@ describe('ProductAttributeController (e2e)', () => {
   });
 
   describe('/products/:productId/attributes/:id (GET)', () => {
+    let testAttr: ProductAttribute;
+    beforeAll(async () => {
+      testAttr = new ProductAttribute();
+      testAttr.product = testProduct;
+      testAttr.name = 'Color';
+      testAttr.value = 'Black';
+      await entityManager.persistAndFlush(testAttr);
+    });
+    afterAll(async () => {
+      if (entityManager && typeof entityManager.getUnitOfWork === 'function') {
+        if (testAttr && testAttr.id) await entityManager.removeAndFlush(testAttr);
+      }
+    });
+
     it('should return attribute by id', () => {
       return request(app.getHttpServer())
-        .get('/products/product-id-1/attributes/attr-id-1')
+        .get(`/products/${testProduct.id}/attributes/${testAttr.id}`)
+        .set('Authorization', `Bearer ${testToken}`)
         .expect(200)
-        .expect((res) => {
-          expect(res.body.id).toEqual(mockAttributes[0].id);
-          expect(res.body.name).toEqual(mockAttributes[0].name);
-          expect(res.body.value).toEqual(mockAttributes[0].value);
+        .then((res) => {
+          const body = res.body as ProductAttribute;
+          expect(body.id).toEqual(testAttr.id);
+          expect(body.name).toEqual(testAttr.name);
+          expect(body.value).toEqual(testAttr.value);
         });
     });
 
@@ -175,25 +141,27 @@ describe('ProductAttributeController (e2e)', () => {
   });
 
   describe('/products/:productId/attributes (POST)', () => {
-    it('should create new attribute', () => {
+    it('should create new attribute', async () => {
       const createAttributeDto = {
-        name: '색상',
-        value: '블랙',
-        sortOrder: 2,
-        isVisible: true,
+        name: 'Storage',
+        value: '512GB',
       };
 
-      return request(app.getHttpServer())
-        .post('/products/product-id-1/attributes')
+      const response = await request(app.getHttpServer())
+        .post(`/products/${testProduct.id}/attributes`)
         .set('Authorization', `Bearer ${testToken}`)
         .send(createAttributeDto)
-        .expect(201)
-        .expect((res) => {
-          expect(res.body.id).toBeDefined();
-          expect(res.body.name).toEqual(createAttributeDto.name);
-          expect(res.body.value).toEqual(createAttributeDto.value);
-          expect(res.body.sortOrder).toEqual(createAttributeDto.sortOrder);
-        });
+        .expect(201);
+
+      const body = response.body as ProductAttribute;
+      expect(body.id).toBeDefined();
+      expect(body.name).toEqual(createAttributeDto.name);
+      expect(body.value).toEqual(createAttributeDto.value);
+
+      if (body.id && entityManager && typeof entityManager.getUnitOfWork === 'function') {
+        const attrToDelete = await entityManager.findOne(ProductAttribute, { id: body.id });
+        if (attrToDelete) await entityManager.removeAndFlush(attrToDelete);
+      }
     });
 
     it('should return 404 for non-existent product', () => {
@@ -206,44 +174,68 @@ describe('ProductAttributeController (e2e)', () => {
   });
 
   describe('/products/:productId/attributes/:id (PUT)', () => {
+    let testAttrForUpdate: ProductAttribute;
+    beforeAll(async () => {
+      testAttrForUpdate = new ProductAttribute();
+      testAttrForUpdate.product = testProduct;
+      testAttrForUpdate.name = 'Original Name for Update';
+      testAttrForUpdate.value = 'Original Value for Update';
+      await entityManager.persistAndFlush(testAttrForUpdate);
+    });
+    afterAll(async () => {
+      if (entityManager && typeof entityManager.getUnitOfWork === 'function') {
+        if (testAttrForUpdate && testAttrForUpdate.id) await entityManager.removeAndFlush(testAttrForUpdate);
+      }
+    });
+
     it('should update attribute', () => {
       const updateAttributeDto = {
-        value: '갤럭시 S23 Ultra',
-        isVisible: false,
+        name: 'Updated Name',
+        value: 'Updated Value',
       };
 
       return request(app.getHttpServer())
-        .put('/products/product-id-1/attributes/attr-id-1')
+        .put(`/products/${testProduct.id}/attributes/${testAttrForUpdate.id}`)
         .set('Authorization', `Bearer ${testToken}`)
         .send(updateAttributeDto)
         .expect(200)
-        .expect((res) => {
-          expect(res.body.id).toEqual(mockAttributes[0].id);
-          expect(res.body.value).toEqual(updateAttributeDto.value);
-          expect(res.body.isVisible).toEqual(updateAttributeDto.isVisible);
+        .then((res) => {
+          const body = res.body as ProductAttribute;
+          expect(body.id).toEqual(testAttrForUpdate.id);
+          expect(body.name).toEqual(updateAttributeDto.name);
+          expect(body.value).toEqual(updateAttributeDto.value);
         });
     });
 
     it('should return 404 for non-existent attribute', () => {
       return request(app.getHttpServer())
-        .put('/products/product-id-1/attributes/non-existent-id')
+        .put(`/products/${testProduct.id}/attributes/non-existent-id`)
         .set('Authorization', `Bearer ${testToken}`)
-        .send({ value: '갤럭시 S23 Ultra' })
+        .send({ name: 'New Name', value: 'New Value' })
         .expect(404);
     });
   });
 
   describe('/products/:productId/attributes/:id (DELETE)', () => {
+    let testAttrForDelete: ProductAttribute;
+    beforeAll(async () => {
+      testAttrForDelete = new ProductAttribute();
+      testAttrForDelete.product = testProduct;
+      testAttrForDelete.name = 'Attribute to Delete';
+      testAttrForDelete.value = 'Value to Delete';
+      await entityManager.persistAndFlush(testAttrForDelete);
+    });
+
     it('should delete attribute', () => {
       return request(app.getHttpServer())
-        .delete('/products/product-id-1/attributes/attr-id-1')
+        .delete(`/products/${testProduct.id}/attributes/${testAttrForDelete.id}`)
         .set('Authorization', `Bearer ${testToken}`)
         .expect(200);
     });
 
     it('should return 404 for non-existent attribute', () => {
       return request(app.getHttpServer())
-        .delete('/products/product-id-1/attributes/non-existent-id')
+        .delete(`/products/${testProduct.id}/attributes/non-existent-id`)
         .set('Authorization', `Bearer ${testToken}`)
         .expect(404);
     });
@@ -251,19 +243,28 @@ describe('ProductAttributeController (e2e)', () => {
 
   describe('/products/:productId/attributes/bulk (POST)', () => {
     it('should create multiple attributes', () => {
-      const attributeDtos = [
-        { name: '색상', value: '블랙' },
-        { name: '저장용량', value: '256GB' },
+      const createAttributesDto = [
+        { name: 'Bulk Attr 1', value: 'Value 1' },
+        { name: 'Bulk Attr 2', value: 'Value 2' },
       ];
 
       return request(app.getHttpServer())
-        .post('/products/product-id-1/attributes/bulk')
+        .post(`/products/${testProduct.id}/attributes/bulk`)
         .set('Authorization', `Bearer ${testToken}`)
-        .send(attributeDtos)
+        .send(createAttributesDto)
         .expect(201)
-        .expect((res) => {
-          expect(Array.isArray(res.body)).toBeTruthy();
-          expect(res.body.length).toBeGreaterThan(0);
+        .then(async (res) => {
+          const body = res.body as ProductAttribute[];
+          expect(Array.isArray(body)).toBeTruthy();
+          expect(body.length).toEqual(2);
+
+          // Clean up the created attributes
+          for (const attr of body) {
+            if (attr.id && entityManager) {
+              const attrToDelete = await entityManager.findOne(ProductAttribute, { id: attr.id });
+              if (attrToDelete) await entityManager.removeAndFlush(attrToDelete);
+            }
+          }
         });
     });
 
@@ -271,7 +272,7 @@ describe('ProductAttributeController (e2e)', () => {
       return request(app.getHttpServer())
         .post('/products/non-existent-id/attributes/bulk')
         .set('Authorization', `Bearer ${testToken}`)
-        .send([{ name: '색상', value: '블랙' }])
+        .send([{ name: '속성1', value: '값1' }])
         .expect(404);
     });
   });

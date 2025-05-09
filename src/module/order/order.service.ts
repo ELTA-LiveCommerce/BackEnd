@@ -1,23 +1,23 @@
-import { EntityManager } from '@mikro-orm/core';
+import { EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository } from '@mikro-orm/postgresql';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { SqlEntityManager } from '@mikro-orm/postgresql';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 
-import { Product } from '@/module/product/entity/product.entity';
-import { ProductService } from '@/module/product/product.service';
-import { User } from '@/module/user/entity/user.entity';
-import { OrderStatus } from '@/shared/enum/order-status.enum';
-
-import { CreateOrderDto } from './dto/create-order.dto';
-import { GetOrdersDto } from './dto/get-orders.dto';
+import { CreateOrderDto } from '@/module/order/dto/create-order.dto';
+import { GetOrdersDto } from '@/module/order/dto/get-orders.dto';
 import {
   OrderItemResponseDto,
   OrderResponseDto,
   OrderSummaryDto,
   PaginatedOrdersResponseDto,
-} from './dto/order-response.dto';
-import { OrderItem } from './entity/order-item.entity';
-import { Order } from './entity/order.entity';
+} from '@/module/order/dto/order-response.dto';
+import { UpdateShippingDto } from '@/module/order/dto/update-shipping.dto';
+import { OrderItem } from '@/module/order/entity/order-item.entity';
+import { Order } from '@/module/order/entity/order.entity';
+import { Product } from '@/module/product/entity/product.entity';
+import { ProductService } from '@/module/product/product.service';
+import { User } from '@/module/user/entity/user.entity';
+import { OrderStatus } from '@/shared/enum/order-status.enum';
 
 @Injectable()
 export class OrderService {
@@ -31,7 +31,7 @@ export class OrderService {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private readonly productService: ProductService,
-    private readonly em: EntityManager,
+    private readonly entityManager: SqlEntityManager,
   ) {}
 
   /**
@@ -40,62 +40,62 @@ export class OrderService {
    * @param createOrderDto 주문 생성 DTO
    */
   async create(userId: string, createOrderDto: CreateOrderDto): Promise<OrderResponseDto> {
-    const user = await this.userRepository.findOne({ id: userId });
+    const user = await this.entityManager.findOne(User, { id: userId });
     if (!user) {
-      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+      throw new NotFoundException('User not found');
     }
 
-    // 주문 번호 생성
-    const orderNumber = this.generateOrderNumber();
+    const order = new Order(user, createOrderDto.paymentMethod, createOrderDto.shippingAddress, createOrderDto.notes);
 
-    // 새 주문 생성
-    const order = new Order();
-    order.user = user;
-    order.orderNumber = orderNumber;
-    order.status = OrderStatus.PENDING;
-    order.shippingAddress = createOrderDto.shippingAddress;
-    order.notes = createOrderDto.notes;
-    order.paymentMethod = createOrderDto.paymentMethod;
-
-    // 주문 아이템 처리
-    let totalAmount = 0;
     for (const itemDto of createOrderDto.items) {
-      const product = await this.productRepository.findOne({ id: itemDto.productId });
+      const product = await this.productService.findOne(itemDto.productId);
       if (!product) {
-        throw new NotFoundException(`상품 ID ${itemDto.productId}를 찾을 수 없습니다.`);
+        throw new NotFoundException(`Product with id ${itemDto.productId} not found`);
       }
-
-      // 재고 확인
       if (product.stockQuantity < itemDto.quantity) {
-        throw new BadRequestException(`상품 ${product.name}의 재고가 부족합니다. 현재 재고: ${product.stockQuantity}`);
+        throw new BadRequestException(`Product ${product.name} is out of stock`);
       }
 
-      // 주문 아이템 생성
-      const orderItem = new OrderItem();
-      orderItem.order = order;
-      orderItem.product = product;
-      orderItem.quantity = itemDto.quantity;
-      orderItem.price = product.price;
-      orderItem.totalPrice = product.price * itemDto.quantity;
-      orderItem.attributes = itemDto.attributes;
-
-      // 재고 감소
-      product.stockQuantity -= itemDto.quantity;
-
-      // 총 금액 계산
-      totalAmount += orderItem.totalPrice;
-
-      // 아이템 컬렉션에 추가
+      const orderItem = new OrderItem(order, product, itemDto.quantity, product.price /*, itemDto.attributes*/);
       order.items.add(orderItem);
+      order.totalAmount += orderItem.totalPrice;
+      product.stockQuantity -= itemDto.quantity;
+      this.entityManager.persist(product);
     }
 
-    // 총 금액 설정
-    order.totalAmount = totalAmount;
+    await this.entityManager.persistAndFlush(order);
 
-    // 주문 저장
-    await this.em.persistAndFlush(order);
+    const orderItemsData: OrderItemResponseDto[] = order.items.getItems().map((item) => ({
+      id: item.id,
+      productId: item.product.id,
+      productName: item.product.name,
+      productImage: item.product.thumbnailUrl,
+      quantity: item.quantity,
+      price: item.price,
+      totalPrice: item.totalPrice,
+      attributes: item.attributes,
+    }));
 
-    return this.mapToOrderResponseDto(order);
+    return {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      userId: order.user.id,
+      status: order.status,
+      items: orderItemsData,
+      totalAmount: order.totalAmount,
+      paymentMethod: order.paymentMethod,
+      paymentId: order.paymentId,
+      shippingAddress: order.shippingAddress,
+      shippingCode: order.shippingCode,
+      notes: order.notes,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      paidAt: order.paidAt,
+      shippedAt: order.shippedAt,
+      deliveredAt: order.deliveredAt,
+      cancelledAt: order.cancelledAt,
+      refundedAt: order.refundedAt,
+    };
   }
 
   /**
@@ -103,40 +103,39 @@ export class OrderService {
    * @param userId 사용자 ID
    * @param getOrdersDto 주문 조회 DTO
    */
-  async getOrdersByUser(userId: string, getOrdersDto: GetOrdersDto): Promise<PaginatedOrdersResponseDto> {
-    const { status, search, page = 1, limit = 10 } = getOrdersDto;
+  async getOrdersByUser(userIdFromAuth: string, getOrdersDto: GetOrdersDto): Promise<PaginatedOrdersResponseDto> {
+    const { page = 1, limit = 10, status, search, sortBy = 'createdAt', order = 'DESC', after } = getOrdersDto;
     const skip = (page - 1) * limit;
 
-    // 쿼리 빌더 설정
-    let queryBuilder = this.orderRepository.createQueryBuilder('o');
-    queryBuilder = queryBuilder.where({ user: { id: userId } });
+    const qb = this.entityManager.createQueryBuilder(Order, 'o');
+    qb.where({ user: userIdFromAuth });
 
-    // 상태 필터 적용
     if (status) {
-      queryBuilder = queryBuilder.andWhere({ status });
+      qb.andWhere({ status });
     }
-
-    // 검색어 필터 적용
     if (search) {
-      queryBuilder = queryBuilder.andWhere({ orderNumber: { $like: `%${search}%` } });
+      // Implement search logic
     }
 
-    // 주문 정렬 (최신순)
-    queryBuilder = queryBuilder.orderBy({ createdAt: 'DESC' });
+    if (after) {
+      const afterOrder = await this.entityManager.findOne(Order, { id: after });
+      if (afterOrder) {
+        const cursorField = sortBy as keyof Order;
+        const cursorCondition =
+          order === 'ASC'
+            ? { [cursorField]: { $gt: (afterOrder as any)[cursorField] } }
+            : { [cursorField]: { $lt: (afterOrder as any)[cursorField] } };
+        qb.andWhere(cursorCondition);
+      }
+    }
 
-    // 총 개수 조회
-    const total = await queryBuilder.clone().count();
+    const [orders, total] = await qb
+      .orderBy({ [sortBy]: order.toUpperCase() as 'ASC' | 'DESC' })
+      .limit(limit)
+      .offset(skip)
+      .getResultAndCount();
 
-    // 결과 조회 (페이지네이션 적용)
-    const orders = await queryBuilder.limit(limit).offset(skip).getResult();
-
-    // 주문 요약 정보로 매핑
-    const items = await Promise.all(
-      orders.map(async (order) => {
-        const itemCount = await this.orderItemRepository.count({ order: { id: order.id } });
-        return this.mapToOrderSummaryDto(order, itemCount);
-      }),
-    );
+    const items = orders.map((o) => this.mapToOrderSummaryDto(o));
 
     return {
       items,
@@ -202,8 +201,57 @@ export class OrderService {
       product.stockQuantity += item.quantity;
     }
 
-    await this.em.flush();
+    await this.entityManager.flush();
 
+    return this.mapToOrderResponseDto(order);
+  }
+
+  /**
+   * 셀러가 주문의 배송 정보를 업데이트합니다.
+   * @param orderId 주문 ID
+   * @param sellerId 셀러 ID (요청자)
+   * @param updateShippingDto 배송 정보 DTO
+   */
+  async updateShippingInfoBySeller(
+    orderId: string,
+    sellerId: string,
+    updateShippingDto: UpdateShippingDto,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderRepository.findOne(
+      { id: orderId },
+      { populate: ['items', 'items.product', 'items.product.seller', 'user'] },
+    );
+
+    if (!order) {
+      throw new NotFoundException('주문을 찾을 수 없습니다.');
+    }
+
+    const isSellerProductInOrder = order.items.getItems().some((item) => item.product.seller?.id === sellerId);
+
+    if (!isSellerProductInOrder) {
+      throw new ForbiddenException('해당 주문에 대한 배송 정보를 업데이트할 권한이 없습니다.');
+    }
+
+    if (![OrderStatus.PAID, OrderStatus.PROCESSING].includes(order.status)) {
+      throw new BadRequestException(
+        `현재 주문 상태(${order.status})에서는 배송 정보를 업데이트할 수 없습니다. 'PAID' 또는 'PROCESSING' 상태여야 합니다.`,
+      );
+    }
+
+    order.status = updateShippingDto.status || OrderStatus.SHIPPED;
+    order.shippingCode = updateShippingDto.shippingCode;
+
+    if (order.status === OrderStatus.SHIPPED && !order.shippedAt) {
+      order.shippedAt = new Date();
+    }
+
+    if (updateShippingDto.shippingMemo) {
+      order.notes = order.notes
+        ? `${order.notes}\n[배송메모] ${updateShippingDto.shippingMemo}`
+        : `[배송메모] ${updateShippingDto.shippingMemo}`;
+    }
+
+    await this.entityManager.flush();
     return this.mapToOrderResponseDto(order);
   }
 
@@ -216,11 +264,11 @@ export class OrderService {
       id: item.id,
       productId: item.product.id,
       productName: item.product.name,
+      productImage: item.product.thumbnailUrl,
       quantity: item.quantity,
       price: item.price,
       totalPrice: item.totalPrice,
       attributes: item.attributes,
-      productImage: item.product.productImage,
     }));
 
     return {
@@ -248,15 +296,14 @@ export class OrderService {
   /**
    * 주문 Entity를 요약 DTO로 변환합니다.
    * @param order 주문 Entity
-   * @param itemCount 주문 아이템 개수
    */
-  private mapToOrderSummaryDto(order: Order, itemCount: number): OrderSummaryDto {
+  private mapToOrderSummaryDto(order: Order): OrderSummaryDto {
     return {
       id: order.id,
       orderNumber: order.orderNumber,
       status: order.status,
       totalAmount: order.totalAmount,
-      itemCount,
+      itemCount: order.items.length,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
     };
@@ -274,5 +321,39 @@ export class OrderService {
       .toString()
       .padStart(4, '0');
     return `ORD-${year}${month}${day}-${random}`;
+  }
+
+  async getPaginatedOrders(getOrdersDto: GetOrdersDto): Promise<PaginatedOrdersResponseDto> {
+    const { page = 1, limit = 10, status, userId, sortBy = 'createdAt', order = 'DESC' } = getOrdersDto;
+    const skip = (page - 1) * limit;
+
+    const qb = this.entityManager.createQueryBuilder(Order, 'o');
+    qb.select('*')
+      .leftJoinAndSelect('o.user', 'u')
+      .leftJoinAndSelect('o.items', 'i')
+      .leftJoinAndSelect('i.product', 'p');
+
+    if (status) {
+      qb.andWhere({ status });
+    }
+    if (userId) {
+      qb.andWhere({ user: userId });
+    }
+
+    const [orders, total] = await qb
+      .orderBy({ [sortBy]: order.toUpperCase() as 'ASC' | 'DESC' })
+      .limit(limit)
+      .offset(skip)
+      .getResultAndCount();
+
+    const orderSummaries = orders.map((o) => this.mapToOrderSummaryDto(o));
+
+    return {
+      items: orderSummaries,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

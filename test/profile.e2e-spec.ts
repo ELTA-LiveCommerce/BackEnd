@@ -1,43 +1,33 @@
 import { INestApplication } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 
-import { AppModule } from '@/app.module';
 import { ChangePasswordDto, UpdateBankInfoDto, UpdateProfileDto } from '@/module/user/dto/update-profile.dto';
+import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
-import { createUserFactory } from '@/test/factories';
 
+import { createUserFactory } from './factories';
 import { generateTestToken } from './helpers/auth.helper';
+import { cleanupTestApp, setupTestApp } from './helpers/test-db.helper';
 
 describe('ProfileController (e2e)', () => {
   let app: INestApplication;
   let userService: UserService;
   let jwtService: JwtService;
-  let testUser: any;
+  let testUser: User;
   let accessToken: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          isGlobal: true,
-          envFilePath: '.env',
-        }),
-        AppModule,
-      ],
-    }).compile();
+    // 테스트 앱 설정
+    const { app: testApp, moduleFixture } = await setupTestApp();
+    app = testApp;
 
-    app = moduleFixture.createNestApplication();
     userService = moduleFixture.get<UserService>(UserService);
     jwtService = moduleFixture.get<JwtService>(JwtService);
-
-    await app.init();
 
     // 테스트 사용자 생성
     const mockUser = createUserFactory({
@@ -59,7 +49,7 @@ describe('ProfileController (e2e)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await cleanupTestApp(app);
   });
 
   describe('/profile (GET)', () => {
@@ -183,7 +173,7 @@ describe('ProfileController (e2e)', () => {
         .expect(201)
         .expect((res) => {
           expect(res.body).toHaveProperty('imageUrl');
-          expect(res.body.imageUrl).toContain('/uploads/profiles/');
+          expect((res.body as { imageUrl: string }).imageUrl).toContain('/uploads/profiles/');
         });
     });
 

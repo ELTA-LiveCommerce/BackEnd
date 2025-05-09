@@ -1,6 +1,7 @@
 import { Entity, Enum, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/postgresql';
 import { v4 } from 'uuid';
 
+import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
 
 import { Product } from './product.entity';
@@ -35,24 +36,22 @@ export enum BroadcastProductStatus {
  * 라이브 방송에서 판매하는 상품 정보를 관리
  */
 @Entity({ tableName: 'broadcast_products' })
-@Unique({ properties: ['broadcastId'] })
+@Unique({ properties: ['broadcast', 'product'] })
 export class BroadcastProduct extends BaseEntity {
   @PrimaryKey()
   id: string = v4();
 
   /**
-   * 방송 ID
-   * Broadcast 엔티티가 구현된 후 외래키로 변경 예정
-   * 한 방송에는 한 상품만 연결할 수 있음
+   * 방송 연결
    */
-  @Property()
-  broadcastId: string;
+  @ManyToOne(() => Broadcast)
+  broadcast!: Broadcast;
 
   /**
    * 상품
    */
   @ManyToOne(() => Product)
-  product: Product;
+  product!: Product;
 
   /**
    * 방송에서의 상품 순서

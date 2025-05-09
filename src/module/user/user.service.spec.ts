@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 
 import { AutocompleteDto } from '@/module/user/dto/autocomplete.dto';
 import { User } from '@/module/user/entity/user.entity';
-import { FollowService } from '@/module/user/follow.service';
+import { UserFollowService } from '@/module/user/user-follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 import { UserService } from './user.service';
@@ -86,7 +86,7 @@ describe('UserService', () => {
           useValue: mockEntityManager,
         },
         {
-          provide: FollowService,
+          provide: UserFollowService,
           useValue: mockFollowService,
         },
       ],
