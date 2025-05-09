@@ -6,6 +6,7 @@ import { AdminControllerModule } from '@/api/admin/admin-controller.module';
 import { AuthControllerModule } from '@/api/auth/auth-controller.module';
 import { BroadcastControllerModule } from '@/api/broadcast/broadcast-controller.module';
 import { DeliveryControllerModule } from '@/api/delivery/delivery-controller.module';
+import { FileControllerModule } from '@/api/file/file-controller.module';
 import { HealthControllerModule } from '@/api/health/health-controller.module';
 import { OrderControllerModule } from '@/api/order/order-controller.module';
 import { PaymentControllerModule } from '@/api/payment/payment-controller.module';
@@ -35,6 +36,7 @@ import createMikroOrmConfig from '@/infra/database/mikro-orm.config';
     DeliveryControllerModule,
     PaymentControllerModule,
     AdminControllerModule,
+    FileControllerModule,
   ],
   controllers: [],
   providers: [],
