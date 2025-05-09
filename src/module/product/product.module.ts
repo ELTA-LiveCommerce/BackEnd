@@ -4,14 +4,12 @@ import { Module } from '@nestjs/common';
 import { UserModule } from '@/module/user/user.module';
 
 import { BroadcastProduct } from './entity/broadcast-product.entity';
-import { ProductAttribute } from './entity/product-attribute.entity';
 import { Product } from './entity/product.entity';
-import { ProductAttributeService } from './product-attribute.service';
 import { ProductService } from './product.service';
 
 @Module({
-  imports: [MikroOrmModule.forFeature([Product, BroadcastProduct, ProductAttribute]), UserModule],
-  providers: [ProductService, ProductAttributeService],
-  exports: [ProductService, ProductAttributeService],
+  imports: [MikroOrmModule.forFeature([Product, BroadcastProduct]), UserModule],
+  providers: [ProductService],
+  exports: [ProductService],
 })
 export class ProductModule {}
