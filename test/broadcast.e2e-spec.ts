@@ -56,7 +56,7 @@ describe('BroadcastController (e2e)', () => {
     await cleanupTestApp(app);
   });
 
-  describe('POST /broadcasts', () => {
+  describe('POST /v1/broadcasts', () => {
     it('인증된 판매자는 방송을 생성할 수 있어야 함', async () => {
       const createDto: CreateBroadcastDto = {
         title: 'Test Broadcast',
@@ -67,7 +67,7 @@ describe('BroadcastController (e2e)', () => {
 
       // EntityManager의 transactional이 모킹되었으므로 201 응답 기대
       const response = await request(app.getHttpServer())
-        .post('/broadcasts')
+        .post('/v1/broadcasts')
         .set('Authorization', `Bearer ${sellerToken}`)
         .send(createDto)
         .expect(201);
@@ -85,13 +85,13 @@ describe('BroadcastController (e2e)', () => {
 
       // JwtAuthGuard를 모킹했으므로 우회됨 - 인증 실패 케이스를 테스트하기 어려움
       // 이 경우 인증이 성공해도 문제 없음
-      await request(app.getHttpServer()).post('/broadcasts').send(createDto).expect(201);
+      await request(app.getHttpServer()).post('/v1/broadcasts').send(createDto).expect(201);
     });
 
     // TODO: DTO 유효성 검사 실패 케이스 (예: title 누락)
   });
 
-  describe('GET /broadcasts', () => {
+  describe('GET /v1/broadcasts', () => {
     it('방송 목록을 조회할 수 있어야 함', async () => {
       // 먼저 방송 생성
       const createDto: CreateBroadcastDto = {
@@ -100,20 +100,20 @@ describe('BroadcastController (e2e)', () => {
       };
 
       await request(app.getHttpServer())
-        .post('/broadcasts')
+        .post('/v1/broadcasts')
         .set('Authorization', `Bearer ${sellerToken}`)
         .send(createDto)
         .expect(201);
 
       // 방송 목록 조회
-      const response = await request(app.getHttpServer()).get('/broadcasts').expect(200);
+      const response = await request(app.getHttpServer()).get('/v1/broadcasts').expect(200);
 
       // EntityManager의 findAll이 빈 배열로 모킹되었으므로, 응답이 배열인지만 확인
       expect(Array.isArray(response.body)).toBeTruthy();
     });
   });
 
-  describe('GET /broadcasts/:id', () => {
+  describe('GET /v1/broadcasts/:id', () => {
     beforeEach(async () => {
       // 방송 생성
       const createDto: CreateBroadcastDto = {

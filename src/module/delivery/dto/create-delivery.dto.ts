@@ -1,14 +1,14 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 import { DeliveryStatus } from '../entity/delivery.entity';
 
 export class CreateDeliveryDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   orderId: string;
 
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   productId: string;
 
   @IsOptional()

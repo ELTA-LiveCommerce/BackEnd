@@ -167,7 +167,7 @@ export class DeliveryService {
     if (searchDto.keyword) {
       qb.andWhere(
         '(product.name LIKE :keyword OR user.username LIKE :keyword OR user.name LIKE :keyword OR d.trackingNumber LIKE :keyword)',
-        { keyword: `%${searchDto.keyword}%` },
+        { keyword: `%${searchDto.keyword}%` } as any,
       );
     }
 

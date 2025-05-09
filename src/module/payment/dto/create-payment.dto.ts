@@ -1,20 +1,19 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 import { PaymentStatus } from '../entity/payment.entity';
 
 export class CreatePaymentDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   orderId: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  amount: number;
 
   @IsOptional()
   @IsEnum(PaymentStatus)
   status?: PaymentStatus;
-
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
-  amount: number;
 
   @IsOptional()
   @IsString()

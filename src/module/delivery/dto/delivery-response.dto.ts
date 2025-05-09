@@ -47,7 +47,7 @@ export class DeliveryResponseDto {
   buyerPhone: string;
 
   @Expose()
-  shippingAddress: string;
+  shippingAddress: string = '';
 
   @Expose()
   status: DeliveryStatus;
@@ -106,7 +106,7 @@ export class DeliveryResponseDto {
     dto.buyerId = delivery.order?.user?.id || '';
     dto.buyerName = delivery.order?.user?.name || '';
     dto.buyerPhone = delivery.order?.user?.phoneNumber || '';
-    dto.shippingAddress = delivery.shippingAddress;
+    dto.shippingAddress = delivery.shippingAddress || '';
     dto.status = delivery.status;
     dto.statusText = DeliveryStatusKorean[delivery.status] || delivery.status;
     dto.trackingNumber = delivery.trackingNumber || '';

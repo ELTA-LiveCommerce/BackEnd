@@ -1,5 +1,4 @@
-import { Transform, Type } from 'class-transformer';
-import { IsDate, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
 
 import { DeliveryStatus } from '../entity/delivery.entity';
 
@@ -13,17 +12,10 @@ export class SearchDeliveryDto {
   status?: DeliveryStatus;
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
+  @IsDateString()
   startDate?: Date;
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
+  @IsDateString()
   endDate?: Date;
-
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => (value ? value : '등록일'))
-  searchType?: string;
 }

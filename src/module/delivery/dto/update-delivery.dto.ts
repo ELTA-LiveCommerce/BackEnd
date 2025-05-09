@@ -14,4 +14,8 @@ export class UpdateDeliveryDto {
   @IsOptional()
   @IsString()
   courierCompany?: string;
+
+  @IsOptional()
+  @IsString()
+  shippingAddress?: string;
 }

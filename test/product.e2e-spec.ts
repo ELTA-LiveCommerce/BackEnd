@@ -64,28 +64,28 @@ describe('ProductController (e2e)', () => {
     await cleanupTestApp(app);
   });
 
-  describe('/products (GET)', () => {
+  describe('/v1/products (GET)', () => {
     it('should return all products', async () => {
-      const response = await request(app.getHttpServer()).get('/products').expect(200);
+      const response = await request(app.getHttpServer()).get('/v1/products').expect(200);
 
       const body = response.body as Product[];
       expect(Array.isArray(body)).toBeTruthy();
     });
   });
 
-  describe('/products/:id (GET)', () => {
+  describe('/v1/products/:id (GET)', () => {
     it('should return a product by id', async () => {
       // 모킹된 상황이므로 실제 ID로 요청해도 404가 반환됨 - findOne이 null을 반환하도록 모킹되어 있음
       // 이 테스트는 404를 기대하도록 수정
-      return request(app.getHttpServer()).get(`/products/${createdProduct.id}`).expect(404);
+      return request(app.getHttpServer()).get(`/v1/products/${createdProduct.id}`).expect(404);
     });
 
     it('should return 404 for non-existent product', () => {
-      return request(app.getHttpServer()).get('/products/non-existent-id').expect(404);
+      return request(app.getHttpServer()).get('/v1/products/non-existent-id').expect(404);
     });
   });
 
-  describe('/products (POST)', () => {
+  describe('/v1/products (POST)', () => {
     it('should create new product', async () => {
       const createDto: CreateProductDto = {
         name: 'New E2E Product',
@@ -96,14 +96,14 @@ describe('ProductController (e2e)', () => {
 
       // POST 요청 시 201 응답을 기대
       return request(app.getHttpServer())
-        .post('/products')
+        .post('/v1/products')
         .set('Authorization', `Bearer ${sellerToken}`)
         .send(createDto)
         .expect(201);
     });
   });
 
-  describe('/products/:id (PUT)', () => {
+  describe('/v1/products/:id (PUT)', () => {
     it('should update product', async () => {
       const updateDto: UpdateProductDto = {
         name: 'Updated E2E Product Name',
@@ -113,7 +113,7 @@ describe('ProductController (e2e)', () => {
       // 모킹된 상황이므로 실제 ID로 요청해도 404가 반환됨 - findOne이 null을 반환하도록 모킹되어 있음
       // 이 테스트는 404를 기대하도록 수정
       return request(app.getHttpServer())
-        .put(`/products/${createdProduct.id}`)
+        .put(`/v1/products/${createdProduct.id}`)
         .set('Authorization', `Bearer ${sellerToken}`)
         .send(updateDto)
         .expect(404);
@@ -121,26 +121,26 @@ describe('ProductController (e2e)', () => {
 
     it('should return 404 for non-existent product', () => {
       return request(app.getHttpServer())
-        .put('/products/non-existent-id')
+        .put('/v1/products/non-existent-id')
         .set('Authorization', `Bearer ${sellerToken}`)
         .send({ name: '업데이트된 상품' })
         .expect(404);
     });
   });
 
-  describe('/products/:id (DELETE)', () => {
+  describe('/v1/products/:id (DELETE)', () => {
     it('should delete product', async () => {
       // 모킹된 상황이므로 실제 ID로 요청해도 404가 반환됨 - findOne이 null을 반환하도록 모킹되어 있음
       // 이 테스트는 404를 기대하도록 수정
       return request(app.getHttpServer())
-        .delete(`/products/${createdProduct.id}`)
+        .delete(`/v1/products/${createdProduct.id}`)
         .set('Authorization', `Bearer ${sellerToken}`)
         .expect(404);
     });
 
     it('should return 404 for non-existent product', () => {
       return request(app.getHttpServer())
-        .delete('/products/non-existent-id')
+        .delete('/v1/products/non-existent-id')
         .set('Authorization', `Bearer ${sellerToken}`)
         .expect(404);
     });

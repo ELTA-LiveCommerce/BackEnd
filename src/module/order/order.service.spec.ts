@@ -3,11 +3,13 @@ import { SqlEntityManager } from '@mikro-orm/postgresql';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { DeliveryService } from '@/module/delivery/delivery.service';
 import { CreateOrderDto } from '@/module/order/dto/create-order.dto';
 import { OrderResponseDto } from '@/module/order/dto/order-response.dto';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { Order } from '@/module/order/entity/order.entity';
 import { OrderService } from '@/module/order/order.service';
+import { PaymentService } from '@/module/payment/payment.service';
 import { Product } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
 import { User } from '@/module/user/entity/user.entity';
@@ -47,6 +49,8 @@ describe('OrderService', () => {
   let mockProduct: Product;
   let mockOrderItem: OrderItem;
   let mockOrder: Order;
+  let mockDeliveryService: Partial<DeliveryService>;
+  let mockPaymentService: Partial<PaymentService>;
 
   beforeEach(async () => {
     // Reset mocks
@@ -197,6 +201,22 @@ describe('OrderService', () => {
       }),
     };
 
+    mockDeliveryService = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
+
+    mockPaymentService = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrderService,
@@ -219,6 +239,14 @@ describe('OrderService', () => {
         {
           provide: ProductService,
           useValue: mockProductService,
+        },
+        {
+          provide: DeliveryService,
+          useValue: mockDeliveryService,
+        },
+        {
+          provide: PaymentService,
+          useValue: mockPaymentService,
         },
         {
           provide: SqlEntityManager,

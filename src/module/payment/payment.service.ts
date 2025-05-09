@@ -155,7 +155,7 @@ export class PaymentService {
     if (searchDto.keyword) {
       qb.andWhere(
         '(product.name LIKE :keyword OR user.username LIKE :keyword OR user.name LIKE :keyword OR p.transactionId LIKE :keyword OR seller.name LIKE :keyword)',
-        { keyword: `%${searchDto.keyword}%` },
+        { keyword: `%${searchDto.keyword}%` } as any,
       );
     }
 

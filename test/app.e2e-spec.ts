@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 
-import { HealthControllerModule } from '../src/api/health/health-controller.module';
+import { HealthControllerModule } from '../src/api/v1/health/health-controller.module';
 
 describe('HealthController (e2e)', () => {
   let app: INestApplication;
@@ -20,10 +20,10 @@ describe('HealthController (e2e)', () => {
     await app.close();
   });
 
-  describe('/health (GET)', () => {
+  describe('/v1/health (GET)', () => {
     it('should return health status', () => {
       return request(app.getHttpServer())
-        .get('/health')
+        .get('/v1/health')
         .expect(200)
         .expect((res) => {
           expect(res.body.status).toEqual('ok');

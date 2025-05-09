@@ -1,4 +1,4 @@
-import { Entity, Enum, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, ManyToOne, Enum, Property, PrimaryKey } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { Order } from '@/module/order/entity/order.entity';
@@ -17,13 +17,13 @@ export class Delivery {
   @PrimaryKey()
   id: string = v4();
 
-  @ManyToOne(() => Order, { fieldName: 'order_id' })
+  @ManyToOne(() => Order)
   order: Order;
 
-  @ManyToOne(() => Product, { fieldName: 'product_id' })
-  product: Product;
+  @ManyToOne(() => Product, { nullable: true })
+  product?: Product;
 
-  @ManyToOne(() => User, { fieldName: 'seller_id' })
+  @ManyToOne(() => User)
   seller: User;
 
   @Enum(() => DeliveryStatus)
@@ -35,14 +35,8 @@ export class Delivery {
   @Property({ nullable: true })
   courierCompany?: string;
 
-  @Property()
-  shippingAddress: string;
-
-  @Property()
-  createdAt: Date = new Date();
-
-  @Property({ onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  @Property({ nullable: true })
+  shippingAddress?: string;
 
   @Property({ nullable: true })
   shippedAt?: Date;
@@ -52,4 +46,10 @@ export class Delivery {
 
   @Property({ nullable: true })
   canceledAt?: Date;
+
+  @Property()
+  createdAt: Date = new Date();
+
+  @Property({ onUpdate: () => new Date() })
+  updatedAt: Date = new Date();
 }

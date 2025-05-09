@@ -249,18 +249,9 @@ export class UserService {
         const totalActiveCount = await this.calculateTotalActiveCount();
 
         return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          createdAt: user.createdAt,
-          phoneNumber: user.phoneNumber,
-          address: user.address,
+          ...user,
           totalPayment,
           totalActiveCount,
-          bankName: user.bankName,
-          accountNumber: user.accountNumber,
-          gender: user.gender,
-          status: user.status || UserStatus.ACTIVE,
         };
       }),
     );
@@ -335,5 +326,41 @@ export class UserService {
 
     await this.em.persistAndFlush(user);
     return true;
+  }
+
+  /**
+   * 사용자명(username)에 키워드가 포함된 사용자를 검색합니다.
+   * 주로 자동완성 기능에 사용됩니다.
+   *
+   * @param keyword 검색 키워드
+   * @param role 사용자 역할 (기본값: 모든 역할)
+   * @param limit 최대 결과 수 (기본값: 10)
+   * @returns 검색된 사용자 목록
+   */
+  async findByUsernameContaining(keyword: string, role?: UserRole, limit = 10): Promise<User[]> {
+    let queryBuilder = this.userRepository.createQueryBuilder('u');
+
+    // 키워드로 이름 또는 이메일 검색
+    queryBuilder = queryBuilder.where({
+      $or: [{ name: { $like: `%${keyword}%` } }, { email: { $like: `%${keyword}%` } }],
+    });
+
+    // 역할 필터 적용 (지정된 경우)
+    if (role) {
+      queryBuilder = queryBuilder.andWhere({ role });
+    }
+
+    // 결과 제한 및 정렬 (정확도 순)
+    queryBuilder = queryBuilder.orderBy([
+      { name: keyword, direction: 'DESC' }, // 이름이 정확히 일치하는 항목 우선
+      { name: { $like: `${keyword}%` }, direction: 'DESC' }, // 이름이 키워드로 시작하는 항목 다음
+      { email: { $like: `${keyword}%` }, direction: 'DESC' }, // 이메일이 키워드로 시작하는 항목 다음
+    ]);
+
+    // 최대 결과 수 제한
+    queryBuilder = queryBuilder.limit(limit);
+
+    // 결과 조회
+    return await queryBuilder.getResult();
   }
 }

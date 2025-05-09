@@ -46,4 +46,10 @@ export class Payment extends BaseEntity {
 
   @Property({ nullable: true })
   refundedAt?: Date;
+
+  @Property()
+  createdAt: Date = new Date();
+
+  @Property({ onUpdate: () => new Date() })
+  updatedAt: Date = new Date();
 }

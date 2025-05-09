@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 
 import { PaymentStatus } from '../entity/payment.entity';
 
@@ -9,7 +9,6 @@ export class UpdatePaymentDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0)
   amount?: number;
 
   @IsOptional()
