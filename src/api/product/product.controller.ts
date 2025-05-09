@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Request,
   UploadedFile,
   UploadedFiles,
@@ -20,6 +21,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { CreateProductDto } from '@/module/product/dto/create-product.dto';
+import { GetProductListDto } from '@/module/product/dto/get-product-list.dto';
+import { ProductListItemDto } from '@/module/product/dto/product-list-item.dto';
 import { UpdateProductDto } from '@/module/product/dto/update-product.dto';
 import { Product } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
@@ -52,11 +55,25 @@ export class ProductController {
   }
 
   /**
-   * ID로 상품을 조회합니다.
+   * 셀러가 자신의 상품 목록을 조회합니다.
+   * 셀러 권한이 필요합니다.
    */
-  @Get(':id')
-  findOne(@Param('id') id: string): Promise<Product> {
-    return this.productService.findOne(id);
+  @Get('seller/list')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER)
+  getSellerProducts(@Query() getProductListDto: GetProductListDto, @Request() req): Promise<ProductListItemDto[]> {
+    return this.productService.getSellerProductList(getProductListDto, req.user);
+  }
+
+  /**
+   * 셀러가 자신의 상품 상세 정보를 조회합니다.
+   * 셀러 권한이 필요합니다.
+   */
+  @Get('seller/detail/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER)
+  getSellerProductDetail(@Param('id') id: string, @Request() req): Promise<Product> {
+    return this.productService.getSellerProductDetail(id, req.user);
   }
 
   /**
@@ -69,12 +86,20 @@ export class ProductController {
   }
 
   /**
+   * ID로 상품을 조회합니다.
+   */
+  @Get(':id')
+  findOne(@Param('id') id: string): Promise<Product> {
+    return this.productService.findOne(id);
+  }
+
+  /**
    * 새 상품을 생성합니다.
-   * 셀러 또는 관리자 권한이 필요합니다.
+   * 셀러 권한이 필요합니다.
    */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN)
+  @Roles(UserRole.SELLER)
   @UseInterceptors(FilesInterceptor('images', 10, productStorage), FileInterceptor('mainImage', productStorage))
   create(
     @UploadedFile() mainImageFile: Express.Multer.File,
@@ -93,17 +118,18 @@ export class ProductController {
 
   /**
    * 상품을 업데이트합니다.
-   * 셀러 또는 관리자 권한이 필요합니다.
+   * 셀러 권한이 필요하며, 자신의 상품만 수정할 수 있습니다.
    */
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN)
+  @Roles(UserRole.SELLER)
   @UseInterceptors(FilesInterceptor('images', 10, productStorage), FileInterceptor('mainImage', productStorage))
   update(
     @Param('id') id: string,
     @UploadedFile() mainImageFile: Express.Multer.File,
     @UploadedFiles() imagesFiles: Express.Multer.File[],
     @Body() updateProductDto: UpdateProductDto,
+    @Request() req,
   ): Promise<Product> {
     if (mainImageFile) {
       updateProductDto.mainImage = `/uploads/products/${mainImageFile.filename}`;
@@ -111,17 +137,17 @@ export class ProductController {
     if (imagesFiles && imagesFiles.length > 0) {
       updateProductDto.images = imagesFiles.map((file) => `/uploads/products/${file.filename}`);
     }
-    return this.productService.update(id, updateProductDto);
+    return this.productService.update(id, updateProductDto, req.user);
   }
 
   /**
    * 상품을 삭제합니다.
-   * 셀러 또는 관리자 권한이 필요합니다.
+   * 셀러 권한이 필요하며, 자신의 상품만 삭제할 수 있습니다.
    */
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN)
-  remove(@Param('id') id: string): Promise<void> {
-    return this.productService.remove(id);
+  @Roles(UserRole.SELLER)
+  remove(@Param('id') id: string, @Request() req): Promise<void> {
+    return this.productService.remove(id, req.user);
   }
 }

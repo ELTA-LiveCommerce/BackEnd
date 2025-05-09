@@ -3,6 +3,7 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import { SqlEntityManager } from '@mikro-orm/postgresql';
 import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 
+import { DeliveryService } from '@/module/delivery/delivery.service';
 import { CreateOrderDto } from '@/module/order/dto/create-order.dto';
 import { GetOrdersDto } from '@/module/order/dto/get-orders.dto';
 import {
@@ -14,6 +15,7 @@ import {
 import { UpdateShippingDto } from '@/module/order/dto/update-shipping.dto';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { Order } from '@/module/order/entity/order.entity';
+import { PaymentService } from '@/module/payment/payment.service';
 import { Product } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
 import { User } from '@/module/user/entity/user.entity';
@@ -31,6 +33,8 @@ export class OrderService {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private readonly productService: ProductService,
+    private readonly deliveryService: DeliveryService,
+    private readonly paymentService: PaymentService,
     private readonly entityManager: SqlEntityManager,
   ) {}
 
@@ -47,6 +51,12 @@ export class OrderService {
 
     const order = new Order(user, createOrderDto.paymentMethod, createOrderDto.shippingAddress, createOrderDto.notes);
 
+    // 판매자 정보를 저장할 맵
+    const sellerProductMap = new Map<
+      string,
+      { seller: User; products: Array<{ product: Product; quantity: number }> }
+    >();
+
     for (const itemDto of createOrderDto.items) {
       const product = await this.productService.findOne(itemDto.productId);
       if (!product) {
@@ -61,9 +71,37 @@ export class OrderService {
       order.totalAmount += orderItem.totalPrice;
       product.stockQuantity -= itemDto.quantity;
       this.entityManager.persist(product);
+
+      // 판매자별로 상품 정보 분류
+      const sellerId = product.seller.id;
+      if (!sellerProductMap.has(sellerId)) {
+        sellerProductMap.set(sellerId, { seller: product.seller, products: [] });
+      }
+      sellerProductMap.get(sellerId)?.products.push({ product, quantity: itemDto.quantity });
     }
 
     await this.entityManager.persistAndFlush(order);
+
+    // 판매자별로 배송 정보 생성
+    for (const [sellerId, { seller, products }] of sellerProductMap.entries()) {
+      // 판매자별 배송 정보 생성
+      await this.deliveryService.createDelivery({
+        orderId: order.id,
+        sellerId: sellerId,
+        productIds: products.map((p) => p.product.id),
+        shippingAddress: order.shippingAddress || '',
+      });
+
+      // 판매자별 결제 정보 생성
+      const sellerTotal = products.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
+      await this.paymentService.createPayment({
+        orderId: order.id,
+        sellerId: sellerId,
+        amount: sellerTotal,
+        paymentMethod: order.paymentMethod || '무통장입금',
+        transactionId: `TR-${order.orderNumber}-${sellerId.substring(0, 4)}`,
+      });
+    }
 
     const orderItemsData: OrderItemResponseDto[] = order.items.getItems().map((item) => ({
       id: item.id,

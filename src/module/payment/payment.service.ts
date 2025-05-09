@@ -5,6 +5,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 
 import { UserRole } from '@/shared/enum/user-role.enum';
 
+import { CreatePaymentAutoDto } from './dto/create-payment-auto.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { SearchPaymentDto } from './dto/search-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -19,6 +20,35 @@ export class PaymentService {
     private paymentRepository: EntityRepository<Payment>,
     private readonly entityManager: SqlEntityManager,
   ) {}
+
+  /**
+   * 주문 생성 시 자동으로 결제 정보를 생성합니다.
+   */
+  async createPayment(createPaymentAutoDto: CreatePaymentAutoDto): Promise<Payment> {
+    // 주문 확인
+    const order = await this.entityManager.findOne(Order, { id: createPaymentAutoDto.orderId });
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${createPaymentAutoDto.orderId} not found`);
+    }
+
+    // 판매자 확인
+    const seller = await this.entityManager.findOne(User, { id: createPaymentAutoDto.sellerId });
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${createPaymentAutoDto.sellerId} not found`);
+    }
+
+    // 결제 객체 생성
+    const payment = new Payment();
+    payment.order = order;
+    payment.seller = seller;
+    payment.status = PaymentStatus.PENDING;
+    payment.amount = createPaymentAutoDto.amount;
+    payment.paymentMethod = createPaymentAutoDto.paymentMethod || '무통장입금';
+    payment.transactionId = createPaymentAutoDto.transactionId || `TR-${order.orderNumber}-${Date.now()}`;
+
+    await this.entityManager.persistAndFlush(payment);
+    return payment;
+  }
 
   /**
    * 셀러가 주문에 대한 입금 정보를 생성합니다.

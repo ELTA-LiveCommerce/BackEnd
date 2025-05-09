@@ -5,6 +5,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 
 import { UserRole } from '@/shared/enum/user-role.enum';
 
+import { CreateDeliveryAutoDto } from './dto/create-delivery-auto.dto';
 import { CreateDeliveryDto } from './dto/create-delivery.dto';
 import { SearchDeliveryDto } from './dto/search-delivery.dto';
 import { UpdateDeliveryDto } from './dto/update-delivery.dto';
@@ -20,6 +21,41 @@ export class DeliveryService {
     private deliveryRepository: EntityRepository<Delivery>,
     private readonly entityManager: SqlEntityManager,
   ) {}
+
+  /**
+   * 주문 생성 시 자동으로 배송 정보를 생성합니다.
+   */
+  async createDelivery(createDeliveryAutoDto: CreateDeliveryAutoDto): Promise<Delivery> {
+    // 주문 확인
+    const order = await this.entityManager.findOne(Order, { id: createDeliveryAutoDto.orderId });
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${createDeliveryAutoDto.orderId} not found`);
+    }
+
+    // 판매자 확인
+    const seller = await this.entityManager.findOne(User, { id: createDeliveryAutoDto.sellerId });
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${createDeliveryAutoDto.sellerId} not found`);
+    }
+
+    // 배송 객체 생성
+    const delivery = new Delivery();
+    delivery.order = order;
+    delivery.seller = seller;
+    delivery.status = DeliveryStatus.PREPARING;
+    delivery.shippingAddress = createDeliveryAutoDto.shippingAddress;
+
+    // 상품이 여러 개인 경우 대표 상품으로 첫 번째 상품을 설정
+    if (createDeliveryAutoDto.productIds.length > 0) {
+      const product = await this.entityManager.findOne(Product, { id: createDeliveryAutoDto.productIds[0] });
+      if (product) {
+        delivery.product = product;
+      }
+    }
+
+    await this.entityManager.persistAndFlush(delivery);
+    return delivery;
+  }
 
   /**
    * 판매자가 주문에 대한 배송 정보를 생성합니다.
