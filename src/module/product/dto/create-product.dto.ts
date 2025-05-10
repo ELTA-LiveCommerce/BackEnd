@@ -34,6 +34,14 @@ export class CreateProductDto {
   price: number;
 
   /**
+   * 할인 가격
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discountPrice?: number;
+
+  /**
    * 재고 수량
    */
   @IsNumber()

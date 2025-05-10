@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, NotFoundException } from '@nestjs/common';
 
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { ProductService } from '@/module/product/product.service';
@@ -61,6 +61,11 @@ export class SellerController {
   ): Promise<SellerInfoResponseDto> {
     // 사용자 정보 조회
     const seller = await this.userService.findOne(sellerId);
+
+    // 판매자가 존재하지 않으면 NotFoundException 발생
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID "${sellerId}" not found`);
+    }
 
     // 팔로워, 팔로잉 수 같은 추가 정보는 실제 구현 필요
     const followersCount = 0; // 실제 구현 필요

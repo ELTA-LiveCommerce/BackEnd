@@ -5,6 +5,7 @@ import { PostgreSqlOptions } from '@mikro-orm/postgresql/PostgreSqlMikroORM';
 import { SqlHighlighter } from '@mikro-orm/sql-highlighter';
 // import { Logger as NestJsLogger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { v4 } from 'uuid';
 
 // 타입 정의
 type MikroOrmOptions = {
@@ -49,13 +50,14 @@ const createMikroOrmConfig = (configService?: ConfigService) => {
     },
   };
 
-  const envConfigs = {
+  const envConfigs: Record<string, PostgreSqlOptions> = {
     test: {
-      dbName: configService?.get<string>('POSTGRES_DB') || process.env.POSTGRES_DB || 'elta_test',
+      dbName: `${configService?.get<string>('POSTGRES_DB') || process.env.POSTGRES_DB}_test_${v4()}`,
       user: configService?.get<string>('POSTGRES_USER') || process.env.POSTGRES_USER || 'elta',
       password: configService?.get<string>('POSTGRES_PASSWORD') || process.env.POSTGRES_PASSWORD || 'elta1234',
       host: configService?.get<string>('POSTGRES_HOST') || process.env.POSTGRES_HOST || 'postgres-dev',
       port: configService?.get<number>('POSTGRES_PORT') || Number(process.env.POSTGRES_PORT) || 5432,
+      allowGlobalContext: true,
       forceUtcTimezone: true,
       debug: false,
     },

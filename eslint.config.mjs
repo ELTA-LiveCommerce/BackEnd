@@ -47,7 +47,7 @@ export default tseslint.config(
       'max-len': ['warn', { code: 120 }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       'unused-imports/no-unused-imports': 'warn',
-      'import/no-unresolved': ['error', { ignore: ['^@/'] }],
+      'import/no-unresolved': ['error', { ignore: ['^@/', '^@test/'] }],
       'import/order': [
         'warn',
         {

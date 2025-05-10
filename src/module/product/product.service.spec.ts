@@ -1,6 +1,6 @@
 import { EntityManager } from '@mikro-orm/core';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { CreateProductDto } from '@/module/product/dto/create-product.dto';
@@ -206,6 +206,107 @@ describe('ProductService', () => {
       mockUserService.findOne.mockRejectedValue(new NotFoundException()); // 판매자 없음 모킹
 
       await expect(service.findProductsBySeller(sellerId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('setProductDiscount', () => {
+    it('should set discount price for a product', async () => {
+      const productId = 'product-1';
+      const discountPrice = 800000;
+
+      const seller = { id: 'seller-1' } as User;
+      const product = {
+        id: productId,
+        name: '스마트폰',
+        price: 1000000,
+        seller: seller,
+      } as unknown as Product;
+
+      mockProductRepository.findOne.mockResolvedValue(product);
+      mockEntityManager.flush.mockResolvedValue(undefined);
+
+      const result = await service.setProductDiscount(productId, discountPrice, seller);
+
+      expect(result.discountPrice).toEqual(discountPrice);
+      expect(mockEntityManager.flush).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if discount price is higher than original price', async () => {
+      const productId = 'product-1';
+      const discountPrice = 1200000; // 원래 가격 1000000보다 높음
+
+      const seller = { id: 'seller-1' } as User;
+      const product = {
+        id: productId,
+        name: '스마트폰',
+        price: 1000000,
+        seller: seller,
+      } as unknown as Product;
+
+      mockProductRepository.findOne.mockResolvedValue(product);
+
+      await expect(service.setProductDiscount(productId, discountPrice, seller)).rejects.toThrow(ForbiddenException);
+    });
+
+    it("should throw ForbiddenException if seller tries to discount another seller's product", async () => {
+      const productId = 'product-1';
+      const discountPrice = 800000;
+
+      const productSeller = { id: 'seller-1' } as User;
+      const otherSeller = { id: 'seller-2' } as User;
+      const product = {
+        id: productId,
+        name: '스마트폰',
+        price: 1000000,
+        seller: productSeller,
+      } as unknown as Product;
+
+      mockProductRepository.findOne.mockResolvedValue(product);
+
+      await expect(service.setProductDiscount(productId, discountPrice, otherSeller)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+  });
+
+  describe('removeProductDiscount', () => {
+    it('should remove discount price from a product', async () => {
+      const productId = 'product-1';
+
+      const seller = { id: 'seller-1' } as User;
+      const product = {
+        id: productId,
+        name: '스마트폰',
+        price: 1000000,
+        discountPrice: 800000,
+        seller: seller,
+      } as unknown as Product;
+
+      mockProductRepository.findOne.mockResolvedValue(product);
+      mockEntityManager.flush.mockResolvedValue(undefined);
+
+      const result = await service.removeProductDiscount(productId, seller);
+
+      expect(result.discountPrice).toBeUndefined();
+      expect(mockEntityManager.flush).toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if seller tries to remove discount from another seller's product", async () => {
+      const productId = 'product-1';
+
+      const productSeller = { id: 'seller-1' } as User;
+      const otherSeller = { id: 'seller-2' } as User;
+      const product = {
+        id: productId,
+        name: '스마트폰',
+        price: 1000000,
+        discountPrice: 800000,
+        seller: productSeller,
+      } as unknown as Product;
+
+      mockProductRepository.findOne.mockResolvedValue(product);
+
+      await expect(service.removeProductDiscount(productId, otherSeller)).rejects.toThrow(ForbiddenException);
     });
   });
 });

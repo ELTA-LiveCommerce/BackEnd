@@ -19,6 +19,11 @@ export class ProductListItemDto {
   price: number;
 
   /**
+   * 할인 가격
+   */
+  discountPrice?: number;
+
+  /**
    * 재고 수량
    */
   stockQuantity: number;

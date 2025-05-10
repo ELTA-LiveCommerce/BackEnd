@@ -13,6 +13,14 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   profileImage?: string;
+
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
 }
 
 export class UpdateBankInfoDto {

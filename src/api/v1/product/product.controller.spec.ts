@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { CreateProductDto } from '@/module/product/dto/create-product.dto';
-import { UpdateProductDto } from '@/module/product/dto/update-product.dto';
+import { UpdateProductDto, UpdateProductDiscountDto } from '@/module/product/dto/update-product.dto';
 import { Product } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
 import { User } from '@/module/user/entity/user.entity';
@@ -54,6 +54,8 @@ describe('ProductController', () => {
             findProductsBySeller: jest.fn(),
             getSellerProductList: jest.fn(),
             getSellerProductDetail: jest.fn(),
+            setProductDiscount: jest.fn(),
+            removeProductDiscount: jest.fn(),
           },
         },
       ],
@@ -205,6 +207,51 @@ describe('ProductController', () => {
       jest.spyOn(service, 'remove').mockResolvedValue(undefined);
       await controller.remove(productId, mockReq);
       expect(() => service.remove(productId)).not.toThrow();
+    });
+  });
+
+  describe('setDiscount', () => {
+    it('should set discount price for a product', async () => {
+      const productId = '1';
+      const updateProductDiscountDto: UpdateProductDiscountDto = { discountPrice: 80 };
+      const result: Product = {
+        id: productId,
+        name: 'Test Product',
+        price: 100,
+        discountPrice: 80,
+        seller: { id: 'seller1' } as any,
+        stockQuantity: 10,
+        description: 'desc',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as unknown as Product;
+
+      jest.spyOn(service, 'setProductDiscount').mockResolvedValue(result);
+      expect(await controller.setDiscount(productId, updateProductDiscountDto, mockReq)).toBe(result);
+      expect(() =>
+        service.setProductDiscount(productId, updateProductDiscountDto.discountPrice, mockReq.user),
+      ).not.toThrow();
+    });
+  });
+
+  describe('removeDiscount', () => {
+    it('should remove discount from a product', async () => {
+      const productId = '1';
+      const result: Product = {
+        id: productId,
+        name: 'Test Product',
+        price: 100,
+        discountPrice: undefined,
+        seller: { id: 'seller1' } as any,
+        stockQuantity: 10,
+        description: 'desc',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as unknown as Product;
+
+      jest.spyOn(service, 'removeProductDiscount').mockResolvedValue(result);
+      expect(await controller.removeDiscount(productId, mockReq)).toBe(result);
+      expect(() => service.removeProductDiscount(productId, mockReq.user)).not.toThrow();
     });
   });
 });

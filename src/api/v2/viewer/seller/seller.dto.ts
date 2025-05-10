@@ -1,10 +1,10 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Min, IsInt } from 'class-validator';
 
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 
 /**
- * 셀러 검색 요청 DTO
+ * 판매자 검색 요청 DTO
  */
 export class SellerSearchRequestDto {
   @IsNotEmpty()
@@ -12,14 +12,14 @@ export class SellerSearchRequestDto {
   keyword: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
   @Type(() => Number)
   limit?: number = 10;
 }
 
 /**
- * 셀러 검색 결과 아이템 DTO
+ * 판매자 검색 결과 항목 DTO
  */
 export class SellerSearchItemDto {
   id: string;
@@ -29,27 +29,30 @@ export class SellerSearchItemDto {
 }
 
 /**
- * 셀러 검색 결과 응답 DTO
+ * 판매자 검색 응답 DTO
  */
 export class SellerSearchResponseDto extends BaseResponseV2<SellerSearchItemDto[]> {
   /**
    * 성공 응답 생성
    */
-  static success<T>(data: T, message = '판매자 검색 결과입니다.', statusCode = 200): BaseResponseV2<T> {
+  static success(
+    data: SellerSearchItemDto[],
+    message = '판매자 검색 결과입니다.',
+    statusCode = 200,
+  ): BaseResponseV2<SellerSearchItemDto[]> {
     return BaseResponseV2.success(data, message, statusCode);
   }
 }
 
 /**
- * 셀러 정보 요청 DTO
- * sellerId는 URL 경로 파라미터로 받으므로 별도의 필드가 필요하지 않습니다.
+ * 판매자 정보 요청 DTO
  */
 export class SellerInfoRequestDto {
-  // sellerId는 URL 경로 파라미터로 받음
+  // 필요한 경우 쿼리 파라미터 추가
 }
 
 /**
- * 셀러 정보 응답 DTO
+ * 판매자 정보 DTO
  */
 export class SellerInfoDto {
   id: string;
@@ -57,48 +60,41 @@ export class SellerInfoDto {
   email: string;
   profileImage?: string;
   description?: string;
-  followers?: number;
-  following?: number;
+  followers: number;
+  following: number;
 }
 
 /**
- * 셀러 정보 응답 DTO
+ * 판매자 정보 응답 DTO
  */
 export class SellerInfoResponseDto extends BaseResponseV2<SellerInfoDto> {
   /**
    * 성공 응답 생성
    */
-  static success<T>(data: T, message = '셀러 정보입니다.', statusCode = 200): BaseResponseV2<T> {
+  static success(data: SellerInfoDto, message = '판매자 정보입니다.', statusCode = 200): BaseResponseV2<SellerInfoDto> {
     return BaseResponseV2.success(data, message, statusCode);
   }
 }
 
 /**
- * 페이지네이션 요청 DTO
+ * 판매자 라이브 방송 요청 DTO
  */
-export class PaginationRequestDto {
+export class SellerLiveRequestDto {
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
   @Type(() => Number)
   page?: number = 1;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
   @Type(() => Number)
   limit?: number = 10;
 }
 
 /**
- * 셀러 라이브 요청 DTO
- */
-export class SellerLiveRequestDto extends PaginationRequestDto {
-  // sellerId는 URL 경로 파라미터로 받음
-}
-
-/**
- * 셀러 라이브 아이템 DTO
+ * 판매자 라이브 방송 항목 DTO
  */
 export class SellerLiveItemDto {
   id: string;
@@ -110,7 +106,7 @@ export class SellerLiveItemDto {
 }
 
 /**
- * 셀러 라이브 페이지 응답 DTO
+ * 판매자 라이브 방송 페이지 DTO
  */
 export class SellerLivePageDto {
   items: SellerLiveItemDto[];
@@ -121,26 +117,40 @@ export class SellerLivePageDto {
 }
 
 /**
- * 셀러 라이브 응답 DTO
+ * 판매자 라이브 방송 응답 DTO
  */
 export class SellerLiveResponseDto extends BaseResponseV2<SellerLivePageDto> {
   /**
    * 성공 응답 생성
    */
-  static success<T>(data: T, message = '셀러 라이브 목록입니다.', statusCode = 200): BaseResponseV2<T> {
+  static success(
+    data: SellerLivePageDto,
+    message = '판매자 라이브 방송 목록입니다.',
+    statusCode = 200,
+  ): BaseResponseV2<SellerLivePageDto> {
     return BaseResponseV2.success(data, message, statusCode);
   }
 }
 
 /**
- * 셀러 상품 요청 DTO
+ * 판매자 상품 요청 DTO
  */
-export class SellerProductRequestDto extends PaginationRequestDto {
-  // sellerId는 URL 경로 파라미터로 받음
+export class SellerProductRequestDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  page?: number = 1;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  limit?: number = 10;
 }
 
 /**
- * 셀러 상품 아이템 DTO
+ * 판매자 상품 항목 DTO
  */
 export class SellerProductItemDto {
   id: string;
@@ -150,11 +160,11 @@ export class SellerProductItemDto {
   description?: string;
   stock: number;
   salesCount: number;
-  rating?: number;
+  rating: number;
 }
 
 /**
- * 셀러 상품 페이지 응답 DTO
+ * 판매자 상품 페이지 DTO
  */
 export class SellerProductPageDto {
   items: SellerProductItemDto[];
@@ -165,13 +175,17 @@ export class SellerProductPageDto {
 }
 
 /**
- * 셀러 상품 응답 DTO
+ * 판매자 상품 응답 DTO
  */
 export class SellerProductResponseDto extends BaseResponseV2<SellerProductPageDto> {
   /**
    * 성공 응답 생성
    */
-  static success<T>(data: T, message = '셀러 상품 목록입니다.', statusCode = 200): BaseResponseV2<T> {
+  static success(
+    data: SellerProductPageDto,
+    message = '판매자 상품 목록입니다.',
+    statusCode = 200,
+  ): BaseResponseV2<SellerProductPageDto> {
     return BaseResponseV2.success(data, message, statusCode);
   }
 }

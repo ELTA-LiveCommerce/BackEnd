@@ -23,7 +23,7 @@ import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { CreateProductDto } from '@/module/product/dto/create-product.dto';
 import { GetProductListDto } from '@/module/product/dto/get-product-list.dto';
 import { ProductListItemDto } from '@/module/product/dto/product-list-item.dto';
-import { UpdateProductDto } from '@/module/product/dto/update-product.dto';
+import { UpdateProductDto, UpdateProductDiscountDto } from '@/module/product/dto/update-product.dto';
 import { Product } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
 import { Roles } from '@/shared/common/roles.decorator';
@@ -149,5 +149,31 @@ export class ProductController {
   @Roles(UserRole.SELLER)
   remove(@Param('id') id: string, @Request() req): Promise<void> {
     return this.productService.remove(id, req.user);
+  }
+
+  /**
+   * 상품의 할인 가격을 설정합니다.
+   * 셀러 권한이 필요하며, 자신의 상품만 할인 설정할 수 있습니다.
+   */
+  @Put(':id/discount')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER)
+  setDiscount(
+    @Param('id') id: string,
+    @Body() updateProductDiscountDto: UpdateProductDiscountDto,
+    @Request() req,
+  ): Promise<Product> {
+    return this.productService.setProductDiscount(id, updateProductDiscountDto.discountPrice, req.user);
+  }
+
+  /**
+   * 상품의 할인을 제거합니다.
+   * 셀러 권한이 필요하며, 자신의 상품만 할인 제거할 수 있습니다.
+   */
+  @Delete(':id/discount')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER)
+  removeDiscount(@Param('id') id: string, @Request() req): Promise<Product> {
+    return this.productService.removeProductDiscount(id, req.user);
   }
 }

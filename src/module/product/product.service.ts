@@ -103,6 +103,7 @@ export class ProductService {
     dto.id = product.id;
     dto.name = product.name;
     dto.price = product.price;
+    dto.discountPrice = product.discountPrice;
     dto.stockQuantity = product.stockQuantity;
     dto.mainImage = product.mainImage;
     dto.createdAt = product.createdAt;
@@ -135,6 +136,9 @@ export class ProductService {
     }
     if (createProductDto.images) {
       product.images = createProductDto.images;
+    }
+    if (createProductDto.discountPrice !== undefined) {
+      product.discountPrice = createProductDto.discountPrice;
     }
 
     await this.em.persistAndFlush(product);
@@ -204,6 +208,9 @@ export class ProductService {
     if (updateProductDto.price !== undefined) {
       product.price = updateProductDto.price;
     }
+    if (updateProductDto.discountPrice !== undefined) {
+      product.discountPrice = updateProductDto.discountPrice;
+    }
     if (updateProductDto.stockQuantity !== undefined) {
       product.stockQuantity = updateProductDto.stockQuantity;
     }
@@ -232,5 +239,53 @@ export class ProductService {
     }
 
     await this.em.removeAndFlush(product);
+  }
+
+  /**
+   * 상품의 할인 가격을 설정합니다.
+   * @param id 상품 ID
+   * @param discountPrice 설정할 할인 가격
+   * @param seller 현재 로그인한 셀러 정보
+   * @returns 업데이트된 상품 정보
+   */
+  async setProductDiscount(id: string, discountPrice: number, seller?: User): Promise<Product> {
+    const product = await this.findOne(id);
+
+    // 자신의 상품인지 확인 (seller가 제공된 경우)
+    if (seller && product.seller.id !== seller.id) {
+      throw new ForbiddenException('자신의 상품만 할인 설정할 수 있습니다.');
+    }
+
+    // 할인 가격이 원래 가격보다 높은 경우 검증
+    if (discountPrice > product.price) {
+      throw new ForbiddenException('할인 가격은 원래 가격보다 낮아야 합니다.');
+    }
+
+    // 할인 가격 설정
+    product.discountPrice = discountPrice;
+
+    await this.em.flush();
+    return product;
+  }
+
+  /**
+   * 상품의 할인을 제거합니다.
+   * @param id 상품 ID
+   * @param seller 현재 로그인한 셀러 정보
+   * @returns 업데이트된 상품 정보
+   */
+  async removeProductDiscount(id: string, seller?: User): Promise<Product> {
+    const product = await this.findOne(id);
+
+    // 자신의 상품인지 확인 (seller가 제공된 경우)
+    if (seller && product.seller.id !== seller.id) {
+      throw new ForbiddenException('자신의 상품만 할인 제거할 수 있습니다.');
+    }
+
+    // 할인 가격 제거
+    product.discountPrice = undefined;
+
+    await this.em.flush();
+    return product;
   }
 }

@@ -38,15 +38,15 @@ export class BaseResponseV2<T> {
   /**
    * 성공 응답 생성
    */
-  static success<T>(data: T, message = 'OK', statusCode = 200): BaseResponseV2<T> {
-    return new BaseResponseV2<T>(data, statusCode, message, true);
+  static success(data: any, message = 'OK', statusCode = 200): BaseResponseV2<any> {
+    return new BaseResponseV2<any>(data, statusCode, message, true);
   }
 
   /**
    * 실패 응답 생성
    */
-  static error<T>(message: string, statusCode = 400, data?: T): BaseResponseV2<T | null> {
-    return new BaseResponseV2<T | null>(data || null, statusCode, message, false);
+  static error(message: string, statusCode = 400, data?: any): BaseResponseV2<any> {
+    return new BaseResponseV2<any>(data || null, statusCode, message, false);
   }
 }
 

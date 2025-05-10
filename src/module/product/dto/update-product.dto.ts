@@ -34,6 +34,14 @@ export class UpdateProductDto {
   price?: number;
 
   /**
+   * 할인 가격
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discountPrice?: number;
+
+  /**
    * 재고 수량
    */
   @IsOptional()
@@ -55,4 +63,16 @@ export class UpdateProductDto {
   @IsArray()
   @IsString({ each: true })
   images?: string[];
+}
+
+/**
+ * 상품 할인 관리 DTO
+ */
+export class UpdateProductDiscountDto {
+  /**
+   * 할인 가격
+   */
+  @IsNumber()
+  @Min(0)
+  discountPrice: number;
 }

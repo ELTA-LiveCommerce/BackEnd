@@ -76,7 +76,10 @@ export class ProfileController {
     // 은행 정보가 업데이트된 경우에만 호출
     let updatedUser = updatedProfileUser;
     if (Object.keys(bankUpdateData).length > 0) {
-      updatedUser = await this.userService.updateBankInfo(user.id, bankUpdateData);
+      updatedUser = await this.userService.updateBankInfo(user.id, {
+        bankName: bankUpdateData.bankName || '',
+        accountNumber: bankUpdateData.accountNumber || '',
+      });
     }
 
     return BaseResponseV2.success(updatedUser, '프로필 정보가 업데이트되었습니다.');

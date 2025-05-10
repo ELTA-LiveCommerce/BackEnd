@@ -37,6 +37,12 @@ export class Product extends BaseEntity {
   price: number;
 
   /**
+   * 할인 가격
+   */
+  @Property({ nullable: true })
+  discountPrice?: number;
+
+  /**
    * 재고 수량
    */
   @Property({ default: 0 })
