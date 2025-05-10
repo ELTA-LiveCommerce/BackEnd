@@ -1,6 +1,6 @@
 import { INestApplication, HttpStatus, Controller, Get, Module, HttpException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import * as request from 'supertest';
+import request from 'supertest';
 
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 

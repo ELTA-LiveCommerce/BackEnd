@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, Enum, Property, PrimaryKey } from '@mikro-orm/core';
+import { Entity, ManyToOne, Property, PrimaryKey } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { Order } from '@/module/order/entity/order.entity';
@@ -14,7 +14,7 @@ export enum DeliveryStatus {
 
 @Entity()
 export class Delivery {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'uuid' })
   id: string = v4();
 
   @ManyToOne(() => Order)
@@ -26,30 +26,30 @@ export class Delivery {
   @ManyToOne(() => User)
   seller: User;
 
-  @Enum(() => DeliveryStatus)
+  @Property({ type: 'string' })
   status: DeliveryStatus = DeliveryStatus.PREPARING;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   trackingNumber?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   courierCompany?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   shippingAddress?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   shippedAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   deliveredAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   canceledAt?: Date;
 
-  @Property()
+  @Property({ type: 'Date' })
   createdAt: Date = new Date();
 
-  @Property({ onUpdate: () => new Date() })
+  @Property({ type: 'Date', onUpdate: () => new Date() })
   updatedAt: Date = new Date();
 }

@@ -1,11 +1,10 @@
 import { Entity, Enum, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
+import { Order } from '@/module/order/entity/order.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { ReturnPickupType } from '@/shared/enum/return-pickup-type.enum';
 import { ReturnReasonCategory, ReturnReasonDetail } from '@/shared/enum/return-reason.enum';
-
-import { Order } from './order.entity';
 
 /**
  * 반품 상태
@@ -49,7 +48,7 @@ export enum ReturnStatus {
 
 @Entity({ tableName: 'return_requests' })
 export class ReturnRequest extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'string' })
   id: string = v4();
 
   /**
@@ -61,25 +60,25 @@ export class ReturnRequest extends BaseEntity {
   /**
    * 반품 사유 카테고리
    */
-  @Enum({ items: () => ReturnReasonCategory })
+  @Enum({ items: () => ReturnReasonCategory, type: 'string' })
   reasonCategory!: ReturnReasonCategory;
 
   /**
    * 반품 사유 상세
    */
-  @Enum({ items: () => ReturnReasonDetail })
+  @Enum({ items: () => ReturnReasonDetail, type: 'string' })
   reasonDetail!: ReturnReasonDetail;
 
   /**
    * 반품 상태
    */
-  @Enum({ items: () => ReturnStatus, default: ReturnStatus.REQUESTED })
+  @Enum({ items: () => ReturnStatus, default: ReturnStatus.REQUESTED, type: 'string' })
   status: ReturnStatus = ReturnStatus.REQUESTED;
 
   /**
    * 회수자 이름
    */
-  @Property()
+  @Property({ type: 'string' })
   pickupName!: string;
 
   /**
@@ -91,7 +90,7 @@ export class ReturnRequest extends BaseEntity {
   /**
    * 회수 요청 방법
    */
-  @Enum({ items: () => ReturnPickupType })
+  @Enum({ items: () => ReturnPickupType, type: 'string' })
   pickupType!: ReturnPickupType;
 
   /**
@@ -103,13 +102,13 @@ export class ReturnRequest extends BaseEntity {
   /**
    * 반품 요청 날짜
    */
-  @Property()
+  @Property({ type: 'Date' })
   requestedAt: Date = new Date();
 
   /**
    * 환불 완료 날짜
    */
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   refundedAt?: Date;
 
   /**

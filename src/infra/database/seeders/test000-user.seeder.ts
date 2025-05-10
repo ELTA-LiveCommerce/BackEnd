@@ -1,4 +1,4 @@
-import { EntityManager } from '@mikro-orm/postgresql';
+import { EntityManager, IDatabaseDriver } from '@mikro-orm/core';
 import { Seeder } from '@mikro-orm/seeder';
 import { v4 } from 'uuid';
 
@@ -10,7 +10,7 @@ import { UserRole } from '../../../shared/enum/user-role.enum';
  * 테스트용 사용자 데이터를 생성하는 시더
  */
 export class Test000UserSeeder extends Seeder {
-  async run(em: EntityManager): Promise<void> {
+  async run(em: EntityManager<IDatabaseDriver>): Promise<void> {
     const now = new Date();
 
     // 관리자 생성

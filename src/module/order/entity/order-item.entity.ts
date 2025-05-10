@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/postgresql';
+import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { Order } from '@/module/order/entity/order.entity';
@@ -7,7 +7,7 @@ import { BaseEntity } from '@/shared/entity/base.entity';
 
 @Entity({ tableName: 'order_items' })
 export class OrderItem extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'uuid' })
   id: string = v4();
 
   @ManyToOne(() => Order)
@@ -16,16 +16,16 @@ export class OrderItem extends BaseEntity {
   @ManyToOne(() => Product)
   product: Product;
 
-  @Property()
+  @Property({ type: 'number' })
   quantity: number;
 
-  @Property()
+  @Property({ type: 'number' })
   price: number;
 
-  @Property()
+  @Property({ type: 'number' })
   totalPrice: number;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   attributes?: string;
 
   constructor(order: Order, product: Product, quantity: number, price: number, attributes?: string) {

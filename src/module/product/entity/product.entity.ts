@@ -1,4 +1,4 @@
-import { ArrayType, Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/postgresql';
+import { ArrayType, Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { User } from '@/module/user/entity/user.entity';
@@ -9,13 +9,13 @@ import { BaseEntity } from '@/shared/entity/base.entity';
  */
 @Entity({ tableName: 'products' })
 export class Product extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'string' })
   id: string = v4();
 
   /**
    * 상품명
    */
-  @Property()
+  @Property({ type: 'string' })
   name: string;
 
   /**
@@ -33,25 +33,25 @@ export class Product extends BaseEntity {
   /**
    * 상품 가격
    */
-  @Property()
+  @Property({ type: 'number' })
   price: number;
 
   /**
    * 할인 가격
    */
-  @Property({ nullable: true })
+  @Property({ nullable: true, type: 'number' })
   discountPrice?: number;
 
   /**
    * 재고 수량
    */
-  @Property({ default: 0 })
+  @Property({ default: 0, type: 'number' })
   stockQuantity: number = 0;
 
   /**
    * 대표 이미지 URL
    */
-  @Property({ nullable: true })
+  @Property({ nullable: true, type: 'string' })
   mainImage?: string;
 
   /**

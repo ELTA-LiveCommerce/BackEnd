@@ -1,4 +1,4 @@
-import { MikroORM } from '@mikro-orm/postgresql';
+import { MikroORM } from '@mikro-orm/core';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -17,7 +17,7 @@ export async function initDatabase() {
   const orm = await MikroORM.init(mikroOrmConfig);
 
   Logger.log('데이터베이스 연결 확인', 'Database');
-  Logger.verbose(await orm.checkConnection(), 'Database');
+  Logger.verbose(await orm.isConnected(), 'Database');
 
   const migrator = orm.getMigrator();
   try {

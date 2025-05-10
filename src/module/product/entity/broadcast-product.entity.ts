@@ -1,10 +1,9 @@
-import { Entity, Enum, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/postgresql';
+import { Entity, Enum, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
+import { Product } from '@/module/product/entity/product.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
-
-import { Product } from './product.entity';
 
 /**
  * 방송별 상품 노출 상태
@@ -38,7 +37,7 @@ export enum BroadcastProductStatus {
 @Entity({ tableName: 'broadcast_products' })
 @Unique({ properties: ['broadcast', 'product'] })
 export class BroadcastProduct extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'string' })
   id: string = v4();
 
   /**
@@ -56,25 +55,25 @@ export class BroadcastProduct extends BaseEntity {
   /**
    * 방송에서의 상품 순서
    */
-  @Property({ default: 0 })
+  @Property({ default: 0, type: 'number' })
   sortOrder: number = 0;
 
   /**
    * 방송 특별가 (방송에서만 적용되는 할인가)
    */
-  @Property({ nullable: true })
+  @Property({ nullable: true, type: 'number' })
   specialPrice?: number;
 
   /**
    * 방송에서의 상품 상태
    */
-  @Enum({ items: () => BroadcastProductStatus, default: BroadcastProductStatus.PENDING })
+  @Enum({ items: () => BroadcastProductStatus, default: BroadcastProductStatus.PENDING, type: 'string' })
   status: BroadcastProductStatus = BroadcastProductStatus.PENDING;
 
   /**
    * 방송에서 판매된 수량
    */
-  @Property({ default: 0 })
+  @Property({ default: 0, type: 'number' })
   soldQuantity: number = 0;
 
   /**

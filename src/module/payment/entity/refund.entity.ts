@@ -2,10 +2,9 @@ import { Entity, Enum, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { Order } from '@/module/order/entity/order.entity';
+import { Payment } from '@/module/payment/entity/payment.entity';
 import { User } from '@/module/user/entity/user.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
-
-import { Payment } from './payment.entity';
 
 export enum RefundStatus {
   REQUESTED = 'REQUESTED',
@@ -24,7 +23,7 @@ export enum RefundReason {
 
 @Entity()
 export class Refund extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'string' })
   id: string = v4();
 
   @ManyToOne(() => Order, { fieldName: 'order_id' })
@@ -39,10 +38,10 @@ export class Refund extends BaseEntity {
   @ManyToOne(() => User, { fieldName: 'requested_by_id' })
   requestedBy: User;
 
-  @Enum(() => RefundStatus)
+  @Enum({ items: () => RefundStatus, type: 'string' })
   status: RefundStatus = RefundStatus.REQUESTED;
 
-  @Enum(() => RefundReason)
+  @Enum({ items: () => RefundReason, type: 'string' })
   reason: RefundReason;
 
   @Property({ type: 'decimal', precision: 10, scale: 2 })
@@ -51,12 +50,12 @@ export class Refund extends BaseEntity {
   @Property({ type: 'text', nullable: true })
   description?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   rejectionReason?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   completedAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   rejectedAt?: Date;
 }

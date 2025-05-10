@@ -1,4 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { HttpAdapterHost } from '@nestjs/core';
 import { isAxiosError } from 'axios';
 import { Request, Response } from 'express';
 
@@ -8,19 +9,23 @@ import { BaseResponse } from '../common';
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger('ERROR');
 
+  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
+
   catch(e: HttpException | Error, host: ArgumentsHost): void {
+    const { httpAdapter } = this.httpAdapterHost;
+
     const ctx = host.switchToHttp();
-    const errorData = ctx.getResponse<Response>();
+    const responseForExpress = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
     const status = 'getStatus' in e ? e.getStatus() : 500;
     const customStatusCode = this.getCustomStatusCode(status);
     const errorResponse = 'getResponse' in e ? e.getResponse() : e.name;
 
-    let res: Record<string, any> | undefined = undefined;
+    let resBody: Record<string, any> | undefined = undefined;
     if (errorResponse instanceof BaseResponse) {
-      res = errorResponse;
+      resBody = errorResponse;
     } else {
-      res = {
+      resBody = {
         success: false,
         error: {
           message:
@@ -34,7 +39,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       };
     }
 
-    // 스택 트레이스와 상세 정보 로깅
     const errorDetails = {
       timestamp: new Date().toISOString(),
       path: request.url,
@@ -57,7 +61,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     };
 
     if (process.env.NODE_ENV === 'development') {
-      res.detail = errorDetails;
+      (resBody as Record<string, any>).detail = errorDetails;
     }
 
     this.logger.error(`Exception occurred: ${e.message}`, e.stack);
@@ -65,13 +69,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     switch (e.name) {
       case 'URIError':
-        errorData.status(400).json({
+        responseForExpress.status(400).json({
           message: 'Malformed URI',
           messageKey: 'error.malformedUri',
         });
         break;
       default:
-        errorData.status(status).json(res);
+        responseForExpress.status(status).json(resBody);
         break;
     }
   }

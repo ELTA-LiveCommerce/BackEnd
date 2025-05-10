@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Query, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, Query, NotFoundException, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { ProductService } from '@/module/product/product.service';
@@ -23,6 +24,7 @@ import {
 } from './seller.dto';
 
 @Controller('v2/viewer/sellers')
+@UseGuards(AuthGuard('jwt'))
 export class SellerController {
   constructor(
     private readonly userService: UserService,

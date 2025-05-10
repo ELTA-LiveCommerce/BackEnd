@@ -1,9 +1,9 @@
-import { Property } from '@mikro-orm/postgresql';
+import { Property } from '@mikro-orm/core';
 
 export abstract class BaseEntity {
-  @Property({ defaultRaw: 'NOW()' })
+  @Property({ type: 'Date', defaultRaw: 'NOW()' })
   createdAt: Date = new Date();
 
-  @Property({ defaultRaw: 'NOW()', onUpdate: () => new Date() })
+  @Property({ type: 'Date', defaultRaw: 'NOW()', onUpdate: () => new Date() })
   updatedAt: Date = new Date();
 }

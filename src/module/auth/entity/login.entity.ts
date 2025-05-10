@@ -12,33 +12,33 @@ export enum LoginProvider {
 
 @Entity({ tableName: 'logins' })
 export class Login extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'string' })
   id: string = v4();
 
   @ManyToOne(() => User)
   user: User;
 
-  @Enum(() => LoginProvider)
+  @Enum({ items: () => LoginProvider, type: 'string' })
   provider: LoginProvider;
 
-  @Property({ unique: true })
+  @Property({ type: 'string', unique: true })
   providerId: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   accessToken?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   refreshToken?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   email?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   nickname?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   profileImage?: string;
 
-  @Property()
+  @Property({ type: 'Date' })
   lastLoginAt: Date = new Date();
 }

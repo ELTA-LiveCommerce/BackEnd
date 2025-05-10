@@ -1,32 +1,76 @@
-import { EntityRepository, RequiredEntityData } from '@mikro-orm/postgresql';
+import { EntityRepository, PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { EntityData } from '@mikro-orm/core';
+import { SqlEntityManager } from '@mikro-orm/knex';
 
 export class BaseRepository<T extends object> extends EntityRepository<T> {
-  public persist(data: RequiredEntityData<T, never, false>, em = this.em): T {
-    const entity = this.create(data);
+  protected _persist(
+    entity: T,
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): SqlEntityManager<PostgreSqlDriver> {
     em.persist(entity);
-    return entity;
+    return em;
   }
 
-  public async persistAndFlush(data: RequiredEntityData<T, never, false>, em = this.em): Promise<T> {
-    const entity = this.persist(data, em);
+  public createAndPersist(
+    data: EntityData<T>,
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): T {
+    const entityToPersist = this.create(data as any);
+    this._persist(entityToPersist, em);
+    return entityToPersist;
+  }
+
+  public async persistAndFlush(
+    entity: T,
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): Promise<void> {
+    this._persist(entity, em);
+    await em.flush();
+  }
+
+  public async createPersistAndFlush(
+    data: EntityData<T>,
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): Promise<T> {
+    const entity = this.createAndPersist(data, em);
     await em.flush();
     return entity;
   }
 
-  public async flush(em = this.em): Promise<void> {
+  public async flush(
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): Promise<void> {
     await em.flush();
   }
 
-  public remove(entities: T | T[], em = this.em): void {
-    if (Array.isArray(entities)) {
-      entities.forEach((entity) => em.remove(entity));
-    } else {
-      em.remove(entities);
-    }
+  protected _remove(
+    entity: T,
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): SqlEntityManager<PostgreSqlDriver> {
+    em.remove(entity as any);
+    return em;
   }
 
-  public async removeAndFlush(entities: T | T[], em = this.em): Promise<void> {
-    this.remove(entities, em);
+  public removeMany(
+    entities: T[],
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): void {
+    entities.forEach((entity) => this._remove(entity, em));
+  }
+
+  public async removeAndFlush(
+    entity: T,
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): Promise<void> {
+    this._remove(entity, em);
+    await em.flush();
+  }
+
+  public async removeManyAndFlush(
+    entities: T[],
+    em: SqlEntityManager<PostgreSqlDriver> = this.em as SqlEntityManager<PostgreSqlDriver>,
+  ): Promise<void> {
+    this.removeMany(entities, em);
     await em.flush();
   }
 }

@@ -14,7 +14,7 @@ export enum PaymentStatus {
 
 @Entity()
 export class Payment extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'string' })
   id: string = v4();
 
   @ManyToOne(() => Order, { fieldName: 'order_id' })
@@ -23,33 +23,27 @@ export class Payment extends BaseEntity {
   @ManyToOne(() => User, { fieldName: 'seller_id' })
   seller: User;
 
-  @Enum(() => PaymentStatus)
+  @Enum({ items: () => PaymentStatus, type: 'string' })
   status: PaymentStatus = PaymentStatus.PENDING;
 
   @Property({ type: 'decimal', precision: 10, scale: 2 })
   amount: number;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   transactionId?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   paymentMethod?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   notes?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   completedAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   canceledAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   refundedAt?: Date;
-
-  @Property()
-  createdAt: Date = new Date();
-
-  @Property({ onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
 }

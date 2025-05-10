@@ -6,7 +6,8 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
+    "esModuleInterop": true,
+    "target": "ES2022",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./src",
@@ -20,7 +21,8 @@
     "paths": {
       "@/*": ["*"],
       "@test/*": ["../test/*"]
-    }
+    },
+    "types": ["node", "jest"]
   },
   "watchOptions": {
     "watchFile": "priorityPollingInterval",

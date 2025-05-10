@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/postgresql';
+import { Entity, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { User } from '@/module/user/entity/user.entity';
@@ -7,7 +7,7 @@ import { BaseEntity } from '@/shared/entity/base.entity';
 @Entity({ tableName: 'follows' })
 @Unique({ properties: ['follower', 'following'] })
 export class Follow extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'string' })
   id: string = v4();
 
   @ManyToOne(() => User)
@@ -16,6 +16,6 @@ export class Follow extends BaseEntity {
   @ManyToOne(() => User)
   following: User;
 
-  @Property({ default: false })
+  @Property({ default: false, type: 'boolean' })
   isNotified: boolean = false;
 }

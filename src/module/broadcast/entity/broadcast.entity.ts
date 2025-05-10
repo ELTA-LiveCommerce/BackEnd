@@ -7,25 +7,25 @@ import { BaseEntity } from '@/shared/entity/base.entity'; // 공통 BaseEntity�
 
 @Entity({ tableName: 'broadcasts' })
 export class Broadcast extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'uuid' })
   id: string = v4();
 
-  @Property()
+  @Property({ type: 'string' })
   title!: string;
 
   @Property({ type: 'text', nullable: true })
   description?: string;
 
-  @Property()
+  @Property({ type: 'string' })
   streamKey!: string; // 실제 스트림 키
 
-  @Property({ default: false })
+  @Property({ type: 'boolean', default: false })
   isLive!: boolean;
 
   @Property({ type: 'date' })
   scheduledDate!: Date; // 방송 예정 날짜
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   thumbnailImage?: string; // 대표 이미지 URL
 
   // User (Seller)와의 관계 설정

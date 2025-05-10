@@ -8,15 +8,15 @@ import { BaseEntity } from '@/shared/entity/base.entity';
  */
 @Entity({ tableName: 'token_blacklist' })
 export class TokenBlacklist extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'uuid' })
   id: string = v4();
 
-  @Property({ unique: true })
+  @Property({ type: 'string', unique: true })
   token: string;
 
-  @Property()
+  @Property({ type: 'string' })
   userId: string;
 
-  @Property()
+  @Property({ type: 'Date' })
   expiresAt: Date;
 }

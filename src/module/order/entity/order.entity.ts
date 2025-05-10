@@ -1,4 +1,4 @@
-import { Collection, Entity, Enum, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/postgresql';
+import { Collection, Entity, Enum, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { OrderItem } from '@/module/order/entity/order-item.entity';
@@ -8,58 +8,58 @@ import { OrderStatus } from '@/shared/enum/order-status.enum';
 
 @Entity({ tableName: 'orders' })
 export class Order extends BaseEntity {
-  @PrimaryKey()
+  @PrimaryKey({ type: 'uuid' })
   id: string = v4();
 
   @ManyToOne(() => User)
   user: User;
 
-  @Property()
+  @Property({ type: 'string' })
   orderNumber: string;
 
-  @Enum(() => OrderStatus)
+  @Enum({ items: () => OrderStatus, type: 'string' })
   status: OrderStatus = OrderStatus.PENDING;
 
   @OneToMany(() => OrderItem, (item) => item.order, { eager: true, orphanRemoval: true })
   items = new Collection<OrderItem>(this);
 
-  @Property()
+  @Property({ type: 'number' })
   totalAmount: number;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   paymentMethod?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   paymentId?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   shippingAddress?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   shippingCode?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   cancelReason?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   refundReason?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'string', nullable: true })
   notes?: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   paidAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   shippedAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   deliveredAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   cancelledAt?: Date;
 
-  @Property({ nullable: true })
+  @Property({ type: 'Date', nullable: true })
   refundedAt?: Date;
 
   constructor(user: User, paymentMethod?: string, shippingAddress?: string, notes?: string) {
