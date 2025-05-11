@@ -27,7 +27,7 @@ export class UserService {
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
     const user = new User();
-    user.email = createUserDto.email;
+    user.loginId = createUserDto.loginId;
     user.password = hashedPassword;
     user.name = createUserDto.name;
     user.role = createUserDto.role || UserRole.VIEWER;
@@ -54,8 +54,8 @@ export class UserService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return await this.userRepository.findOne({ email });
+  async findByLoginId(loginId: string): Promise<User | null> {
+    return await this.userRepository.findOne({ loginId });
   }
 
   async updateRole(id: string, role: UserRole): Promise<User> {
@@ -132,7 +132,7 @@ export class UserService {
     // 이름 검색 필터
     if (query) {
       queryBuilder = queryBuilder.andWhere({
-        $or: [{ name: { $like: `%${query}%` } }, { email: { $like: `%${query}%` } }],
+        $or: [{ name: { $like: `%${query}%` } }, { loginId: { $like: `%${query}%` } }],
       });
     }
 
@@ -153,7 +153,7 @@ export class UserService {
       items.push({
         id: user.id,
         name: user.name,
-        email: user.email,
+        loginId: user.loginId,
         profileImage: user.profileImage,
         role: user.role,
         isFollowing,
@@ -188,26 +188,26 @@ export class UserService {
     // 역할 필터
     queryBuilder = queryBuilder.where({ role });
 
-    // 이름 또는 이메일 검색
+    // 이름 또는 아이디 검색
     queryBuilder = queryBuilder.andWhere({
-      $or: [{ name: { $like: `%${query}%` } }, { email: { $like: `%${query}%` } }],
+      $or: [{ name: { $like: `%${query}%` } }, { loginId: { $like: `%${query}%` } }],
     });
 
     // 이름이 완전히 일치하는 경우 먼저 표시 (정확도 순으로 정렬)
     queryBuilder = queryBuilder.orderBy([
       { name: query, direction: 'DESC' }, // 이름 완전 일치가 최우선
       { name: { $like: `${query}%` }, direction: 'DESC' }, // 이름 시작 일치가 다음
-      { email: { $like: `${query}%` }, direction: 'DESC' }, // 이메일 시작 일치가 다음
+      { loginId: { $like: `${query}%` }, direction: 'DESC' }, // loginId 시작 일치가 다음
     ]);
 
     // 상위 N개 결과만 조회
-    const users = await queryBuilder.select(['id', 'name', 'email', 'profileImage']).limit(limit).getResult();
+    const users = await queryBuilder.select(['id', 'name', 'loginId', 'profileImage']).limit(limit).getResult();
 
     // 결과 변환
     return users.map((user) => ({
       id: user.id,
       name: user.name,
-      email: user.email,
+      loginId: user.loginId,
       profileImage: user.profileImage,
     }));
   }
@@ -226,7 +226,7 @@ export class UserService {
     // 검색어 필터 (아이디 또는 이름)
     if (searchTerm) {
       queryBuilder = queryBuilder.andWhere({
-        $or: [{ email: { $like: `%${searchTerm}%` } }, { name: { $like: `%${searchTerm}%` } }],
+        $or: [{ loginId: { $like: `%${searchTerm}%` } }, { name: { $like: `%${searchTerm}%` } }],
       });
     }
 
@@ -342,7 +342,7 @@ export class UserService {
 
     // 키워드로 이름 또는 이메일 검색
     queryBuilder = queryBuilder.where({
-      $or: [{ name: { $like: `%${keyword}%` } }, { email: { $like: `%${keyword}%` } }],
+      $or: [{ name: { $like: `%${keyword}%` } }, { loginId: { $like: `%${keyword}%` } }],
     });
 
     // 역할 필터 적용 (지정된 경우)
@@ -354,7 +354,7 @@ export class UserService {
     queryBuilder = queryBuilder.orderBy([
       { name: keyword, direction: 'DESC' }, // 이름이 정확히 일치하는 항목 우선
       { name: { $like: `${keyword}%` }, direction: 'DESC' }, // 이름이 키워드로 시작하는 항목 다음
-      { email: { $like: `${keyword}%` }, direction: 'DESC' }, // 이메일이 키워드로 시작하는 항목 다음
+      { loginId: { $like: `${keyword}%` }, direction: 'DESC' }, // loginId 시작 일치가 다음
     ]);
 
     // 최대 결과 수 제한

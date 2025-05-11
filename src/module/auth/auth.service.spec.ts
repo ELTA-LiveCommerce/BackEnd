@@ -28,7 +28,7 @@ describe('AuthService', () => {
         {
           provide: UserService,
           useValue: {
-            findByEmail: jest.fn(),
+            findByLoginId: jest.fn(),
             create: jest.fn(),
           },
         },
@@ -81,7 +81,7 @@ describe('AuthService', () => {
       // 준비
       const mockUser = new User();
       mockUser.id = 'user-id';
-      mockUser.email = 'test@example.com';
+      mockUser.loginId = 'test@example.com';
       mockUser.name = 'TestUser';
       mockUser.role = UserRole.VIEWER;
 
@@ -91,8 +91,8 @@ describe('AuthService', () => {
         providerId: '12345',
       };
 
-      loginService.findByProviderId = jest.fn().mockResolvedValue(mockLogin);
-      loginService.updateLoginInfo = jest.fn().mockResolvedValue(mockLogin);
+      (loginService.findByProviderId as jest.Mock).mockResolvedValue(mockLogin);
+      (loginService.updateLoginInfo as jest.Mock).mockResolvedValue(mockLogin);
 
       // 실행
       const result = await service.validateKakaoUser(kakaoUserDto);
@@ -102,32 +102,32 @@ describe('AuthService', () => {
       expect(loginService.updateLoginInfo).toHaveBeenCalled();
       expect(result).toHaveProperty('access_token', 'test-token');
       expect(result).toHaveProperty('id', 'user-id');
-      expect(result).toHaveProperty('email', 'test@example.com');
+      expect(result).toHaveProperty('loginId', 'test@example.com');
     });
 
-    it('should find existing user by email if no login info found', async () => {
+    it('should find existing user by loginId if no login info found', async () => {
       // 준비
       const mockUser = new User();
       mockUser.id = 'user-id';
-      mockUser.email = 'test@example.com';
+      mockUser.loginId = 'test@example.com';
       mockUser.name = 'TestUser';
       mockUser.role = UserRole.VIEWER;
 
-      loginService.findByProviderId = jest.fn().mockResolvedValue(null);
-      userService.findByEmail = jest.fn().mockResolvedValue(mockUser);
-      loginService.createLoginInfo = jest.fn();
+      (loginService.findByProviderId as jest.Mock).mockResolvedValue(null);
+      (userService.findByLoginId as jest.Mock).mockResolvedValue(mockUser);
+      (loginService.createLoginInfo as jest.Mock).mockResolvedValue({});
 
       // 실행
       const result = await service.validateKakaoUser(kakaoUserDto);
 
       // 검증
-      expect(userService.findByEmail).toHaveBeenCalledWith('test@example.com');
+      expect(userService.findByLoginId).toHaveBeenCalledWith(kakaoUserDto.email);
       expect(loginService.createLoginInfo).toHaveBeenCalledWith(
         mockUser,
         LoginProvider.KAKAO,
         '12345',
         expect.objectContaining({
-          email: 'test@example.com',
+          loginId: kakaoUserDto.email,
           nickname: 'TestUser',
           profileImage: 'profile.jpg',
         }),
@@ -137,16 +137,16 @@ describe('AuthService', () => {
 
     it('should create new user if no user found', async () => {
       // 준비
-      const mockUser = new User();
-      mockUser.id = 'new-user-id';
-      mockUser.email = 'test@example.com';
-      mockUser.name = 'TestUser';
-      mockUser.role = UserRole.VIEWER;
+      const mockCreatedUser = new User();
+      mockCreatedUser.id = 'new-user-id';
+      mockCreatedUser.loginId = 'test@example.com';
+      mockCreatedUser.name = 'TestUser';
+      mockCreatedUser.role = UserRole.VIEWER;
 
-      loginService.findByProviderId = jest.fn().mockResolvedValue(null);
-      userService.findByEmail = jest.fn().mockResolvedValue(null);
-      userService.create = jest.fn().mockResolvedValue(mockUser);
-      loginService.createLoginInfo = jest.fn();
+      (loginService.findByProviderId as jest.Mock).mockResolvedValue(null);
+      (userService.findByLoginId as jest.Mock).mockResolvedValue(null);
+      (userService.create as jest.Mock).mockResolvedValue(mockCreatedUser);
+      (loginService.createLoginInfo as jest.Mock).mockResolvedValue({});
 
       // 실행
       const result = await service.validateKakaoUser(kakaoUserDto);
@@ -154,7 +154,7 @@ describe('AuthService', () => {
       // 검증
       expect(userService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          email: 'test@example.com',
+          loginId: kakaoUserDto.email,
           name: 'TestUser',
           role: UserRole.VIEWER,
         }),
@@ -166,23 +166,23 @@ describe('AuthService', () => {
 
     it('should handle validation error', async () => {
       // 준비
-      loginService.findByProviderId = jest.fn().mockRejectedValue(new Error('Test error'));
+      (loginService.findByProviderId as jest.Mock).mockRejectedValue(new Error('Test error'));
 
       // 실행 및 검증
       await expect(service.validateKakaoUser(kakaoUserDto)).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should generate fallback email with kakaoId if email not provided', async () => {
+    it('should generate fallback loginId with kakaoId if email not provided', async () => {
       // 준비
       const noEmailKakaoUser = { ...kakaoUserDto, email: undefined };
-      const mockUser = new User();
-      mockUser.id = 'new-user-id';
-      mockUser.role = UserRole.VIEWER;
+      const mockCreatedUser = new User();
+      mockCreatedUser.id = 'new-user-id';
+      mockCreatedUser.role = UserRole.VIEWER;
 
-      loginService.findByProviderId = jest.fn().mockResolvedValue(null);
-      userService.findByEmail = jest.fn().mockResolvedValue(null);
-      userService.create = jest.fn().mockResolvedValue(mockUser);
-      loginService.createLoginInfo = jest.fn();
+      (loginService.findByProviderId as jest.Mock).mockResolvedValue(null);
+      (userService.findByLoginId as jest.Mock).mockResolvedValue(null);
+      (userService.create as jest.Mock).mockResolvedValue(mockCreatedUser);
+      (loginService.createLoginInfo as jest.Mock).mockResolvedValue({});
 
       // 실행
       await service.validateKakaoUser(noEmailKakaoUser);
@@ -190,7 +190,7 @@ describe('AuthService', () => {
       // 검증
       expect(userService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          email: `kakao_12345@example.com`,
+          loginId: `kakao_${noEmailKakaoUser.kakaoId}`,
         }),
       );
     });

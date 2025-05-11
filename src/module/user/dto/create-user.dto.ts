@@ -1,10 +1,11 @@
-import { IsEmail, IsEnum, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsEnum, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 import { UserRole } from '@/shared/enum/user-role.enum';
 
 export class CreateUserDto {
-  @IsEmail()
-  email: string;
+  @IsString()
+  @Length(4, 20)
+  loginId: string;
 
   @IsString()
   @Length(8, 20)

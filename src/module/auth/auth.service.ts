@@ -9,13 +9,14 @@ import { UserRole } from '@/shared/enum/user-role.enum';
 
 import { TokenResponseDto } from './dto/auth.dto';
 import { KakaoUserDto, KakaoUserInfo } from './dto/kakao-auth.dto';
+import { V2LoginRequestDto, V2LoginResponseDto } from './dto/v2-login.dto';
 import { LoginProvider } from './entity/login.entity';
 import { LoginService } from './login.service';
 import { TokenBlacklistService } from './token-blacklist.service';
 
 interface JwtPayload {
   sub: string;
-  email: string;
+  loginId: string;
   role: UserRole;
 }
 
@@ -27,7 +28,7 @@ interface RefreshTokenPayload {
 
 interface AuthResponse {
   id: string;
-  email: string;
+  loginId: string;
   name: string;
   role: UserRole;
   access_token: string;
@@ -63,18 +64,37 @@ export class AuthService {
     }
   }
 
-  async validateUser(email: string, password: string): Promise<AuthResponse> {
-    const user = await this.userService.findByEmail(email);
+  async validateUser(loginId: string, password: string): Promise<AuthResponse> {
+    const user = await this.userService.findByLoginId(loginId);
     if (!user) {
-      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.');
     }
 
     return this.buildAuthResponse(user, true);
+  }
+
+  async loginV2(loginRequestDto: V2LoginRequestDto): Promise<V2LoginResponseDto> {
+    this.logger.log(`V2 Login attempt for user: ${loginRequestDto.loginId}`);
+    const user = await this.userService.findByLoginId(loginRequestDto.loginId);
+    if (!user) {
+      this.logger.warn(`User not found: ${loginRequestDto.loginId}`);
+      throw new UnauthorizedException('사용자 아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(loginRequestDto.password, user.password);
+    if (!isPasswordValid) {
+      this.logger.warn(`Invalid password for user: ${loginRequestDto.loginId}`);
+      throw new UnauthorizedException('사용자 아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    const accessToken = this.generateAccessToken(user);
+    this.logger.log(`V2 Login successful for user: ${loginRequestDto.loginId}`);
+    return new V2LoginResponseDto(accessToken);
   }
 
   async refreshToken(refreshToken: string): Promise<TokenResponseDto> {
@@ -104,14 +124,14 @@ export class AuthService {
       const tokens = this.generateTokens(user);
 
       // 리프레시 토큰 저장 (소셜 로그인이 아닌 경우)
-      const login = await this.loginService.findByProviderId(LoginProvider.EMAIL, user.email);
+      const login = await this.loginService.findByProviderId(LoginProvider.EMAIL, user.loginId);
       if (login) {
         await this.loginService.updateLoginInfo(login, {
           refreshToken: tokens.refresh_token,
         });
       } else {
-        await this.loginService.createLoginInfo(user, LoginProvider.EMAIL, user.email, {
-          email: user.email,
+        await this.loginService.createLoginInfo(user, LoginProvider.EMAIL, user.loginId, {
+          loginId: user.loginId,
           refreshToken: tokens.refresh_token,
         });
       }
@@ -198,15 +218,16 @@ export class AuthService {
           profileImage: kakaoUserDto.profileImage,
         });
       } else {
-        // 이메일로 기존 사용자 찾기
+        // loginId로 기존 사용자 찾기 (카카오에서 email을 loginId로 사용한다고 가정)
         if (kakaoUserDto.email) {
-          user = await this.userService.findByEmail(kakaoUserDto.email);
+          // 카카오가 email을 제공하면 그것을 loginId로 시도
+          user = await this.userService.findByLoginId(kakaoUserDto.email);
         }
 
         // 기존 사용자가 없으면 새로 생성
         if (!user) {
           const createUserDto = {
-            email: kakaoUserDto.email || `kakao_${kakaoUserDto.kakaoId}@example.com`,
+            loginId: kakaoUserDto.email || `kakao_${kakaoUserDto.kakaoId}`, // email -> loginId, 임시 loginId 생성 규칙 변경
             name: kakaoUserDto.nickname,
             role: UserRole.VIEWER,
             // 카카오 로그인은 비밀번호가 없으므로 랜덤 문자열 생성
@@ -219,7 +240,7 @@ export class AuthService {
 
         // 로그인 정보 생성
         await this.loginService.createLoginInfo(user, LoginProvider.KAKAO, kakaoUserDto.kakaoId.toString(), {
-          email: kakaoUserDto.email,
+          loginId: user.loginId, // email -> loginId
           nickname: kakaoUserDto.nickname,
           profileImage: kakaoUserDto.profileImage,
         });
@@ -266,7 +287,7 @@ export class AuthService {
   private buildAuthResponse(user: User, includeRefreshToken = false): AuthResponse {
     const response: AuthResponse = {
       id: user.id,
-      email: user.email,
+      loginId: user.loginId,
       name: user.name,
       role: user.role,
       access_token: this.generateAccessToken(user),
@@ -291,7 +312,7 @@ export class AuthService {
   private generateAccessToken(user: User): string {
     const payload: JwtPayload = {
       sub: user.id,
-      email: user.email,
+      loginId: user.loginId,
       role: user.role,
     };
 

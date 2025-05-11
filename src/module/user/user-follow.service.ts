@@ -108,7 +108,7 @@ export class UserFollowService {
       result.push({
         id: follower.id,
         name: follower.name,
-        email: follower.email,
+        loginId: follower.loginId,
         profileImage: follower.profileImage,
         isFollowing,
       });
@@ -133,7 +133,7 @@ export class UserFollowService {
     return following.map((follow) => ({
       id: follow.following.id,
       name: follow.following.name,
-      email: follow.following.email,
+      loginId: follow.following.loginId,
       profileImage: follow.following.profileImage,
     }));
   }

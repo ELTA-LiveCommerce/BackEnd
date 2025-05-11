@@ -22,6 +22,6 @@ export class AutocompleteDto {
 export class AutocompleteResultDto {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   profileImage?: string | null;
 }

@@ -165,40 +165,47 @@ describe('OrderService', () => {
     };
 
     // SqlEntityManager mock
+    const 기본QbMock = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      getResultList: jest.fn().mockResolvedValue([mockOrder]),
+      getCount: jest.fn().mockResolvedValue(1),
+      clone: jest.fn().mockImplementation(function () {
+        const createClonedQb = () => {
+          const clonedQb: any = {};
+          clonedQb.where = jest.fn().mockReturnValue(clonedQb);
+          clonedQb.andWhere = jest.fn().mockReturnValue(clonedQb);
+          clonedQb.orderBy = jest.fn().mockReturnValue(clonedQb);
+          clonedQb.limit = jest.fn().mockReturnValue(clonedQb);
+          clonedQb.offset = jest.fn().mockReturnValue(clonedQb);
+          clonedQb.select = jest.fn().mockReturnValue(clonedQb);
+          clonedQb.leftJoinAndSelect = jest.fn().mockReturnValue(clonedQb);
+          clonedQb.getResultList = jest.fn().mockResolvedValue([mockOrder]);
+          clonedQb.getCount = jest.fn().mockResolvedValue(1); // count는 값을 반환
+          clonedQb.clone = jest.fn().mockImplementation(createClonedQb); // 중첩 clone 지원
+          return clonedQb;
+        };
+        return createClonedQb();
+      }),
+    };
+
     mockEntityManager = {
       persistAndFlush: jest.fn(),
       flush: jest.fn(),
       findOne: jest.fn().mockImplementation((entity, criteria) => {
-        if (entity === User) {
-          if (criteria?.id === 'user-id') {
-            return Promise.resolve(mockUser);
-          } else if (criteria?.id === 'non-existent-user-id') {
-            return Promise.resolve(null);
-          }
-        }
-        if (entity === Order && criteria?.id === 'order-id') {
-          return Promise.resolve(mockOrder);
-        }
-        if (entity === Product) {
-          if (criteria?.id === 'product-id') {
-            return Promise.resolve(mockProduct);
-          } else if (criteria?.id === 'non-existent-product-id') {
-            return Promise.resolve(null);
-          }
-        }
+        if (entity === User && criteria?.id === 'user-id') return Promise.resolve(mockUser);
+        if (entity === Order && criteria?.id === 'order-id') return Promise.resolve(mockOrder);
+        if (entity === Product && criteria?.id === 'product-id') return Promise.resolve(mockProduct);
         return Promise.resolve(null);
       }),
       persist: jest.fn(),
       remove: jest.fn(),
-      createQueryBuilder: jest.fn().mockReturnValue({
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        getResult: jest.fn().mockResolvedValue([mockOrder]),
-        getResultAndCount: jest.fn().mockResolvedValue([[mockOrder], 1]),
-      }),
+      createQueryBuilder: jest.fn().mockReturnValue(기본QbMock),
     };
 
     mockDeliveryService = {
@@ -432,21 +439,48 @@ describe('OrderService', () => {
         limit: 10,
       };
 
-      // Create a successful mock response
-      mockEntityManager.createQueryBuilder = jest.fn().mockReturnValue({
+      const mockSpecificQb = {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         offset: jest.fn().mockReturnThis(),
-        getResultAndCount: jest.fn().mockResolvedValue([[mockOrder], 1]),
-      });
+        getResultList: jest.fn().mockResolvedValue([mockOrder]),
+        getCount: jest.fn().mockResolvedValue(1),
+        clone: jest.fn().mockImplementation(function () {
+          const createClonedQb = () => {
+            const clonedQb: any = {};
+            clonedQb.where = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.andWhere = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.orderBy = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.limit = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.offset = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.select = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.leftJoinAndSelect = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.getResultList = jest.fn().mockResolvedValue([mockOrder]);
+            clonedQb.getCount = jest.fn().mockResolvedValue(1); // count는 값을 반환
+            clonedQb.clone = jest.fn().mockImplementation(createClonedQb); // 중첩 clone 지원
+            return clonedQb;
+          };
+          return createClonedQb();
+        }),
+      };
+      (mockEntityManager.createQueryBuilder as jest.Mock).mockReturnValue(mockSpecificQb);
 
       // Act
       const result = await service.getOrdersByUser(userId, getOrdersDto);
 
       // Assert
-      expect(mockEntityManager.createQueryBuilder).toHaveBeenCalled();
+      expect(mockEntityManager.createQueryBuilder).toHaveBeenCalledWith(Order, 'o');
+      expect(mockSpecificQb.where).toHaveBeenCalledWith({ user: userId });
+      expect(mockSpecificQb.orderBy).toHaveBeenCalled();
+      expect(mockSpecificQb.limit).toHaveBeenCalledWith(10);
+      expect(mockSpecificQb.offset).toHaveBeenCalledWith(0);
+      expect(mockSpecificQb.clone).toHaveBeenCalledTimes(1);
+      // clone()된 qb에서 getCount()가 호출되었는지 확인하려면, clone()이 반환하는 mock 객체의 getCount를 확인해야 합니다.
+      // 위 mockSpecificQb.clone의 구현에 따라, clone이 반환하는 객체는 새로운 mock 함수들을 가집니다.
+      // 따라서, clone된 qb의 getCount 호출을 직접적으로 여기서 검증하기는 복잡합니다.
+      // 대신, 최종 결과 (total, items)를 통해 간접적으로 검증합니다.
       expect(result.items.length).toBe(1);
       expect(result.total).toBe(1);
       expect(result.totalPages).toBe(1);
@@ -460,23 +494,42 @@ describe('OrderService', () => {
         page: 1,
         limit: 10,
       };
-
-      // Create a successful mock response
-      mockEntityManager.createQueryBuilder = jest.fn().mockReturnValue({
+      const mockSpecificQbWithFilter = {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         offset: jest.fn().mockReturnThis(),
-        getResultAndCount: jest.fn().mockResolvedValue([[mockOrder], 1]),
-      });
+        getResultList: jest.fn().mockResolvedValue([mockOrder]), // PENDING 상태의 주문만 반환한다고 가정
+        getCount: jest.fn().mockResolvedValue(1), // PENDING 상태의 주문 수
+        clone: jest.fn().mockImplementation(function () {
+          const createClonedQb = () => {
+            const clonedQb: any = {};
+            clonedQb.where = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.andWhere = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.orderBy = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.limit = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.offset = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.select = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.leftJoinAndSelect = jest.fn().mockReturnValue(clonedQb);
+            clonedQb.getResultList = jest.fn().mockResolvedValue([mockOrder]);
+            clonedQb.getCount = jest.fn().mockResolvedValue(1); // count는 값을 반환
+            clonedQb.clone = jest.fn().mockImplementation(createClonedQb); // 중첩 clone 지원
+            return clonedQb;
+          };
+          return createClonedQb();
+        }),
+      };
+      (mockEntityManager.createQueryBuilder as jest.Mock).mockReturnValue(mockSpecificQbWithFilter);
 
       // Act
       const result = await service.getOrdersByUser(userId, getOrdersDto);
 
       // Assert
-      expect(mockEntityManager.createQueryBuilder).toHaveBeenCalled();
-      expect(result.items.length).toBe(1);
+      expect(mockEntityManager.createQueryBuilder).toHaveBeenCalledWith(Order, 'o');
+      expect(mockSpecificQbWithFilter.where).toHaveBeenCalledWith({ user: userId });
+      expect(mockSpecificQbWithFilter.andWhere).toHaveBeenCalledWith({ status: OrderStatus.PENDING });
+      expect(result.items.length).toBe(1); // PENDING 상태 주문이 1개라고 가정
     });
   });
 

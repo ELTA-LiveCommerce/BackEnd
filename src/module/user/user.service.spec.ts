@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 
 import { AutocompleteDto } from '@/module/user/dto/autocomplete.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { User } from '@/module/user/entity/user.entity';
 import { UserFollowService } from '@/module/user/user-follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
@@ -22,21 +23,21 @@ describe('UserService', () => {
     {
       id: 'user-id-1',
       name: '김판매',
-      email: 'seller1@example.com',
+      loginId: 'seller1@example.com',
       profileImage: null,
       role: UserRole.SELLER,
     },
     {
       id: 'user-id-2',
       name: '박판매',
-      email: 'seller2@example.com',
+      loginId: 'seller2@example.com',
       profileImage: null,
       role: UserRole.SELLER,
     },
     {
       id: 'user-id-3',
       name: '최사용자',
-      email: 'user1@example.com',
+      loginId: 'user1@example.com',
       profileImage: null,
       role: UserRole.VIEWER,
     },
@@ -106,23 +107,24 @@ describe('UserService', () => {
 
   describe('create', () => {
     it('should create a new user', async () => {
-      const createUserDto = {
-        email: 'test@example.com',
+      const createUserDto: CreateUserDto = {
+        loginId: 'test@example.com',
         password: 'TestPass1!',
         name: '홍길동',
         phoneNumber: '010-1234-5678',
         accountNumber: '123-456-789012',
         bankName: '신한은행',
+        role: UserRole.VIEWER,
       };
 
       const expectedUser = new User();
-      expectedUser.email = createUserDto.email;
+      expectedUser.loginId = createUserDto.loginId;
       expectedUser.password = 'hashed_password';
       expectedUser.name = createUserDto.name;
       expectedUser.phoneNumber = createUserDto.phoneNumber;
       expectedUser.accountNumber = createUserDto.accountNumber;
       expectedUser.bankName = createUserDto.bankName;
-      expectedUser.role = UserRole.VIEWER;
+      expectedUser.role = createUserDto.role!;
       expectedUser.isVerified = false;
 
       mockEntityManager.persistAndFlush.mockResolvedValue(undefined);
@@ -131,7 +133,7 @@ describe('UserService', () => {
 
       expect(result).toEqual(
         expect.objectContaining({
-          email: createUserDto.email,
+          loginId: createUserDto.loginId,
           name: createUserDto.name,
           role: UserRole.VIEWER,
           isVerified: false,

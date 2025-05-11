@@ -30,12 +30,12 @@ describe('ProductController', () => {
 
   const mockUser = {
     id: 'seller1',
-    email: 'seller@example.com',
+    loginId: 'seller@example.com',
     name: 'Seller',
     role: UserRole.SELLER,
     password: 'password',
     isVerified: true,
-  } as User;
+  } as any;
 
   const mockReq = { user: mockUser };
 

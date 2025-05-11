@@ -26,7 +26,7 @@ export class LoginService {
     provider: LoginProvider,
     providerId: string,
     data: {
-      email?: string;
+      loginId?: string;
       nickname?: string;
       profileImage?: string;
       accessToken?: string;
@@ -37,7 +37,7 @@ export class LoginService {
     login.user = user;
     login.provider = provider;
     login.providerId = providerId;
-    login.email = data.email;
+    login.loginId = data.loginId;
     login.nickname = data.nickname;
     login.profileImage = data.profileImage;
     login.accessToken = data.accessToken;

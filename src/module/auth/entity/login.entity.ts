@@ -31,7 +31,7 @@ export class Login extends BaseEntity {
   refreshToken?: string;
 
   @Property({ type: 'string', nullable: true })
-  email?: string;
+  loginId?: string;
 
   @Property({ type: 'string', nullable: true })
   nickname?: string;

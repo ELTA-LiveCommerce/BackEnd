@@ -167,11 +167,14 @@ export class OrderService {
       }
     }
 
-    const [orders, total] = await qb
+    const countPromise = qb.clone().getCount();
+    const listPromise = qb
       .orderBy({ [sortBy]: order.toUpperCase() as 'ASC' | 'DESC' })
       .limit(limit)
       .offset(skip)
-      .getResultAndCount();
+      .getResultList();
+
+    const [total, orders] = await Promise.all([countPromise, listPromise]);
 
     const items = orders.map((o) => this.mapToOrderSummaryDto(o));
 
@@ -378,16 +381,19 @@ export class OrderService {
       qb.andWhere({ user: userId });
     }
 
-    const [orders, total] = await qb
+    const countPromise = qb.clone().getCount();
+    const listPromise = qb
       .orderBy({ [sortBy]: order.toUpperCase() as 'ASC' | 'DESC' })
       .limit(limit)
       .offset(skip)
-      .getResultAndCount();
+      .getResultList();
 
-    const orderSummaries = orders.map((o) => this.mapToOrderSummaryDto(o));
+    const [total, orders] = await Promise.all([countPromise, listPromise]);
+
+    const items = orders.map((o) => this.mapToOrderSummaryDto(o));
 
     return {
-      items: orderSummaries,
+      items: items,
       total,
       page,
       limit,

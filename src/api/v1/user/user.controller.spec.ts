@@ -38,7 +38,7 @@ describe('UserController', () => {
   describe('create', () => {
     it('should create a new user', async () => {
       const createUserDto = {
-        email: 'test@example.com',
+        loginId: 'test@example.com',
         password: 'TestPass1!',
         name: '홍길동',
         phoneNumber: '010-1234-5678',
@@ -48,18 +48,22 @@ describe('UserController', () => {
 
       const expectedUser = {
         id: '1',
-        ...createUserDto,
+        loginId: createUserDto.loginId,
         password: 'hashedpassword',
+        name: createUserDto.name,
+        phoneNumber: createUserDto.phoneNumber,
+        accountNumber: createUserDto.accountNumber,
+        bankName: createUserDto.bankName,
         role: UserRole.VIEWER,
         isVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        logins: new Collection<Login>({}),
+        logins: new Collection<Login>({} as any),
       };
 
       jest.spyOn(service, 'create').mockResolvedValue(expectedUser as any);
 
-      const result = await controller.create(createUserDto);
+      const result = await controller.create(createUserDto as any);
       expect(result).toBe(expectedUser);
       expect(service.create).toHaveBeenCalledWith(createUserDto);
     });
@@ -70,7 +74,7 @@ describe('UserController', () => {
       const userId = '1';
       const expectedUser = {
         id: userId,
-        email: 'test@example.com',
+        loginId: 'test@example.com',
         name: '홍길동',
         password: 'hashedpassword',
         phoneNumber: '010-1234-5678',
@@ -80,7 +84,7 @@ describe('UserController', () => {
         isVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
-        logins: new Collection<Login>({}),
+        logins: new Collection<Login>({} as any),
       };
 
       jest.spyOn(service, 'findOne').mockResolvedValue(expectedUser as any);

@@ -6,21 +6,29 @@ import {
   ValidationPipe,
   UnauthorizedException,
   BadRequestException,
+  Global,
+  Module,
+  ExecutionContext,
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
-import { PassportModule, AuthGuard } from '@nestjs/passport';
+import { PassportModule, AuthGuard, PassportStrategy } from '@nestjs/passport';
 import { Test, TestingModule, TestingModuleBuilder } from '@nestjs/testing';
 import request from 'supertest';
-import { MikroORM } from '@mikro-orm/core';
+import { MikroORM, Options, EntityManager, IDatabaseDriver, Connection } from '@mikro-orm/core';
+import { AbstractSqlDriver, AbstractSqlPlatform } from '@mikro-orm/knex';
 import { HttpExceptionFilter } from '@/shared/filter/http-exception.filter';
 import mikroOrmConfigFunction from '@/infra/database/mikro-orm.config';
 import { User } from '@/module/user/entity/user.entity';
 import { UserRole } from '@/shared/enum/user-role.enum';
-import { HttpAdapterHost } from '@nestjs/core';
+import { HttpAdapterHost, APP_FILTER } from '@nestjs/core';
 import { TokenBlacklistService } from '@/module/auth/token-blacklist.service';
 import { UserService } from '@/module/user/user.service';
-// import { GlobalResponseInterceptor } from '@/common/interceptors/global-response.interceptor'; // 다시 주석 처리
+import { UserModule } from '@/module/user/user.module';
+import { ExtractJwt, Strategy as JwtStrategyPassport } from 'passport-jwt';
+import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
+import { BroadcastService } from '@/module/broadcast/broadcast.service';
+import { ProductService } from '@/module/product/product.service';
 
 /**
  * E2E 테스트를 위한 통합 유틸리티
@@ -60,24 +68,78 @@ export class MockRolesGuard {
 /**
  * 테스트 JWT 토큰 생성
  */
+export const TEST_E2E_JWT_SECRET = 'test-e2e-super-secret-key-12345-consistent';
+export const TEST_E2E_JWT_EXPIRES_IN = '24h';
+
 export function generateTestToken(
   jwtService: JwtService,
   userId = 'test-user-id',
   email = 'test@example.com',
   role = UserRole.VIEWER,
-  expiresIn = '24h',
+  expiresIn = TEST_E2E_JWT_EXPIRES_IN,
 ): string {
-  const secret = 'test-e2e-super-secret-key-12345'; // 하드코딩된 시크릿
-  // console.log('[generateTestToken] Signing with secret:', secret, 'expiresIn:', expiresIn);
-  return jwtService.sign({ sub: userId, email, role, iss: 'test-issuer' }, { secret: secret, expiresIn });
+  return jwtService.sign({ sub: userId, email, role, iss: 'test-issuer' }, { expiresIn });
 }
 
 /**
- * 모의 JWT 전략
+ * 모의 JWT 전략 (실제 Passport Strategy 상속)
  */
 @Injectable()
-export class CustomMockJwtStrategy {
-  constructor(private readonly validateFn: (payload: any) => any | Promise<any>) {}
+export class MockJwtStrategyForE2E extends PassportStrategy(JwtStrategyPassport, 'jwt') {
+  private readonly logger = new Logger(MockJwtStrategyForE2E.name);
+
+  constructor(private readonly configService: ConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: true,
+      secretOrKey: configService.get<string>('JWT_SECRET', TEST_E2E_JWT_SECRET),
+      passReqToCallback: true,
+    });
+    this.logger.log('MockJwtStrategyForE2E initialized');
+  }
+
+  async validate(req: any, payload: any): Promise<Partial<User> | null> {
+    this.logger.debug(`[MockJwtStrategyForE2E] validate() called. Request path: ${req.path}`);
+    this.logger.debug(`[MockJwtStrategyForE2E] Payload: ${JSON.stringify(payload)}`);
+
+    if (!payload || !payload.sub) {
+      this.logger.warn('[MockJwtStrategyForE2E] Payload or sub is missing');
+      throw new UnauthorizedException('페이로드 또는 사용자 ID 없음 (MockJwtStrategyForE2E)');
+    }
+
+    if (payload.sub === 'unauthenticated-test-user') {
+      this.logger.log('[MockJwtStrategyForE2E] Unauthenticated user detected by sub. Returning null.');
+      return null;
+    }
+
+    if (payload.sub === mockViewer.id) {
+      this.logger.log(`[MockJwtStrategyForE2E] Returning mockViewer for sub: ${payload.sub}`);
+      return mockViewer as User;
+    }
+    if (payload.sub === mockSeller.id) {
+      this.logger.log(`[MockJwtStrategyForE2E] Returning mockSeller for sub: ${payload.sub}`);
+      return mockSeller as User;
+    }
+    if (payload.sub === mockAdmin.id) {
+      this.logger.log(`[MockJwtStrategyForE2E] Returning mockAdmin for sub: ${payload.sub}`);
+      return mockAdmin as User;
+    }
+
+    this.logger.warn(
+      `[MockJwtStrategyForE2E] Unknown sub: ${payload.sub}. Returning simplified user based on payload.`,
+    );
+    const simplifiedUser: Partial<User> = {
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role as UserRole,
+      name: payload.name || `Test User ${payload.sub}`,
+      phoneNumber: payload.phoneNumber || undefined,
+      bankName: payload.bankName || undefined,
+      accountNumber: payload.accountNumber || undefined,
+      profileImage: payload.profileImage || undefined,
+    };
+    return simplifiedUser as User;
+  }
 }
 
 export const defaultMockJwtValidate = (payload: any) => {
@@ -98,10 +160,11 @@ export const mockUserService = {
   create: jest.fn(),
   getProfile: jest.fn(),
   updateProfile: jest.fn(),
+  updateBankInfo: jest.fn(),
   getSellerLivePage: jest.fn(),
   getSellerProductPage: jest.fn(),
   findOne: jest.fn(),
-  findByUsernameContaining: jest.fn(),
+  findByUsernameContaining: jest.fn().mockResolvedValue({ items: [], total: 0 }),
 };
 
 export const mockUserFollowService = {
@@ -133,146 +196,161 @@ export const mockTokenBlacklistService = {
 
 // MockJwtAuthGuard 클래스 정의
 @Injectable()
-export class MockJwtAuthGuard {
-  constructor(private readonly jwtService: JwtService) {}
+export class MockJwtAuthGuard extends AuthGuard('jwt') {
+  private readonly logger = new Logger(MockJwtAuthGuard.name);
 
-  canActivate(context: any): boolean {
+  constructor() {
+    super();
+    this.logger.log('MockJwtAuthGuard initialized');
+  }
+
+  handleRequest(err: any, user: any, info: any, context: ExecutionContext, status?: any) {
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers.authorization;
+    this.logger.debug(`[MockJwtAuthGuard] handleRequest() called. Request path: ${request.path}`);
+    this.logger.debug(`[MockJwtAuthGuard] Error: ${JSON.stringify(err)}`);
+    this.logger.debug(`[MockJwtAuthGuard] User from strategy: ${JSON.stringify(user)}`);
+    this.logger.debug(`[MockJwtAuthGuard] Info: ${JSON.stringify(info)}`);
+    this.logger.debug(`[MockJwtAuthGuard] Status: ${status}`);
 
-    if (!authHeader) {
-      throw new UnauthorizedException('Authorization header not found');
+    if (err) {
+      this.logger.error('[MockJwtAuthGuard] Error received:', err);
+      throw err;
     }
-
-    const [type, token] = authHeader.split(' ');
-
-    if (type !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Invalid token format');
+    if (info && info.name === 'TokenExpiredError' && !user) {
+      this.logger.warn('[MockJwtAuthGuard] TokenExpiredError detected.');
+      throw new UnauthorizedException('토큰 만료 (MockJwtAuthGuard)');
     }
-
-    const secretToVerify = 'test-e2e-super-secret-key-12345'; // 하드코딩된 시크릿
-    // console.log('[MockJwtAuthGuard] Verifying token:', token, 'with secret:', secretToVerify);
-
-    try {
-      const payload = this.jwtService.verify(token, {
-        secret: secretToVerify,
-        ignoreExpiration: false,
-      });
-      // console.log('[MockJwtAuthGuard] Verified Payload:', payload);
-      // console.log('[MockJwtAuthGuard] Comparing with mockViewer.id:', mockViewer.id);
-      // console.log('[MockJwtAuthGuard] Comparing with mockSeller.id:', mockSeller.id);
-      // console.log('[MockJwtAuthGuard] Comparing with mockAdmin.id:', mockAdmin.id);
-
-      if (payload.sub === 'unauthenticated-test-user') {
-        throw new UnauthorizedException('Explicitly unauthenticated user');
-      }
-
-      console.log(
-        `[MockJwtAuthGuard] Comparing payload.sub: '${payload.sub}' (type: ${typeof payload.sub}) with mockViewer.id: '${mockViewer.id}' (type: ${typeof mockViewer.id})`,
-      );
-      if (payload.sub === mockViewer.id) {
-        request.user = mockViewer;
-      } else {
-        console.log(
-          `[MockJwtAuthGuard] payload.sub (${payload.sub}) did not match mockViewer.id. Checking other mock users.`,
-        );
-        console.log(
-          `[MockJwtAuthGuard] Comparing payload.sub: '${payload.sub}' (type: ${typeof payload.sub}) with mockSeller.id: '${mockSeller.id}' (type: ${typeof mockSeller.id})`,
-        );
-        if (payload.sub === mockSeller.id) {
-          request.user = mockSeller;
-        } else {
-          console.log(`[MockJwtAuthGuard] payload.sub (${payload.sub}) did not match mockSeller.id. Checking admin.`);
-          console.log(
-            `[MockJwtAuthGuard] Comparing payload.sub: '${payload.sub}' (type: ${typeof payload.sub}) with mockAdmin.id: '${mockAdmin.id}' (type: ${typeof mockAdmin.id})`,
-          );
-          if (payload.sub === mockAdmin.id) {
-            request.user = mockAdmin;
-          } else {
-            console.log(`[MockJwtAuthGuard] payload.sub (${payload.sub}) did not match any mock user ID.`);
-            throw new UnauthorizedException('Unknown user');
-          }
-        }
-      }
-      return true;
-    } catch (error) {
-      console.error(
-        '[MockJwtAuthGuard] Token verification failed. Token:',
-        token,
-        'Secret:',
-        secretToVerify,
-        'Error Object:',
-        JSON.stringify(error, Object.getOwnPropertyNames(error)),
-      );
-      throw new UnauthorizedException(error.message || 'Invalid token');
+    if (info && info.name === 'JsonWebTokenError' && !user) {
+      this.logger.warn(`[MockJwtAuthGuard] JsonWebTokenError detected: ${info.message}`);
+      throw new UnauthorizedException(`JWT 오류 (MockJwtAuthGuard): ${info.message}`);
     }
+    if (!user) {
+      this.logger.warn('[MockJwtAuthGuard] No user returned from strategy. Throwing UnauthorizedException.');
+      throw new UnauthorizedException('인증 실패 (MockJwtAuthGuard) - 사용자 없음');
+    }
+    this.logger.log(`[MockJwtAuthGuard] User authenticated and set to request: ${JSON.stringify(user)}`);
+    request.user = user;
+    return user;
   }
 }
 
-export async function createE2ETestingModule(options?: E2ETestingOptions): Promise<{
+@Global()
+@Module({
+  imports: [
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET', TEST_E2E_JWT_SECRET),
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN', TEST_E2E_JWT_EXPIRES_IN),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    ConfigModule,
+  ],
+  providers: [MockJwtStrategyForE2E],
+  exports: [JwtModule, MockJwtStrategyForE2E],
+})
+export class GlobalE2EJwtModule {}
+
+export interface CreateE2ETestingModuleOptions {
+  imports?: any[];
+  controllers?: any[];
+  providers?: any[];
+  overrideProviders?: Array<{ token: any; useValue: any }>;
+}
+
+export function getMikroOrmTestConfig(): Options<IDatabaseDriver<Connection>> {
+  const configService = new ConfigService();
+  return mikroOrmConfigFunction(configService);
+}
+
+export async function createE2ETestingModule({
+  imports = [],
+  controllers = [],
+  providers = [],
+  overrideProviders = [],
+}: Omit<CreateE2ETestingModuleOptions, 'shouldMockMikroORM'> = {}): Promise<{
   app: INestApplication;
-  moduleFixture: TestingModule;
+  mikroOrmConfig: Options<IDatabaseDriver<Connection>>;
+  orm: MikroORM;
+  em: EntityManager;
+  jwtService: JwtService;
+  configService: ConfigService;
   adminToken: string;
   sellerToken: string;
   viewerToken: string;
-  jwtService: JwtService;
-  orm: MikroORM;
+  unauthenticatedToken: string;
 }> {
-  const tempConfigService = new ConfigService();
-  const actualMikroOrmConfig = mikroOrmConfigFunction(tempConfigService);
+  const mikroOrmConfig = getMikroOrmTestConfig();
 
-  const testingModuleBuilder: TestingModuleBuilder = Test.createTestingModule({
+  let testingModuleBuilder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({
         isGlobal: true,
         envFilePath: '.env.test',
+        ignoreEnvFile: process.env.NODE_ENV === 'production',
       }),
+      UserModule,
+      GlobalE2EJwtModule,
       PassportModule.register({ defaultStrategy: 'jwt' }),
-      JwtModule.registerAsync({
-        imports: [ConfigModule],
-        useFactory: async (configService: ConfigService) => ({
-          secret: 'test-e2e-super-secret-key-12345',
-          signOptions: {
-            expiresIn: '24h',
-          },
-        }),
-        inject: [ConfigService],
-      }),
-      MikroOrmModule.forRoot(actualMikroOrmConfig),
-      ...(options?.imports || []),
+      MikroOrmModule.forRoot(mikroOrmConfig),
+      ...(imports || []),
     ],
+    controllers: [...(controllers || [])],
     providers: [
-      { provide: UserService, useValue: mockUserService },
-      { provide: TokenBlacklistService, useValue: mockTokenBlacklistService },
-      ...(options?.providers || []),
+      HttpExceptionFilter,
+      {
+        provide: APP_FILTER,
+        useClass: HttpExceptionFilter,
+      },
+      ...(providers || []),
     ],
-    controllers: options?.controllers || [],
-  })
-    .overrideGuard(AuthGuard('jwt'))
-    .useClass(MockJwtAuthGuard);
+  });
 
-  const moduleFixture = await testingModuleBuilder.compile();
+  testingModuleBuilder = testingModuleBuilder.overrideGuard(AuthGuard('jwt')).useClass(MockJwtAuthGuard);
+  testingModuleBuilder = testingModuleBuilder.overrideGuard(JwtAuthGuard).useClass(MockJwtAuthGuard);
+
+  testingModuleBuilder = testingModuleBuilder.overrideProvider(UserService).useValue(mockUserService);
+  testingModuleBuilder = testingModuleBuilder.overrideProvider(mockBroadcastService).useValue(mockBroadcastService);
+  testingModuleBuilder = testingModuleBuilder.overrideProvider(mockProductService).useValue(mockProductService);
+  testingModuleBuilder = testingModuleBuilder
+    .overrideProvider(TokenBlacklistService)
+    .useValue(mockTokenBlacklistService);
+
+  if (overrideProviders && overrideProviders.length > 0) {
+    for (const { token, useValue } of overrideProviders) {
+      testingModuleBuilder = testingModuleBuilder.overrideProvider(token).useValue(useValue);
+    }
+  }
+
+  const moduleFixture: TestingModule = await testingModuleBuilder.compile();
 
   const app = moduleFixture.createNestApplication();
 
   const httpAdapterHost = app.get(HttpAdapterHost);
-  app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
 
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
-      exceptionFactory: (errors) => new BadRequestException(errors),
+      exceptionFactory: (errors) => {
+        return new BadRequestException(errors);
+      },
     }),
   );
 
   await app.init();
 
   const orm = moduleFixture.get<MikroORM>(MikroORM);
+  const em = orm.em;
 
   const jwtServiceFromFixture = moduleFixture.get(JwtService);
-  const adminToken = generateTestToken(jwtServiceFromFixture, mockAdmin.id!, mockAdmin.email!, mockAdmin.role!, '24h');
+  const configServiceFromFixture = moduleFixture.get(ConfigService);
+
+  const adminToken = generateTestToken(jwtServiceFromFixture, mockAdmin.id!, mockAdmin.email!, mockAdmin.role!);
   const sellerToken = generateTestToken(
     jwtServiceFromFixture,
     mockSeller.id!,
@@ -287,15 +365,25 @@ export async function createE2ETestingModule(options?: E2ETestingOptions): Promi
     mockViewer.role!,
     '24h',
   );
+  const unauthenticatedToken = generateTestToken(
+    jwtServiceFromFixture,
+    'unauthenticated-test-user',
+    'invalid@example.com',
+    UserRole.VIEWER,
+    '1s',
+  );
 
   return {
     app,
-    moduleFixture,
+    mikroOrmConfig,
+    orm,
+    em,
+    jwtService: jwtServiceFromFixture,
+    configService: configServiceFromFixture,
     adminToken,
     sellerToken,
     viewerToken,
-    jwtService: jwtServiceFromFixture,
-    orm,
+    unauthenticatedToken,
   };
 }
 

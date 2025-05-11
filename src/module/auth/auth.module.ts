@@ -1,6 +1,6 @@
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
@@ -19,10 +19,12 @@ import { TokenBlacklistService } from './token-blacklist.service';
     ConfigModule,
     PassportModule,
     JwtModule.registerAsync({
-      useFactory: () => ({
-        secret: process.env.JWT_SECRET || 'secret',
-        signOptions: { expiresIn: '15m' },
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRATION_TIME') },
       }),
+      inject: [ConfigService],
     }),
     MikroOrmModule.forFeature([Login, TokenBlacklist]),
     UserModule,

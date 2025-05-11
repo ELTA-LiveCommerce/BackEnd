@@ -8,7 +8,7 @@ export class FollowUserDto {
 export class FollowerResponseDto {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   profileImage?: string;
   isFollowing: boolean;
 }
@@ -16,6 +16,6 @@ export class FollowerResponseDto {
 export class FollowingResponseDto {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   profileImage?: string;
 }

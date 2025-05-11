@@ -13,7 +13,7 @@ export class User extends BaseEntity {
   id: string = v4();
 
   @Property({ unique: true, type: 'string' })
-  email: string;
+  loginId: string;
 
   @Property({ type: 'string' })
   password: string;

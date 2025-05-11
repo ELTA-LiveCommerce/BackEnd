@@ -28,7 +28,7 @@ export class SearchUserDto {
 export class UserSearchResultDto {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   profileImage?: string;
   role: UserRole;
   isFollowing: boolean;

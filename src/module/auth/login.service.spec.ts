@@ -80,25 +80,61 @@ describe('LoginService', () => {
       const mockUser = new User();
       mockUser.id = 'user-id';
 
-      const loginData = {
-        email: 'test@example.com',
+      const loginData: {
+        loginId?: string;
+        nickname?: string;
+        profileImage?: string;
+        accessToken?: string;
+        refreshToken?: string;
+      } = {
+        loginId: 'test@example.com',
         nickname: 'TestUser',
         profileImage: 'profile.jpg',
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
       };
 
+      const expectedLogin = new Login();
+      Object.assign(expectedLogin, {
+        user: mockUser,
+        provider: LoginProvider.KAKAO,
+        providerId: '12345',
+        ...loginData,
+        lastLoginAt: expect.any(Date), // lastLoginAt은 Date 타입이므로 expect.any(Date) 사용
+      });
+      // persistAndFlush가 호출될 때 반환될 Login 엔티티를 모킹합니다.
+      // 실제로는 persistAndFlush가 void를 반환하므로, savedLogin을 가져오는 방식 수정이 필요합니다.
+      // LoginService.createLoginInfo가 반환하는 값을 사용하거나,
+      // EntityManager.persistAndFlush에 전달되는 인자를 확인합니다.
+
+      mockEntityManager.persistAndFlush.mockImplementation((entity: Login) => {
+        // 실제 DB 저장 로직 대신, 전달된 엔티티에 id 등을 할당하는 것처럼 모킹할 수 있습니다.
+        // 이 테스트에서는 전달된 entity를 그대로 사용합니다.
+        return Promise.resolve(entity);
+      });
+
       // 실행
-      await service.createLoginInfo(mockUser, LoginProvider.KAKAO, '12345', loginData);
+      const savedLogin = await service.createLoginInfo(mockUser, LoginProvider.KAKAO, '12345', loginData);
 
       // 검증
-      expect(mockEntityManager.persistAndFlush).toHaveBeenCalled();
-      const savedLogin = mockEntityManager.persistAndFlush.mock.calls[0][0];
+      expect(mockEntityManager.persistAndFlush).toHaveBeenCalledWith(expect.any(Login));
+      const persistCallArg = mockEntityManager.persistAndFlush.mock.calls[0][0];
 
+      expect(persistCallArg.user).toBe(mockUser);
+      expect(persistCallArg.provider).toBe(LoginProvider.KAKAO);
+      expect(persistCallArg.providerId).toBe('12345');
+      expect(persistCallArg.loginId).toBe(loginData.loginId);
+      expect(persistCallArg.nickname).toBe(loginData.nickname);
+      expect(persistCallArg.profileImage).toBe(loginData.profileImage);
+      expect(persistCallArg.accessToken).toBe(loginData.accessToken);
+      expect(persistCallArg.refreshToken).toBe(loginData.refreshToken);
+      expect(persistCallArg.lastLoginAt).toBeInstanceOf(Date);
+
+      // 서비스 메서드가 반환한 값도 확인
       expect(savedLogin.user).toBe(mockUser);
       expect(savedLogin.provider).toBe(LoginProvider.KAKAO);
       expect(savedLogin.providerId).toBe('12345');
-      expect(savedLogin.email).toBe(loginData.email);
+      expect(savedLogin.loginId).toBe(loginData.loginId);
       expect(savedLogin.nickname).toBe(loginData.nickname);
       expect(savedLogin.profileImage).toBe(loginData.profileImage);
       expect(savedLogin.accessToken).toBe(loginData.accessToken);
