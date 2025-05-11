@@ -57,7 +57,7 @@ export class SellerInfoRequestDto {
 export class SellerInfoDto {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   profileImage?: string;
   description?: string;
   followers: number;

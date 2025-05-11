@@ -6,6 +6,8 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { JwksClient } from 'jwks-rsa';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
@@ -51,7 +53,7 @@ interface KakaoTokenResponse {
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  public readonly logger = new Logger(AuthService.name);
   private readonly ACCESS_TOKEN_EXPIRATION = '15m'; // 액세스 토큰 만료 시간
   private readonly REFRESH_TOKEN_EXPIRATION = '7d'; // 리프레시 토큰 만료 시간
   private jwksClient: JwksClient;
@@ -519,7 +521,7 @@ export class AuthService {
 
     const signOptions: jwt.SignOptions = {
       algorithm: 'ES256',
-      header: { kid: keyId },
+      header: { kid: keyId, alg: 'ES256' },
     };
 
     try {

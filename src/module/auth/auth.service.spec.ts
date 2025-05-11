@@ -2,6 +2,8 @@ import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 
 import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
@@ -20,6 +22,8 @@ describe('AuthService', () => {
   let userService: UserService;
   let loginService: LoginService;
   let jwtService: JwtService;
+  let httpService: HttpService;
+  let configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -53,6 +57,29 @@ describe('AuthService', () => {
             addToBlacklist: jest.fn(),
           },
         },
+        {
+          provide: HttpService,
+          useValue: {
+            get: jest.fn(),
+            post: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'kakao.clientId') return 'test-kakao-client-id';
+              if (key === 'kakao.callbackUrl') return 'test-kakao-callback-url';
+              if (key === 'apple.clientId') return 'test-apple-client-id';
+              if (key === 'apple.teamId') return 'test-apple-team-id';
+              if (key === 'apple.keyId') return 'test-apple-key-id';
+              if (key === 'apple.privateKey') return 'test-apple-private-key';
+              if (key === 'jwt.secret') return 'test-jwt-secret';
+              if (key === 'jwt.refreshSecret') return 'test-jwt-refresh-secret';
+              return null;
+            }),
+          },
+        },
       ],
     }).compile();
 
@@ -60,6 +87,8 @@ describe('AuthService', () => {
     userService = module.get<UserService>(UserService);
     loginService = module.get<LoginService>(LoginService);
     jwtService = module.get<JwtService>(JwtService);
+    httpService = module.get<HttpService>(HttpService);
+    configService = module.get<ConfigService>(ConfigService);
 
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_password');
   });

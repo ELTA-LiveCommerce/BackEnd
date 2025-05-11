@@ -45,8 +45,8 @@ export class SellerController {
     // 응답 데이터 변환
     const searchResults: SellerSearchItemDto[] = sellers.map((seller) => ({
       id: seller.id,
-      username: seller.email,
-      name: seller.name || seller.email,
+      username: seller.loginId,
+      name: seller.name || seller.loginId,
       profileImage: seller.profileImage,
     }));
 
@@ -77,7 +77,7 @@ export class SellerController {
     const sellerInfo: SellerInfoDto = {
       id: seller.id,
       name: seller.name,
-      email: seller.email,
+      loginId: seller.loginId,
       profileImage: seller.profileImage,
       description: '셀러 소개입니다.', // 실제 필드에 맞게 수정 필요
       followers: followersCount,

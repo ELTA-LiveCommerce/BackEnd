@@ -38,7 +38,7 @@ export class ProfileController {
     const profileInfo: ProfileInfoDto = {
       id: userInfo.id,
       name: userInfo.name,
-      email: userInfo.email,
+      loginId: userInfo.loginId,
       phoneNumber: userInfo.phoneNumber || '',
       bankAccount: userInfo.accountNumber || '',
       bankName: userInfo.bankName || '',

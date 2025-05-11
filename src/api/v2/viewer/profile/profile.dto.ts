@@ -84,7 +84,7 @@ export class DeliveryAddressDto {
 export class ProfileInfoDto {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phoneNumber: string;
   bankAccount: string;
   bankName: string;
