@@ -1,7 +1,9 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { v4 } from 'uuid';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 
 import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
@@ -35,6 +37,15 @@ interface AuthResponse {
   refresh_token?: string;
 }
 
+interface KakaoTokenResponse {
+  access_token: string;
+  token_type: string;
+  refresh_token?: string;
+  expires_in: number;
+  refresh_token_expires_in?: number;
+  scope?: string;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -46,6 +57,8 @@ export class AuthService {
     private readonly loginService: LoginService,
     private readonly jwtService: JwtService,
     private readonly tokenBlacklistService: TokenBlacklistService,
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
   ) {}
 
   async validateKakaoUser(kakaoUserDto: KakaoUserDto): Promise<AuthResponse> {
@@ -260,28 +273,120 @@ export class AuthService {
     }
   }
 
-  private async getKakaoUserInfo(accessToken: string): Promise<KakaoUserInfo> {
+  private async getKakaoUserInfo(kakaoAccessToken: string): Promise<KakaoUserInfo> {
+    const KAKAO_USER_INFO_URL = 'https://kapi.kakao.com/v2/user/me';
     try {
-      // 카카오 API를 통해 사용자 정보 요청
-      const response = await fetch('https://kapi.kakao.com/v2/user/me', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
-        },
-      });
+      const response = await this.httpService
+        .get<KakaoUserInfo>(KAKAO_USER_INFO_URL, {
+          headers: { Authorization: `Bearer ${kakaoAccessToken}` },
+        })
+        .toPromise(); // RxJS 최신 버전에서는 firstValueFrom 사용 권장
 
-      if (!response.ok) {
-        throw new Error(`카카오 API 요청 실패: ${response.status} ${response.statusText}`);
+      if (!response || !response.data) {
+        throw new Error('카카오 사용자 정보 응답 없음');
+      }
+      return response.data;
+    } catch (error) {
+      this.logger.error(`카카오 사용자 정보 요청 실패: ${error.message}`, error.stack);
+      if (error.response?.data) {
+        this.logger.error(`카카오 오류 응답: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new UnauthorizedException('카카오 사용자 정보 조회에 실패했습니다.');
+    }
+  }
+
+  // 인가 코드를 받아 카카오 로그인 처리 후 JWT 반환
+  async handleKakaoAuthorizationCode(code: string): Promise<TokenResponseDto> {
+    const kakaoTokenResponse = await this.getKakaoAccessToken(code);
+    const kakaoUserInfo = await this.getKakaoUserInfo(kakaoTokenResponse.access_token);
+
+    const user = await this.processKakaoUser(kakaoUserInfo);
+    return this.generateTokens(user);
+  }
+
+  // 카카오 AccessToken을 직접 받아 카카오 로그인 처리 후 JWT 반환 (기존 kakaoMobileLogin 역할)
+  async handleKakaoAccessToken(kakaoAccessToken: string): Promise<TokenResponseDto> {
+    const kakaoUserInfo = await this.getKakaoUserInfo(kakaoAccessToken);
+    const user = await this.processKakaoUser(kakaoUserInfo);
+    return this.generateTokens(user);
+  }
+
+  // processKakaoUser: 카카오 사용자 정보를 바탕으로 User 엔티티를 찾거나 생성 (기존 validateKakaoUserAndGetUser 역할)
+  private async processKakaoUser(kakaoUserInfo: KakaoUserInfo): Promise<User> {
+    const kakaoUserDto: KakaoUserDto = {
+      kakaoId: kakaoUserInfo.id,
+      email: kakaoUserInfo.kakao_account?.email,
+      nickname: kakaoUserInfo.kakao_account?.profile?.nickname || kakaoUserInfo.properties?.nickname || '카카오 사용자',
+      profileImage: kakaoUserInfo.kakao_account?.profile?.profile_image_url || kakaoUserInfo.properties?.profile_image,
+    };
+
+    // 기존 validateKakaoUserAndGetUser 로직 활용 (약간 수정)
+    const login = await this.loginService.findByProviderId(LoginProvider.KAKAO, kakaoUserDto.kakaoId.toString());
+    let user: User | null = null;
+
+    if (login) {
+      user = login.user;
+      if (!user) {
+        // Login 엔티티는 있으나 연결된 User가 없는 비정상적인 경우
+        this.logger.error(`카카오 로그인: Login 엔티티(ID: ${login.id})에 연결된 사용자가 없습니다.`);
+        // 이 경우, loginId를 기반으로 사용자를 다시 찾아보거나, 오류를 발생시킬 수 있습니다.
+        // 우선은 오류를 발생시키지 않고 신규 사용자 생성 로직으로 넘어가지 않도록 user를 null로 유지합니다.
+        // 또는 login 정보를 삭제하고 신규로 진행하도록 할 수도 있습니다.
+        throw new InternalServerErrorException('카카오 로그인 처리 중 사용자 정보 연결 오류가 발생했습니다.');
+      }
+      await this.loginService.updateLoginInfo(login, {
+        nickname: kakaoUserDto.nickname,
+        profileImage: kakaoUserDto.profileImage,
+        // 필요한 경우 카카오로부터 받은 새로운 access/refresh 토큰을 login 엔티티에 저장할 수 있으나,
+        // 현재는 우리 서비스의 JWT를 사용하므로 카카오 토큰을 저장하지 않음.
+      });
+      this.logger.log(`기존 카카오 연동 사용자 로그인: ${user.id} (Login ID: ${login.id})`);
+    } else {
+      if (kakaoUserDto.email) {
+        user = await this.userService.findByLoginId(kakaoUserDto.email);
+        if (user) {
+          this.logger.log(`기존 사용자 (${user.id})에게 카카오 계정(${kakaoUserDto.kakaoId}) 연동`);
+        } else {
+          this.logger.log(`신규 사용자 등록 (카카오 이메일 기반): ${kakaoUserDto.email}`);
+        }
       }
 
-      return await response.json();
-    } catch (error) {
-      this.logger.error(
-        `카카오 사용자 정보 요청 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new UnauthorizedException('카카오 사용자 정보를 가져오는데 실패했습니다.');
+      if (!user) {
+        // 기존 사용자가 없거나, 이메일이 없어 찾지 못한 경우 신규 생성
+        const newLoginId = kakaoUserDto.email || `kakao_${kakaoUserDto.kakaoId}`;
+        // loginId 중복 가능성 체크 (매우 드물지만)
+        const existingUserWithTempLoginId = await this.userService.findByLoginId(newLoginId);
+        if (existingUserWithTempLoginId) {
+          this.logger.error(
+            `생성하려는 임시 카카오 loginId(${newLoginId})가 이미 존재합니다. 사용자 ID: ${existingUserWithTempLoginId.id}`,
+          );
+          throw new InternalServerErrorException('카카오 로그인 처리 중 오류가 발생했습니다.');
+        }
+
+        user = await this.userService.create({
+          loginId: newLoginId,
+          name: kakaoUserDto.nickname,
+          role: UserRole.VIEWER,
+          password: await bcrypt.hash(v4(), 10), // 임의의 초기 비밀번호 설정
+          profileImage: kakaoUserDto.profileImage,
+        });
+        this.logger.log(`신규 사용자 생성 (카카오): ${user.id}, LoginId: ${user.loginId}`);
+      }
+
+      await this.loginService.createLoginInfo(user, LoginProvider.KAKAO, kakaoUserDto.kakaoId.toString(), {
+        loginId: user.loginId,
+        nickname: kakaoUserDto.nickname,
+        profileImage: kakaoUserDto.profileImage,
+      });
+      this.logger.log(`새로운 카카오 Login 정보 생성 (사용자 ID: ${user.id})`);
     }
+
+    if (!user) {
+      // 이 지점에 도달하면 로직 오류
+      this.logger.error('카카오 로그인 처리 중 최종 사용자 객체를 확정하지 못했습니다.', kakaoUserDto);
+      throw new InternalServerErrorException('카카오 로그인 처리에 실패했습니다.');
+    }
+    return user;
   }
 
   private buildAuthResponse(user: User, includeRefreshToken = false): AuthResponse {
@@ -334,5 +439,47 @@ export class AuthService {
       secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret',
       expiresIn: this.REFRESH_TOKEN_EXPIRATION,
     });
+  }
+
+  private async getKakaoAccessToken(
+    code: string,
+    grantType: string = 'authorization_code',
+  ): Promise<KakaoTokenResponse> {
+    const KAKAO_CLIENT_ID = this.configService.get<string>('kakao.clientId');
+    const KAKAO_CALLBACK_URL = this.configService.get<string>('kakao.callbackUrl');
+    const KAKAO_TOKEN_URL = 'https://kauth.kakao.com/oauth/token';
+
+    if (!KAKAO_CLIENT_ID || !KAKAO_CALLBACK_URL) {
+      this.logger.error('카카오 환경변수(KAKAO_CLIENT_ID 또는 KAKAO_CALLBACK_URL)가 설정되지 않았습니다.');
+      throw new InternalServerErrorException('카카오 로그인 설정 오류');
+    }
+
+    try {
+      const response = await this.httpService
+        .post(
+          KAKAO_TOKEN_URL,
+          {
+            grant_type: grantType,
+            client_id: KAKAO_CLIENT_ID,
+            redirect_uri: KAKAO_CALLBACK_URL,
+            code,
+          },
+          {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+          },
+        )
+        .toPromise(); // toPromise() 대신 firstValueFrom 사용 권장 (최신 RxJS)
+
+      if (!response || !response.data) {
+        throw new Error('카카오 토큰 응답 없음');
+      }
+      return response.data as KakaoTokenResponse;
+    } catch (error) {
+      this.logger.error(`카카오 액세스 토큰 요청 실패: ${error.message}`, error.stack);
+      if (error.response?.data) {
+        this.logger.error(`카카오 오류 응답: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new UnauthorizedException('카카오 토큰 발급에 실패했습니다.');
+    }
   }
 }

@@ -4,6 +4,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { V1ApiModule } from '@/api/v1/v1-api.module';
 import { V2ApiModule } from '@/api/v2/v2-api.module';
+import configuration from '@/infra/config/configuration';
+import { validationSchema } from '@/infra/config/validation.schema';
 import createMikroOrmConfig from '@/infra/database/mikro-orm.config';
 
 declare global {
@@ -15,6 +17,8 @@ declare global {
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
+      load: [configuration],
+      validationSchema,
     }),
     MikroOrmModule.forRootAsync({
       imports: [ConfigModule],

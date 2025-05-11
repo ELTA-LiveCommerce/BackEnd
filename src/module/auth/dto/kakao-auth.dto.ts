@@ -66,3 +66,12 @@ export interface KakaoUserInfo {
     uuid: string;
   };
 }
+
+// --- Mobile Requests DTOs ---
+export class KakaoCodeRequestDto {
+  code: string;
+}
+
+export class KakaoAccessTokenRequestDto {
+  accessToken: string;
+}
