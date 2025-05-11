@@ -17,6 +17,14 @@ export default () => ({
     clientId: process.env.KAKAO_CLIENT_ID,
     callbackUrl: process.env.KAKAO_CALLBACK_URL,
   },
+  apple: {
+    clientId: process.env.APPLE_CLIENT_ID,
+    teamId: process.env.APPLE_TEAM_ID,
+    keyId: process.env.APPLE_KEY_ID,
+    privateKey: process.env.APPLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    callbackUrl: process.env.APPLE_CALLBACK_URL,
+    clientSecretExpiresIn: '60d',
+  },
   // 필요에 따라 다른 설정 추가 가능
   // 예: aws, redis 등
 });

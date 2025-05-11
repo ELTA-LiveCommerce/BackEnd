@@ -19,6 +19,13 @@ export const validationSchema = Joi.object({
   KAKAO_CLIENT_ID: Joi.string().required(),
   KAKAO_CALLBACK_URL: Joi.string().uri().required(), // URI 형식 검사 추가
 
+  // Apple OAuth
+  APPLE_CLIENT_ID: Joi.string().required(),
+  APPLE_TEAM_ID: Joi.string().required(),
+  APPLE_KEY_ID: Joi.string().required(),
+  APPLE_PRIVATE_KEY: Joi.string().required(),
+  APPLE_CALLBACK_URL: Joi.string().uri().required(),
+
   // Sentry
   SENTRY_DSN: Joi.string().allow(''), // 비워둘 수 있도록 허용
 

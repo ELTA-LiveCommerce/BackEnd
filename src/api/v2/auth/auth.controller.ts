@@ -14,12 +14,14 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
+import { v4 } from 'uuid';
 
 import { AuthService } from '../../../module/auth/auth.service';
 import { V2LoginRequestDto, V2LoginResponseDto } from '../../../module/auth/dto/v2-login.dto';
 import { JwtAuthGuard } from '../../../module/auth/guards/jwt-auth.guard';
 import { TokenResponseDto } from '../../../module/auth/dto/auth.dto';
 import { KakaoCodeRequestDto, KakaoAccessTokenRequestDto } from '../../../module/auth/dto/kakao-auth.dto';
+import { AppleAuthCodeRequestDto, AppleIdentityTokenRequestDto } from '../../../module/auth/dto/apple-auth.dto';
 
 @ApiTags('Auth v2')
 @Controller({
@@ -118,6 +120,100 @@ export class AuthController {
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: '카카오 인증 실패' })
   async kakaoLoginMobileWithToken(@Body() kakaoTokenDto: KakaoAccessTokenRequestDto): Promise<TokenResponseDto> {
     return this.authService.handleKakaoAccessToken(kakaoTokenDto.accessToken);
+  }
+
+  // --- Apple Login (Web) ---
+  @Get('apple/login')
+  @ApiOperation({
+    summary: 'Apple 로그인 시작 (웹용)',
+    description:
+      '사용자를 Apple 인증 페이지로 리디렉션합니다. state와 nonce는 CSRF 방어 및 ID 토큰 유효성 검증에 사용될 수 있습니다.',
+  })
+  @ApiExcludeEndpoint()
+  appleLogin(@Res() res: Response, @Query('state') state?: string) {
+    const clientId = this.configService.get<string>('apple.clientId');
+    const callbackUrl = this.configService.get<string>('apple.callbackUrl');
+
+    if (!clientId || !callbackUrl) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Apple 로그인 설정 오류 (Web)');
+    }
+
+    const nonce = v4();
+    let appleAuthUrl = `https://appleid.apple.com/auth/authorize?response_type=code id_token&response_mode=form_post&client_id=${clientId}&redirect_uri=${callbackUrl}&scope=name email&nonce=${nonce}`;
+    if (state) {
+      appleAuthUrl += `&state=${state}`;
+    }
+    res.redirect(appleAuthUrl);
+  }
+
+  @Post('apple/callback')
+  @ApiOperation({
+    summary: 'Apple 로그인 콜백 처리 (웹용)',
+    description:
+      'Apple 인증 후 인가 코드, ID 토큰 등을 받아 JWT를 발급합니다. Content-Type은 application/x-www-form-urlencoded 입니다.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Apple 로그인 성공 및 JWT 토큰 발급', type: TokenResponseDto })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Apple 인증 실패' })
+  @ApiExcludeEndpoint()
+  async appleLoginCallback(
+    @Body() appleAuthCodeDto: AppleAuthCodeRequestDto,
+    @Req() req: any,
+  ): Promise<TokenResponseDto> {
+    const { code, id_token, user, state } = appleAuthCodeDto;
+    if (!code) {
+      throw new UnauthorizedException('Apple Authorization Code가 없습니다.');
+    }
+
+    let parsedUserPayload;
+    if (user) {
+      try {
+        parsedUserPayload = JSON.parse(user);
+      } catch (e) {
+        this.authService.logger.warn('Apple user payload 파싱 실패', user);
+      }
+    }
+
+    return this.authService.handleAppleAuthCode(code, id_token, parsedUserPayload);
+  }
+
+  // --- Apple Login (Mobile) ---
+  @Post('apple/mobile/code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Apple 인가 코드/ID 토큰으로 로그인 (모바일용)',
+    description: '모바일 앱에서 받은 Apple 인가 코드와 선택적으로 ID 토큰, 사용자 정보를 전달하여 JWT를 발급받습니다.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Apple 로그인 성공 및 JWT 토큰 발급', type: TokenResponseDto })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Apple 인증 실패' })
+  async appleLoginMobileWithCode(@Body() appleAuthDto: AppleAuthCodeRequestDto): Promise<TokenResponseDto> {
+    const { code, id_token, user } = appleAuthDto;
+    if (!code) {
+      throw new UnauthorizedException('Apple Authorization Code가 필요합니다.');
+    }
+    let parsedUserPayload;
+    if (user) {
+      try {
+        parsedUserPayload = JSON.parse(user);
+      } catch (e) {
+        this.authService.logger.warn('Apple user payload 파싱 실패 (모바일/코드)', user);
+      }
+    }
+    return this.authService.handleAppleAuthCode(code, id_token, parsedUserPayload);
+  }
+
+  @Post('apple/mobile/identity-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Apple ID 토큰으로 로그인 (모바일용)',
+    description: '모바일 앱에서 직접 발급받은 Apple ID 토큰과 선택적으로 사용자 정보를 전달하여 JWT를 발급받습니다.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Apple 로그인 성공 및 JWT 토큰 발급', type: TokenResponseDto })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Apple 인증 실패' })
+  async appleLoginMobileWithIdentityToken(
+    @Body() appleTokenDto: AppleIdentityTokenRequestDto,
+  ): Promise<TokenResponseDto> {
+    const { identityToken, authorizationCode, email, firstName, lastName } = appleTokenDto;
+    return this.authService.handleAppleIdentityToken(identityToken, authorizationCode, { email, firstName, lastName });
   }
 
   // TODO: Implement other v2 authentication endpoints (e.g., refresh token)

@@ -4,6 +4,8 @@ import * as bcrypt from 'bcrypt';
 import { v4 } from 'uuid';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import * as jwt from 'jsonwebtoken';
+import { JwksClient } from 'jwks-rsa';
 
 import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
@@ -15,6 +17,7 @@ import { V2LoginRequestDto, V2LoginResponseDto } from './dto/v2-login.dto';
 import { LoginProvider } from './entity/login.entity';
 import { LoginService } from './login.service';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { AppleIdTokenPayloadDto, AppleTokenResponseDto } from './dto/apple-auth.dto';
 
 interface JwtPayload {
   sub: string;
@@ -51,6 +54,7 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly ACCESS_TOKEN_EXPIRATION = '15m'; // 액세스 토큰 만료 시간
   private readonly REFRESH_TOKEN_EXPIRATION = '7d'; // 리프레시 토큰 만료 시간
+  private jwksClient: JwksClient;
 
   constructor(
     private readonly userService: UserService,
@@ -59,7 +63,14 @@ export class AuthService {
     private readonly tokenBlacklistService: TokenBlacklistService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    this.jwksClient = new JwksClient({
+      jwksUri: 'https://appleid.apple.com/auth/keys',
+      cache: true,
+      rateLimit: true,
+      jwksRequestsPerMinute: 5,
+    });
+  }
 
   async validateKakaoUser(kakaoUserDto: KakaoUserDto): Promise<AuthResponse> {
     try {
@@ -481,5 +492,267 @@ export class AuthService {
       }
       throw new UnauthorizedException('카카오 토큰 발급에 실패했습니다.');
     }
+  }
+
+  // --- Apple Login Methods ---
+
+  private async generateAppleClientSecret(): Promise<string> {
+    const clientId = this.configService.get<string>('apple.clientId');
+    const teamId = this.configService.get<string>('apple.teamId');
+    const keyId = this.configService.get<string>('apple.keyId');
+    const privateKey = this.configService.get<string>('apple.privateKey');
+    const expiresIn = this.configService.get<string>('apple.clientSecretExpiresIn', '60d'); // 기본값 60일
+
+    if (!clientId || !teamId || !keyId || !privateKey) {
+      this.logger.error('Apple Client Secret 생성에 필요한 환경변수가 부족합니다.');
+      throw new InternalServerErrorException('Apple 로그인 설정 오류 (Client Secret)');
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      iss: teamId,
+      iat: now,
+      exp: now + (this.parseExpiresIn(expiresIn) || 60 * 60 * 24 * 60), // 기본 60일 (초 단위)
+      aud: 'https://appleid.apple.com',
+      sub: clientId,
+    };
+
+    const signOptions: jwt.SignOptions = {
+      algorithm: 'ES256',
+      header: { kid: keyId },
+    };
+
+    try {
+      return jwt.sign(payload, privateKey, signOptions);
+    } catch (error) {
+      this.logger.error(`Apple Client Secret 생성 실패: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Apple Client Secret 생성에 실패했습니다.');
+    }
+  }
+
+  // expiresIn 문자열 (예: '1h', '60d')을 초 단위 숫자로 변환하는 헬퍼
+  private parseExpiresIn(expiresIn: string | number): number | undefined {
+    if (typeof expiresIn === 'number') return expiresIn;
+    if (typeof expiresIn === 'string') {
+      const match = expiresIn.match(/^(\d+)([smhd])$/);
+      if (match) {
+        const value = parseInt(match[1]);
+        const unit = match[2];
+        if (unit === 's') return value;
+        if (unit === 'm') return value * 60;
+        if (unit === 'h') return value * 60 * 60;
+        if (unit === 'd') return value * 60 * 60 * 24;
+      }
+    }
+    return undefined; // 기본값 사용 유도
+  }
+
+  private async getApplePublicKey(kid: string): Promise<string> {
+    try {
+      const key = await this.jwksClient.getSigningKey(kid);
+      return key.getPublicKey();
+    } catch (error) {
+      this.logger.error(`Apple Public Key 조회 실패 (kid: ${kid}): ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Apple 공개키 조회에 실패했습니다.');
+    }
+  }
+
+  async verifyAppleIdentityToken(identityToken: string): Promise<AppleIdTokenPayloadDto> {
+    try {
+      const decodedTokenHeader = jwt.decode(identityToken, { complete: true })?.header;
+      if (!decodedTokenHeader || !decodedTokenHeader.kid) {
+        throw new UnauthorizedException('유효하지 않은 Apple ID Token입니다 (헤더 또는 kid 없음).');
+      }
+
+      const publicKey = await this.getApplePublicKey(decodedTokenHeader.kid);
+      const clientId = this.configService.get<string>('apple.clientId');
+
+      const verifyOptions: jwt.VerifyOptions = {
+        algorithms: ['RS256'],
+        audience: clientId,
+        issuer: 'https://appleid.apple.com',
+      };
+
+      const payload = jwt.verify(identityToken, publicKey, verifyOptions) as AppleIdTokenPayloadDto;
+      return payload;
+    } catch (error) {
+      this.logger.error(`Apple ID Token 검증 실패: ${error.message}`, error.stack);
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new UnauthorizedException('만료된 Apple ID Token입니다.');
+      }
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw new UnauthorizedException('유효하지 않은 Apple ID Token입니다.');
+      }
+      throw new InternalServerErrorException('Apple ID Token 검증 중 오류가 발생했습니다.');
+    }
+  }
+
+  async getAppleTokensFromAuthCode(authCode: string): Promise<AppleTokenResponseDto> {
+    const clientSecret = await this.generateAppleClientSecret();
+    const clientId = this.configService.get<string>('apple.clientId');
+    // 웹 플로우에서는 redirect_uri가 필요하지만, 모바일에서 직접 code를 전달받는 경우 선택적일 수 있음.
+    // Apple 문서를 확인하여 모바일 앱에서 code 교환 시 redirect_uri가 필수인지 확인 필요.
+    // 우선은 웹 콜백과 동일하게 처리하기 위해 포함. (없어도 된다면 제거)
+    const callbackUrl = this.configService.get<string>('apple.callbackUrl');
+
+    const APPLE_TOKEN_URL = 'https://appleid.apple.com/auth/token';
+
+    try {
+      const response = await this.httpService
+        .post<AppleTokenResponseDto>(
+          APPLE_TOKEN_URL,
+          {
+            client_id: clientId,
+            client_secret: clientSecret,
+            code: authCode,
+            grant_type: 'authorization_code',
+            redirect_uri: callbackUrl, // 웹 콜백과 동일하게 처리. 모바일 앱에서는 값이 없거나 다를 수 있음.
+          },
+          {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          },
+        )
+        .toPromise(); // RxJS 최신 버전에서는 firstValueFrom 사용 권장
+
+      if (!response || !response.data) {
+        throw new Error('Apple 토큰 응답 없음');
+      }
+      return response.data;
+    } catch (error) {
+      this.logger.error(`Apple 토큰 요청 실패 (Auth Code): ${error.message}`, error.stack);
+      if (error.response?.data) {
+        this.logger.error(`Apple 오류 응답: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new UnauthorizedException('Apple 토큰 발급에 실패했습니다 (Auth Code).');
+    }
+  }
+
+  private async processAppleUser(
+    appleIdPayload: AppleIdTokenPayloadDto,
+    additionalUserInfo?: { email?: string | null; firstName?: string | null; lastName?: string | null },
+  ): Promise<User> {
+    const appleUserSub = appleIdPayload.sub;
+    let user: User | null = null;
+
+    const login = await this.loginService.findByProviderId(LoginProvider.APPLE, appleUserSub);
+
+    if (login) {
+      user = login.user;
+      if (!user) {
+        this.logger.error(`Apple 로그인: Login 엔티티(ID: ${login.id})에 연결된 사용자가 없습니다.`);
+        throw new InternalServerErrorException('Apple 로그인 처리 중 사용자 정보 연결 오류가 발생했습니다.');
+      }
+      // Apple은 사용자 정보를 자주 업데이트하지 않으므로, Login 정보 업데이트는 최소화
+      this.logger.log(`기존 Apple 연동 사용자 로그인: ${user.id} (Login ID: ${login.id})`);
+    } else {
+      // 신규 사용자 또는 기존 계정에 Apple 연동
+      let determinedEmail = additionalUserInfo?.email || appleIdPayload.email || null;
+      if (appleIdPayload.is_private_email === 'true' || appleIdPayload.is_private_email === true) {
+        // Private Relay Email인 경우, 실제 이메일이 아닐 수 있음.
+        // additionalUserInfo.email이 있다면 그것을 우선 사용.
+        // 없다면, 이메일 필드는 비워두거나, privaterelay 이메일을 그대로 사용할 수 있음 (정책에 따라 결정)
+        // 여기서는 additionalUserInfo에 기대하거나, 없으면 private relay 이메일 사용
+        this.logger.log(`Apple Private Relay Email 감지: ${determinedEmail}`);
+      }
+
+      let userToLink: User | null = null;
+      if (determinedEmail) {
+        userToLink = await this.userService.findByLoginId(determinedEmail);
+        if (userToLink) {
+          this.logger.log(
+            `기존 사용자 (${userToLink.id}, LoginId: ${determinedEmail})에게 Apple 계정(${appleUserSub}) 연동`,
+          );
+          user = userToLink;
+        }
+      }
+
+      if (!user) {
+        // 연동할 기존 사용자가 없으면 신규 생성
+        const name = additionalUserInfo?.firstName || 'Apple 사용자'; // 성(lastName)도 조합 가능
+        const loginIdForNewUser = determinedEmail || `apple_${appleUserSub}`;
+
+        // loginId 중복 가능성 체크
+        const existingUserWithLoginId = await this.userService.findByLoginId(loginIdForNewUser);
+        if (existingUserWithLoginId) {
+          this.logger.error(
+            `생성하려는 Apple loginId(${loginIdForNewUser})가 이미 다른 사용자에 의해 사용 중입니다. 사용자 ID: ${existingUserWithLoginId.id}`,
+          );
+          // 이 경우, 사용자에게 다른 이메일을 요청하거나, 관리자 검토 등의 프로세스가 필요할 수 있음
+          throw new InternalServerErrorException('Apple 로그인 처리 중 오류가 발생했습니다 (LoginId 중복).');
+        }
+
+        user = await this.userService.create({
+          loginId: loginIdForNewUser,
+          name: additionalUserInfo?.lastName
+            ? `${additionalUserInfo.firstName || ''} ${additionalUserInfo.lastName || ''}`.trim()
+            : name,
+          role: UserRole.VIEWER,
+          password: await bcrypt.hash(v4(), 10), // 소셜 로그인이므로 임의의 초기 비밀번호
+          // profileImage는 Apple에서 직접 제공하지 않음. 필요시 기본 이미지 또는 다른 방법으로 설정.
+        });
+        this.logger.log(`신규 사용자 생성 (Apple): ${user.id}, LoginId: ${user.loginId}`);
+      }
+
+      // Login 정보 생성 (새 사용자든, 기존 사용자에 연동하든)
+      await this.loginService.createLoginInfo(user, LoginProvider.APPLE, appleUserSub, {
+        loginId: user.loginId, // User의 최종 loginId 사용
+        // Apple은 nickname을 직접 제공하지 않으므로, User의 name을 사용하거나 비워둠
+        nickname: user.name,
+      });
+      this.logger.log(`새로운 Apple Login 정보 생성 (사용자 ID: ${user.id})`);
+    }
+
+    if (!user) {
+      this.logger.error('Apple 로그인 처리 중 최종 사용자 객체를 확정하지 못했습니다.', appleIdPayload);
+      throw new InternalServerErrorException('Apple 로그인 처리에 실패했습니다.');
+    }
+    return user;
+  }
+
+  async handleAppleAuthCode(
+    code: string,
+    idTokenHint?: string,
+    userPayloadFromApple?: {
+      email?: string | null;
+      name?: { firstName?: string | null; lastName?: string | null } | null;
+    },
+  ): Promise<TokenResponseDto> {
+    let appleIdPayload: AppleIdTokenPayloadDto;
+
+    if (idTokenHint) {
+      // 웹 콜백에서 id_token이 함께 온 경우 우선 검증 시도
+      try {
+        appleIdPayload = await this.verifyAppleIdentityToken(idTokenHint);
+      } catch (error) {
+        this.logger.warn(`제공된 id_token 검증 실패, auth code로 토큰 재요청: ${error.message}`);
+        // id_token 검증 실패 시 code로 토큰 새로 요청
+        const appleTokens = await this.getAppleTokensFromAuthCode(code);
+        appleIdPayload = await this.verifyAppleIdentityToken(appleTokens.id_token);
+      }
+    } else {
+      // id_token 힌트가 없으면 code로 토큰 요청
+      const appleTokens = await this.getAppleTokensFromAuthCode(code);
+      appleIdPayload = await this.verifyAppleIdentityToken(appleTokens.id_token);
+    }
+
+    const user = await this.processAppleUser(appleIdPayload, userPayloadFromApple);
+    return this.generateTokens(user);
+  }
+
+  async handleAppleIdentityToken(
+    identityToken: string,
+    authorizationCode?: string, // ID 토큰 만료/재발급 시 사용될 수 있는 인가 코드 (선택적)
+    additionalUserInfo?: { email?: string | null; firstName?: string | null; lastName?: string | null },
+  ): Promise<TokenResponseDto> {
+    // authorizationCode는 현재 로직에서 직접 사용되진 않으나, 추후 ID 토큰 갱신 등에 활용될 수 있어 파라미터로 남겨둠
+    const appleIdPayload = await this.verifyAppleIdentityToken(identityToken);
+    const user = await this.processAppleUser(appleIdPayload, additionalUserInfo);
+    return this.generateTokens(user);
+  }
+
+  // --- End Apple Login Methods ---
+
+  public getLogger(): Logger {
+    return this.logger;
   }
 }
