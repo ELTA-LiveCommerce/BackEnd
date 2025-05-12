@@ -29,6 +29,9 @@ importers:
       '@mikro-orm/sql-highlighter':
         specifier: ^1.0.1
         version: 1.0.1
+      '@nestjs-cls/transactional':
+        specifier: ^2.7.0
+        version: 2.7.0(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2))(reflect-metadata@0.1.13)(rxjs@7.8.2)
       '@nestjs/axios':
         specifier: ^4.0.0
         version: 4.0.0(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(axios@1.9.0)(rxjs@7.8.2)
@@ -816,6 +819,16 @@ packages:
   '@napi-rs/nice@1.0.1':
     resolution: {integrity: sha512-zM0mVWSXE0a0h9aKACLwKmD6nHcRiKrPpCfvaKqG1CqDEyjEawId0ocXxVzPMCAm6kkWr2P025msfxXEnt8UGQ==}
     engines: {node: '>= 10'}
+
+  '@nestjs-cls/transactional@2.7.0':
+    resolution: {integrity: sha512-X7riOgwLNFGw0/UC/xJQri2pdRBdr4X2y88F8VXKhwqWVB6iy0P17l7V656p67mRaRSb1hsIMnPKZT+dXVIX5g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@nestjs/common': '>= 10 < 12'
+      '@nestjs/core': '>= 10 < 12'
+      nestjs-cls: ^5.4.3
+      reflect-metadata: '*'
+      rxjs: '>= 7'
 
   '@nestjs/axios@4.0.0':
     resolution: {integrity: sha512-1cB+Jyltu/uUPNQrpUimRHEQHrnQrpLzVj6dU3dgn6iDDDdahr10TgHFGTmw5VuJ9GzKZsCLDL78VSwJAs/9JQ==}
@@ -3446,6 +3459,15 @@ packages:
   neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
 
+  nestjs-cls@5.4.3:
+    resolution: {integrity: sha512-yHEHyVoe6rsvj3XRPFonBKPXPjDREyHfKZ9PTStSLJTZAV3wey1Q89TquSj6QciqXB5387GiHv9DG+ja6iAUHw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@nestjs/common': '>= 10 < 12'
+      '@nestjs/core': '>= 10 < 12'
+      reflect-metadata: '*'
+      rxjs: '>= 7'
+
   node-abort-controller@3.1.1:
     resolution: {integrity: sha512-AGK2yQKIjRuqnc6VkX2Xj5d+QW8xZ87pa1UK6yA6ouUyuxfHuMP6umE5QK7UmTeOAymo+Zx1Fxiuw9rVx8taHQ==}
 
@@ -5335,6 +5357,14 @@ snapshots:
       '@napi-rs/nice-win32-ia32-msvc': 1.0.1
       '@napi-rs/nice-win32-x64-msvc': 1.0.1
     optional: true
+
+  '@nestjs-cls/transactional@2.7.0(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2))(reflect-metadata@0.1.13)(rxjs@7.8.2)':
+    dependencies:
+      '@nestjs/common': 9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      '@nestjs/core': 9.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/platform-express@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      nestjs-cls: 5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      reflect-metadata: 0.1.13
+      rxjs: 7.8.2
 
   '@nestjs/axios@4.0.0(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(axios@1.9.0)(rxjs@7.8.2)':
     dependencies:
@@ -8482,6 +8512,13 @@ snapshots:
   negotiator@1.0.0: {}
 
   neo-async@2.6.2: {}
+
+  nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2):
+    dependencies:
+      '@nestjs/common': 9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      '@nestjs/core': 9.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/platform-express@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      reflect-metadata: 0.1.13
+      rxjs: 7.8.2
 
   node-abort-controller@3.1.1: {}
 

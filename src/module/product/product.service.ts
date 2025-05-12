@@ -2,6 +2,7 @@ import { EntityManager } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/postgresql';
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Transactional } from '@nestjs-cls/transactional';
 
 import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
@@ -12,6 +13,13 @@ import { ProductListItemDto } from './dto/product-list-item.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entity/product.entity';
 import { ViewerProductListRequestDto, ViewerProductSortBy } from '@/api/v2/viewer/product/product-request.dto';
+import {
+  SellerProductCreateRequestDto,
+  SellerProductUpdateRequestDto,
+  SellerProductListRequestDto,
+} from '@/api/v2/seller/product/product.request.dto';
+import { SellerProductSearchField } from '@/api/v2/seller/product/search-field.enum';
+import { SellerProductDateField } from '@/api/v2/seller/product/date-field.enum';
 
 @Injectable()
 export class ProductService {
@@ -356,5 +364,121 @@ export class ProductService {
     // }
 
     return product;
+  }
+
+  /**
+   * V2 API: 판매자 상품 생성
+   */
+  @Transactional()
+  async createSellerProduct(sellerId: string, createDto: SellerProductCreateRequestDto): Promise<Product> {
+    const seller = await this.userService.findOne(sellerId);
+    if (!seller) {
+      // 이론적으로 JwtAuthGuard와 RolesGuard를 통과했으므로 발생 가능성 낮음
+      throw new NotFoundException('Seller not found.');
+    }
+
+    const product = new Product();
+    product.name = createDto.name;
+    product.price = createDto.price;
+    product.stockQuantity = createDto.stockQuantity;
+    product.description = createDto.description;
+    product.seller = seller;
+
+    if (createDto.shortDescription) product.shortDescription = createDto.shortDescription;
+    if (createDto.mainImage) product.mainImage = createDto.mainImage;
+    if (createDto.images) product.images = createDto.images;
+
+    await this.productRepository.persistAndFlush(product);
+    return product;
+  }
+
+  /**
+   * V2 API: 판매자 상품 수정
+   */
+  @Transactional()
+  async updateSellerProduct(
+    sellerId: string,
+    productId: string,
+    updateDto: SellerProductUpdateRequestDto,
+  ): Promise<Product> {
+    const product = await this.findOne(productId);
+
+    // 상품 존재 여부 및 판매자 소유권 확인
+    if (product.seller.id !== sellerId) {
+      throw new ForbiddenException('You can only update your own products.');
+    }
+
+    // DTO에 포함된 필드만 업데이트
+    if (updateDto.name !== undefined) product.name = updateDto.name;
+    if (updateDto.price !== undefined) product.price = updateDto.price;
+    if (updateDto.stockQuantity !== undefined) product.stockQuantity = updateDto.stockQuantity;
+    if (updateDto.shortDescription !== undefined) product.shortDescription = updateDto.shortDescription;
+    if (updateDto.description !== undefined) product.description = updateDto.description;
+    if (updateDto.mainImage !== undefined) product.mainImage = updateDto.mainImage;
+    if (updateDto.images !== undefined) product.images = updateDto.images;
+
+    await this.productRepository.flush(); // 변경 사항 저장
+    return product;
+  }
+
+  /**
+   * V2 API: 판매자 상품 목록 조회 (페이지네이션 및 필터링)
+   */
+  async findSellerProductsPaged(
+    sellerId: string,
+    query: SellerProductListRequestDto,
+  ): Promise<{ items: Product[]; total: number; page: number; limit: number }> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const qb = this.productRepository.createQueryBuilder('p');
+
+    qb.where({ seller: { id: sellerId } });
+
+    // 상품명 검색 -> 필드 기반 검색으로 변경
+    if (query.searchKeyword && query.searchField) {
+      const field = query.searchField;
+      const keyword = `%${query.searchKeyword}%`;
+
+      switch (field) {
+        case SellerProductSearchField.NAME:
+          qb.andWhere({ name: { $like: keyword } });
+          break;
+        case SellerProductSearchField.DESCRIPTION:
+          qb.andWhere({ description: { $like: keyword } });
+          break;
+        // 다른 검색 필드 케이스 추가 가능
+        default:
+          // 기본적으로 상품명 검색 또는 에러 처리
+          qb.andWhere({ name: { $like: keyword } });
+          break;
+      }
+    }
+
+    // 등록일 기간 검색 -> 필드 기반 기간 검색으로 변경
+    const dateFieldName = query.dateField || SellerProductDateField.CREATED_AT;
+    if (query.startDate) {
+      qb.andWhere({ [dateFieldName]: { $gte: new Date(query.startDate) } });
+    }
+    if (query.endDate) {
+      // endDate는 해당 날짜의 23:59:59.999까지 포함하도록 설정
+      const endDate = new Date(query.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      qb.andWhere({ [dateFieldName]: { $lte: endDate } });
+    }
+
+    // 정렬 (기본: 최신 등록순)
+    qb.orderBy({ createdAt: 'DESC' });
+
+    // 페이지네이션 적용 및 결과 조회
+    const totalQuery = qb.clone().count('p.id', true);
+    const itemsQuery = qb.select('*').limit(limit).offset(offset);
+
+    const [totalResult, items] = await Promise.all([totalQuery.execute('get'), itemsQuery.getResultList()]);
+
+    const total = (totalResult as any).count;
+
+    return { items, total, page, limit };
   }
 }

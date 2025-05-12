@@ -31,6 +31,7 @@
     "@mikro-orm/postgresql": "~5.1.5",
     "@mikro-orm/seeder": "~5.1.5",
     "@mikro-orm/sql-highlighter": "^1.0.1",
+    "@nestjs-cls/transactional": "^2.7.0",
     "@nestjs/axios": "^4.0.0",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "~9.4.3",
