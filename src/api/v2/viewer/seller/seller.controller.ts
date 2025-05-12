@@ -13,21 +13,23 @@ import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { UserFollowService } from '@/module/user/user-follow.service';
 
 import {
-  SellerInfoRequestDto,
-  SellerInfoDto,
-  SellerInfoResponseDto,
-  SellerLiveRequestDto,
-  SellerLiveItemDto,
-  SellerLivePageDto,
-  SellerLiveResponseDto,
-  SellerProductRequestDto,
-  SellerProductItemDto,
-  SellerProductPageDto,
-  SellerProductResponseDto,
   SellerSearchRequestDto,
-  SellerSearchItemDto,
+  SellerInfoRequestDto,
+  SellerLiveRequestDto,
+  SellerProductRequestDto,
+} from './seller-request.dto';
+import {
   SellerSearchResponseDto,
-} from './seller.dto';
+  SellerInfoResponseDto,
+  SellerLiveResponseDto,
+  SellerProductResponseDto,
+  SellerSearchItemDto,
+  SellerInfoDto,
+  SellerLiveItemDto,
+  SellerProductItemDto,
+} from './seller-response.dto';
+import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/module/auth/guards/roles.guard';
 
 @ApiTags('v2/viewer/sellers')
 @Controller('v2/viewer/sellers')

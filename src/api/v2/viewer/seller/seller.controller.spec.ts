@@ -11,6 +11,8 @@ import {
   SellerInfoRequestDto,
   SellerLiveRequestDto,
   SellerProductRequestDto,
+} from './seller-request.dto';
+import {
   SellerSearchResponseDto,
   SellerInfoResponseDto,
   SellerLiveResponseDto,
@@ -19,7 +21,7 @@ import {
   SellerLivePageDto,
   SellerProductPageDto,
   SellerLiveItemDto,
-} from './seller.dto';
+} from './seller-response.dto';
 import { BroadcastListItemDto } from '@/module/broadcast/dto/broadcast-list-item.dto';
 import { PagedResponseV2, PagedResponseData } from '@/api/v2/common/base-response.dto';
 import { UserRole } from '@/shared/enum/user-role.enum';

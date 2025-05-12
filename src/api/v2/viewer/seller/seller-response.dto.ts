@@ -1,24 +1,6 @@
-import { Type } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, Min, IsInt } from 'class-validator';
-
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { Product } from '@/module/product/entity/product.entity';
-
-/**
- * 판매자 검색 요청 DTO
- */
-export class SellerSearchRequestDto {
-  @IsNotEmpty()
-  @IsString()
-  keyword: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  limit?: number = 10;
-}
 
 /**
  * 판매자 검색 결과 항목 DTO
@@ -35,13 +17,6 @@ export class SellerSearchItemDto {
  */
 export class SellerSearchResponseDto extends BaseResponseV2<SellerSearchItemDto[]> {
   // success 메서드 제거
-}
-
-/**
- * 판매자 정보 요청 DTO
- */
-export class SellerInfoRequestDto {
-  // 필요한 경우 쿼리 파라미터 추가
 }
 
 /**
@@ -62,23 +37,6 @@ export class SellerInfoDto {
  */
 export class SellerInfoResponseDto extends BaseResponseV2<SellerInfoDto> {
   // success 메서드 제거
-}
-
-/**
- * 판매자 라이브 방송 요청 DTO
- */
-export class SellerLiveRequestDto {
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  page?: number = 1;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  limit?: number = 10;
 }
 
 /**
@@ -122,23 +80,6 @@ export class SellerLivePageDto {
  */
 export class SellerLiveResponseDto extends BaseResponseV2<SellerLiveItemDto[]> {
   // success 메서드 제거
-}
-
-/**
- * 판매자 상품 요청 DTO
- */
-export class SellerProductRequestDto {
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  page?: number = 1;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  limit?: number = 10;
 }
 
 /**
