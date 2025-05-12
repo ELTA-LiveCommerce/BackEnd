@@ -54,9 +54,6 @@ export class User extends BaseEntity {
   @Property({ nullable: true, type: 'string' })
   address?: string;
 
-  @Property({ nullable: true, type: 'string' })
-  gender?: string;
-
   @Property({ nullable: true, type: 'Date' })
   deletedAt?: Date;
 

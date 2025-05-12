@@ -69,13 +69,12 @@ export class ProfileInfoRequestDto {
  * 배송지 정보 DTO
  */
 export class DeliveryAddressDto {
-  id: string;
-  address: string;
-  detailAddress: string;
-  postalCode: string;
-  receiverName: string;
-  receiverPhone: string;
-  isDefault: boolean;
+  // id: string;
+  // address: string;
+  // detailAddress: string;
+  // zipCode: string;
+  // receiver: string;
+  // receiverPhone: string;
 }
 
 /**
@@ -88,7 +87,7 @@ export class ProfileInfoDto {
   phoneNumber: string;
   bankAccount: string;
   bankName: string;
-  deliveryAddresses: DeliveryAddressDto[];
+  shippingAddress?: string;
 }
 
 /**
@@ -111,46 +110,36 @@ export class ProfileInfoResponseDto extends BaseResponseV2<ProfileInfoDto> {
  * 배송지 업데이트 요청 DTO
  */
 export class UpdateDeliveryAddressRequestDto {
-  @IsString()
-  address: string;
-
-  @IsString()
-  detailAddress: string;
-
-  @IsString()
-  postalCode: string;
-
-  @IsString()
-  receiverName: string;
-
-  @IsString()
-  receiverPhone: string;
-
-  @IsOptional()
-  isDefault?: boolean;
+  // @IsString()
+  // address: string;
+  // @IsString()
+  // detailAddress: string;
+  // @IsString()
+  // zipCode: string;
+  // @IsString()
+  // receiver: string;
+  // @IsString()
+  // receiverPhone: string;
+  // @IsOptional()
+  // isDefault?: boolean;
 }
 
 /**
  * 배송지 생성 요청 DTO
  */
 export class CreateDeliveryAddressRequestDto {
-  @IsString()
-  address: string;
-
-  @IsString()
-  detailAddress: string;
-
-  @IsString()
-  postalCode: string;
-
-  @IsString()
-  receiverName: string;
-
-  @IsString()
-  receiverPhone: string;
-
-  @IsOptional()
-  isDefault?: boolean;
+  // @IsString()
+  // address: string;
+  // @IsString()
+  // detailAddress: string;
+  // @IsString()
+  // zipCode: string;
+  // @IsString()
+  // receiver: string;
+  // @IsString()
+  // receiverPhone: string;
+  // @IsOptional()
+  // isDefault?: boolean;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { EntityManager } from '@mikro-orm/core';
+import { EntityManager, LoadStrategy } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/postgresql';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
@@ -66,8 +66,10 @@ export class UserService {
 
   async updateBankInfo(id: string, bankInfoDto: UpdateBankInfoDto): Promise<User> {
     const user = await this.findOne(id);
-    user.accountNumber = bankInfoDto.accountNumber;
+
     user.bankName = bankInfoDto.bankName;
+    user.accountNumber = bankInfoDto.accountNumber;
+
     await this.em.persistAndFlush(user);
     return user;
   }
@@ -85,6 +87,7 @@ export class UserService {
     if (updateProfileDto.name) user.name = updateProfileDto.name;
     if (updateProfileDto.phoneNumber) user.phoneNumber = updateProfileDto.phoneNumber;
     if (updateProfileDto.profileImage) user.profileImage = updateProfileDto.profileImage;
+    if (updateProfileDto.address) user.address = updateProfileDto.address;
 
     await this.em.persistAndFlush(user);
     return user;

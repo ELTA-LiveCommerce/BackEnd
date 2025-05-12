@@ -21,6 +21,10 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 }
 
 export class UpdateBankInfoDto {
