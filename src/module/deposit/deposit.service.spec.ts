@@ -1,6 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { EntityRepository, QueryBuilder } from '@mikro-orm/postgresql';
+import { BadRequestException } from '@nestjs/common';
+import { wrap } from '@mikro-orm/core';
+
+// Mock the wrap function
+jest.mock('@mikro-orm/core', () => ({
+  ...jest.requireActual('@mikro-orm/core'), // Keep other exports intact
+  wrap: jest.fn().mockImplementation((entity) => ({
+    ...entity, // Spread original properties if needed
+    init: jest.fn().mockResolvedValue(undefined), // Add the init mock
+  })),
+}));
 
 import { DepositService } from './deposit.service';
 import { Order } from '@/module/order/entity/order.entity';
@@ -12,6 +23,7 @@ import { Product } from '../product/entity/product.entity';
 import { Delivery } from '../delivery/entity/delivery.entity';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
 import { OrderItem } from '../order/entity/order-item.entity';
+import { OrderService } from '../order/order.service';
 
 const mockQueryBuilder = {
   select: jest.fn().mockReturnThis(),
@@ -33,22 +45,31 @@ const mockOrderRepository = {
   createQueryBuilder: jest.fn(() => mockQueryBuilder),
 };
 
+const mockOrderService = {
+  _findOrderById: jest.fn(),
+  _updateStatus: jest.fn(),
+};
+
+const mockClsService = {
+  get: jest.fn(),
+  set: jest.fn(),
+  run: jest.fn((cb) => cb()),
+  enter: jest.fn(),
+  exit: jest.fn(),
+};
+
 describe('DepositService', () => {
   let service: DepositService;
   let repository: EntityRepository<Order>;
 
   beforeEach(async () => {
+    jest.clearAllMocks(); // Clear mocks at the top level
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DepositService,
-        {
-          provide: getRepositoryToken(Order),
-          useValue: mockOrderRepository,
-        },
-        {
-          provide: getRepositoryToken(OrderItem),
-          useValue: {},
-        },
+        { provide: getRepositoryToken(Order), useValue: mockOrderRepository },
+        { provide: getRepositoryToken(OrderItem), useValue: {} }, // Basic mock
+        { provide: OrderService, useValue: mockOrderService },
       ],
     }).compile();
 
@@ -229,6 +250,154 @@ describe('DepositService', () => {
       expect(qb.limit).toHaveBeenCalledWith(expectedLimit);
       expect(qb.getResultList).toHaveBeenCalled();
       expect(qb.count).toHaveBeenCalled();
+    });
+  });
+
+  describe('confirmDeposits', () => {
+    const sellerId = 'test-seller-id';
+    const orderId1 = 'order-uuid-1';
+    const orderId2 = 'order-uuid-2';
+    const orderIds = [orderId1, orderId2];
+
+    // Helper to create mocks with init functions
+    const createMockOrderItems = (targetSellerId: string) => ({
+      init: jest.fn().mockResolvedValue(undefined), // Mock for order.items.init()
+      getItems: () => [
+        {
+          product: {
+            init: jest.fn().mockResolvedValue(undefined), // Mock for item.product.init()
+            seller: {
+              id: targetSellerId,
+              init: jest.fn().mockResolvedValue(undefined), // Mock for product.seller.init()
+            },
+          },
+          // Mock for OrderItem.init() might be needed if accessed directly
+        },
+      ],
+    });
+
+    const mockOrder1 = {
+      id: orderId1,
+      status: OrderStatus.PAID,
+      items: createMockOrderItems(sellerId),
+    } as unknown as Order;
+
+    const mockOrder2 = {
+      id: orderId2,
+      status: OrderStatus.PAID,
+      items: createMockOrderItems(sellerId),
+    } as unknown as Order;
+
+    // No separate beforeEach needed here as mocks are cleared in the top-level beforeEach
+
+    it('should successfully confirm deposits for valid orders', async () => {
+      mockOrderService._findOrderById.mockResolvedValueOnce(mockOrder1).mockResolvedValueOnce(mockOrder2);
+      mockOrderService._updateStatus.mockResolvedValue(undefined);
+
+      await service.confirmDeposits(sellerId, orderIds);
+
+      expect(mockOrderService._findOrderById).toHaveBeenCalledTimes(2);
+      expect(mockOrderService._updateStatus).toHaveBeenCalledTimes(2);
+      expect(mockOrderService._updateStatus).toHaveBeenCalledWith(mockOrder1, OrderStatus.PROCESSING);
+      expect(mockOrderService._updateStatus).toHaveBeenCalledWith(mockOrder2, OrderStatus.PROCESSING);
+    });
+
+    it('should throw BadRequestException if an order is not found', async () => {
+      mockOrderService._findOrderById.mockResolvedValueOnce(mockOrder1).mockResolvedValueOnce(null);
+      mockOrderService._updateStatus.mockResolvedValue(undefined);
+
+      // Call only once and assert exception type and message
+      await expect(service.confirmDeposits(sellerId, orderIds)).rejects.toThrow(
+        new BadRequestException(
+          `다음 주문들의 입금 확인 처리에 실패했습니다: ${orderId2}. 세부 정보: ${JSON.stringify([{ orderId: orderId2, message: `주문 ID ${orderId2}를 찾을 수 없습니다.` }])}`,
+        ),
+      );
+      // Verify update was called only for the valid order before the loop was likely exited internally by the throw
+      expect(mockOrderService._updateStatus).toHaveBeenCalledTimes(1);
+      expect(mockOrderService._updateStatus).toHaveBeenCalledWith(mockOrder1, OrderStatus.PROCESSING);
+    });
+
+    it('should throw BadRequestException if an order does not belong to the seller', async () => {
+      const mockOrderWrongSeller = {
+        id: orderId2,
+        status: OrderStatus.PAID,
+        items: createMockOrderItems('other-seller-id'),
+      } as unknown as Order;
+      mockOrderService._findOrderById.mockResolvedValueOnce(mockOrder1).mockResolvedValueOnce(mockOrderWrongSeller);
+      mockOrderService._updateStatus.mockResolvedValue(undefined);
+
+      // Call only once and assert exception type and message
+      await expect(service.confirmDeposits(sellerId, orderIds)).rejects.toThrow(
+        new BadRequestException(
+          `다음 주문들의 입금 확인 처리에 실패했습니다: ${orderId2}. 세부 정보: ${JSON.stringify([{ orderId: orderId2, message: `주문 ID ${orderId2}에 대한 권한이 없습니다.` }])}`,
+        ),
+      );
+      expect(mockOrderService._updateStatus).toHaveBeenCalledTimes(1);
+      expect(mockOrderService._updateStatus).toHaveBeenCalledWith(mockOrder1, OrderStatus.PROCESSING);
+    });
+
+    it('should throw BadRequestException if an order is not in PAID state', async () => {
+      const mockOrderShipped = {
+        id: orderId2,
+        status: OrderStatus.SHIPPED,
+        items: createMockOrderItems(sellerId),
+      } as unknown as Order;
+      mockOrderService._findOrderById.mockResolvedValueOnce(mockOrder1).mockResolvedValueOnce(mockOrderShipped);
+      mockOrderService._updateStatus.mockResolvedValue(undefined);
+
+      // Call only once and assert exception type and message
+      await expect(service.confirmDeposits(sellerId, orderIds)).rejects.toThrow(
+        new BadRequestException(
+          `다음 주문들의 입금 확인 처리에 실패했습니다: ${orderId2}. 세부 정보: ${JSON.stringify([{ orderId: orderId2, message: `주문 ID ${orderId2}는 'PAID' 상태가 아니므로 입금 확인할 수 없습니다. 현재 상태: ${OrderStatus.SHIPPED}` }])}`,
+        ),
+      );
+      expect(mockOrderService._updateStatus).toHaveBeenCalledTimes(1);
+      expect(mockOrderService._updateStatus).toHaveBeenCalledWith(mockOrder1, OrderStatus.PROCESSING);
+    });
+
+    it('should handle partial failure correctly (combined errors)', async () => {
+      const mockOrderNotFound = null; // For orderId1
+      const mockOrderWrongState = {
+        id: orderId2,
+        status: OrderStatus.CANCELLED,
+        items: createMockOrderItems(sellerId),
+      } as unknown as Order; // For orderId2
+
+      mockOrderService._findOrderById
+        .mockResolvedValueOnce(mockOrderNotFound) // orderId1 not found
+        .mockResolvedValueOnce(mockOrderWrongState); // orderId2 wrong state
+      mockOrderService._updateStatus.mockResolvedValue(undefined);
+
+      expect.assertions(5); // error instance, response type, message type, message content, not called
+
+      try {
+        await service.confirmDeposits(sellerId, orderIds);
+        // This line should not be reached if the exception is thrown as expected.
+        // If it is, the test should fail. We use expect.assertions for this.
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+
+        const response = error.getResponse();
+        // Expect the standard NestJS error response object
+        expect(typeof response).toBe('object');
+
+        // The actual detailed message is in the 'message' property of the response object
+        const errorMessage = response.message;
+        expect(typeof errorMessage).toBe('string'); // Ensure the message property itself is a string
+
+        const expectedErrorDetails = [
+          { orderId: orderId1, message: `주문 ID ${orderId1}를 찾을 수 없습니다.` },
+          {
+            orderId: orderId2,
+            message: `주문 ID ${orderId2}는 'PAID' 상태가 아니므로 입금 확인할 수 없습니다. 현재 상태: ${OrderStatus.CANCELLED}`,
+          },
+        ];
+        // Use join(', ') to match the service implementation
+        const expectedMainMessage = `다음 주문들의 입금 확인 처리에 실패했습니다: ${orderIds.join(', ')}. 세부 정보: ${JSON.stringify(expectedErrorDetails)}`;
+
+        expect(errorMessage).toBe(expectedMainMessage);
+      }
+      expect(mockOrderService._updateStatus).not.toHaveBeenCalled(); // This is the 5th assertion
     });
   });
 });

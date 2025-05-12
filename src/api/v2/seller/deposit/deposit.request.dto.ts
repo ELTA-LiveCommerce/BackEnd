@@ -1,6 +1,6 @@
 import { PaginationRequestDto } from '@/api/v2/common/pagination.dto';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsDateString, IsString, IsIn } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsEnum, IsDateString, IsString, IsIn, IsArray, ArrayNotEmpty, IsUUID } from 'class-validator';
 import { SellerDepositSearchField } from './deposit-search-field.enum';
 import { SellerDepositDateField } from './deposit-date-field.enum';
 
@@ -44,4 +44,12 @@ export class SellerDepositListRequestDto extends PaginationRequestDto {
   @IsOptional()
   @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc';
+}
+
+export class ConfirmDepositRequestDto {
+  @ApiProperty({ description: '입금 확인할 주문 ID 목록', type: [String], example: ['uuid-1', 'uuid-2'] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true, message: '각 주문 ID는 유효한 UUID여야 합니다.' })
+  orderIds!: string[];
 }

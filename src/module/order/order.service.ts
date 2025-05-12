@@ -404,4 +404,47 @@ export class OrderService {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  /**
+   * (내부용) 주문 ID로 주문 엔티티를 조회합니다.
+   * @param orderId 주문 ID
+   * @internal
+   */
+  async _findOrderById(orderId: string): Promise<Order | null> {
+    // Populate necessary relations if needed later, but keep it simple for now
+    return this.orderRepository.findOne({ id: orderId });
+  }
+
+  /**
+   * (내부용) 주문 상태를 업데이트합니다.
+   * @param order 주문 엔티티
+   * @param status 새로운 주문 상태
+   * @internal
+   */
+  async _updateStatus(order: Order, status: OrderStatus): Promise<void> {
+    // Add status transition validation if needed
+    // e.g., if (status === OrderStatus.PROCESSING && order.status !== OrderStatus.PAID) throw new BadRequestException(...);
+
+    order.status = status;
+    // Update timestamp based on status
+    switch (status) {
+      case OrderStatus.PROCESSING:
+        // paidAt should be set when payment is confirmed, maybe move this logic?
+        // For now, let's assume paidAt is already set when status becomes PAID.
+        break;
+      case OrderStatus.SHIPPED:
+        order.shippedAt = new Date();
+        break;
+      case OrderStatus.DELIVERED:
+        order.deliveredAt = new Date();
+        break;
+      case OrderStatus.CANCELLED:
+        order.cancelledAt = new Date();
+        break;
+      case OrderStatus.REFUNDED:
+        order.refundedAt = new Date();
+        break;
+    }
+    await this.orderRepository.persistAndFlush(order);
+  }
 }
