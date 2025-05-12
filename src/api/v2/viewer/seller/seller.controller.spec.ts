@@ -110,7 +110,10 @@ describe('SellerController', () => {
 
       const result = await controller.getSellerInfo(sellerId, query);
       expect(userService.findOne).toHaveBeenCalledWith(sellerId);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toMatchObject({
+        ...expectedResponse,
+        timestamp: expect.any(String),
+      });
     });
 
     it('should throw NotFoundException if seller not found', async () => {
@@ -123,9 +126,9 @@ describe('SellerController', () => {
   });
 
   describe('getSellerLives', () => {
-    it('should return a paginated list of seller lives', async () => {
+    it('should return a list of seller lives', async () => {
       const sellerId = 'test-seller-id';
-      const query: SellerLiveRequestDto = { page: 1, limit: 10 };
+      const query: SellerLiveRequestDto = {};
       const mockBroadcasts = [
         {
           id: 'b1',
@@ -160,25 +163,21 @@ describe('SellerController', () => {
         startedAt: b.scheduledDate,
         status: b.isLive ? 'LIVE' : 'SCHEDULED',
       }));
-      const expectedPageDto: SellerLivePageDto = {
-        items: expectedItems,
-        total: mockBroadcasts.length,
-        page: query.page as number,
-        limit: query.limit as number,
-        totalPages: Math.ceil(mockBroadcasts.length / (query.limit as number)),
-      };
-      const expectedResponse = SellerLiveResponseDto.success(expectedPageDto);
 
       const result = await controller.getSellerLives(sellerId, query);
       expect(broadcastService.findBySellerId).toHaveBeenCalledWith(sellerId);
-      expect(result).toEqual(expectedResponse);
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('판매자 라이브 목록입니다.');
+      expect(result.data).toEqual(expectedItems);
+      expect(result.timestamp).toEqual(expect.any(String));
     });
   });
 
   describe('getSellerProducts', () => {
-    it('should return a paginated list of seller products', async () => {
+    it('should return a list of seller products', async () => {
       const sellerId = 'test-seller-id';
-      const query: SellerProductRequestDto = { page: 1, limit: 10 };
+      const query: SellerProductRequestDto = {};
       const mockProducts = [
         {
           id: 'p1',
@@ -190,11 +189,6 @@ describe('SellerController', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
           seller: mockSellerUser,
-          category: { id: 'cat1', name: 'Category1' },
-          qas: [],
-          reviews: [],
-          orderItems: [],
-          productLikes: [],
         },
         {
           id: 'p2',
@@ -206,11 +200,6 @@ describe('SellerController', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
           seller: mockSellerUser,
-          category: { id: 'cat2', name: 'Category2' },
-          qas: [],
-          reviews: [],
-          orderItems: [],
-          productLikes: [],
         },
       ] as unknown as Product[];
       productService.findProductsBySeller.mockResolvedValue(mockProducts);
@@ -225,18 +214,14 @@ describe('SellerController', () => {
         salesCount: 0,
         rating: 0,
       }));
-      const expectedPageDto: SellerProductPageDto = {
-        items: expectedItems,
-        total: mockProducts.length,
-        page: query.page as number,
-        limit: query.limit as number,
-        totalPages: Math.ceil(mockProducts.length / (query.limit as number)),
-      };
-      const expectedResponse = SellerProductResponseDto.success(expectedPageDto);
 
       const result = await controller.getSellerProducts(sellerId, query);
       expect(productService.findProductsBySeller).toHaveBeenCalledWith(sellerId);
-      expect(result).toEqual(expectedResponse);
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('판매자 상품 목록입니다.');
+      expect(result.data).toEqual(expectedItems);
+      expect(result.timestamp).toEqual(expect.any(String));
     });
   });
 });

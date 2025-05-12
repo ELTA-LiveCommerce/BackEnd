@@ -2,6 +2,8 @@ import { Type } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, Min, IsInt } from 'class-validator';
 
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
+import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
+import { Product } from '@/module/product/entity/product.entity';
 
 /**
  * 판매자 검색 요청 DTO
@@ -32,16 +34,7 @@ export class SellerSearchItemDto {
  * 판매자 검색 응답 DTO
  */
 export class SellerSearchResponseDto extends BaseResponseV2<SellerSearchItemDto[]> {
-  /**
-   * 성공 응답 생성
-   */
-  static success(
-    data: SellerSearchItemDto[],
-    message = '판매자 검색 결과입니다.',
-    statusCode = 200,
-  ): BaseResponseV2<SellerSearchItemDto[]> {
-    return BaseResponseV2.success(data, message, statusCode);
-  }
+  // success 메서드 제거
 }
 
 /**
@@ -68,12 +61,7 @@ export class SellerInfoDto {
  * 판매자 정보 응답 DTO
  */
 export class SellerInfoResponseDto extends BaseResponseV2<SellerInfoDto> {
-  /**
-   * 성공 응답 생성
-   */
-  static success(data: SellerInfoDto, message = '판매자 정보입니다.', statusCode = 200): BaseResponseV2<SellerInfoDto> {
-    return BaseResponseV2.success(data, message, statusCode);
-  }
+  // success 메서드 제거
 }
 
 /**
@@ -103,6 +91,17 @@ export class SellerLiveItemDto {
   viewerCount: number;
   startedAt: Date;
   status: string;
+
+  static fromEntity(broadcast: Broadcast): SellerLiveItemDto {
+    const dto = new SellerLiveItemDto();
+    dto.id = broadcast.id;
+    dto.title = broadcast.title;
+    dto.thumbnailImage = broadcast.thumbnailImage;
+    dto.viewerCount = 0; // 실제 구현 필요
+    dto.startedAt = broadcast.scheduledDate;
+    dto.status = broadcast.isLive ? 'LIVE' : 'SCHEDULED';
+    return dto;
+  }
 }
 
 /**
@@ -119,17 +118,8 @@ export class SellerLivePageDto {
 /**
  * 판매자 라이브 방송 응답 DTO
  */
-export class SellerLiveResponseDto extends BaseResponseV2<SellerLivePageDto> {
-  /**
-   * 성공 응답 생성
-   */
-  static success(
-    data: SellerLivePageDto,
-    message = '판매자 라이브 방송 목록입니다.',
-    statusCode = 200,
-  ): BaseResponseV2<SellerLivePageDto> {
-    return BaseResponseV2.success(data, message, statusCode);
-  }
+export class SellerLiveResponseDto extends BaseResponseV2<SellerLiveItemDto[]> {
+  // success 메서드 제거
 }
 
 /**
@@ -161,6 +151,19 @@ export class SellerProductItemDto {
   stock: number;
   salesCount: number;
   rating: number;
+
+  static fromEntity(product: Product): SellerProductItemDto {
+    const dto = new SellerProductItemDto();
+    dto.id = product.id;
+    dto.name = product.name;
+    dto.price = product.price;
+    dto.thumbnailImage = product.mainImage;
+    dto.description = product.shortDescription;
+    dto.stock = product.stockQuantity;
+    dto.salesCount = 0; // 실제 구현 필요
+    dto.rating = 0; // 실제 구현 필요
+    return dto;
+  }
 }
 
 /**
@@ -177,15 +180,6 @@ export class SellerProductPageDto {
 /**
  * 판매자 상품 응답 DTO
  */
-export class SellerProductResponseDto extends BaseResponseV2<SellerProductPageDto> {
-  /**
-   * 성공 응답 생성
-   */
-  static success(
-    data: SellerProductPageDto,
-    message = '판매자 상품 목록입니다.',
-    statusCode = 200,
-  ): BaseResponseV2<SellerProductPageDto> {
-    return BaseResponseV2.success(data, message, statusCode);
-  }
+export class SellerProductResponseDto extends BaseResponseV2<SellerProductItemDto[]> {
+  // success 메서드 제거
 }

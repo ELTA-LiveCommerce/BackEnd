@@ -2,41 +2,44 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProfileController } from './profile.controller';
 import { UserService } from '@/module/user/user.service';
 import { User } from '@/module/user/entity/user.entity';
-import { UpdateProfileRequestDto, ProfileInfoResponseDto } from './profile.dto';
+import { UpdateProfileRequestDto, ProfileInfoDto } from './profile.dto';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { mock, MockProxy } from 'jest-mock-extended';
 // import { Gender } from '@/module/user/entity/user-profile.entity';
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { Login } from '@/module/auth/entity/login.entity';
+import { Follow } from '@/module/user/entity/follow.entity';
+import { SellerUserBlock } from '@/module/user/entity/seller-user-block.entity';
 
 describe('ProfileController', () => {
   let controller: ProfileController;
   let userService: MockProxy<UserService>;
 
-  const mockUser = {
-    id: 'test-user-id',
+  const mockUserBase = {
     loginId: 'testLoginId',
     password: 'hashedPassword',
     name: 'Test User',
     phoneNumber: '01012345678',
     bankName: 'Test Bank',
     accountNumber: '1234567890',
+    address: 'Test Address, 123',
     role: UserRole.VIEWER,
     isVerified: true,
-    profile: {
-      id: 'test-profile-id',
-      nickname: 'testNickname',
-      phone: '01012345678',
-      birthDate: new Date('1990-01-01'),
-      profileImageUrl: 'http://example.com/profile.jpg',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      user: { id: 'test-user-id' } as User,
-    },
-    logins: [] as Login[],
+    logins: undefined as any,
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as unknown as User;
+    following: undefined as any,
+    followers: undefined as any,
+    blockedUsersByMe: undefined as any,
+    blockingSellersOfMe: undefined as any,
+  };
+
+  // User 타입으로 캐스팅하기 전에 id를 포함한 완전한 객체를 만듭니다.
+  const mockUserWithId = {
+    ...mockUserBase,
+    id: 'test-user-id',
+  };
+  const mockUser = mockUserWithId as User; // 이제 User 타입으로 캐스팅
 
   beforeEach(async () => {
     userService = mock<UserService>();
@@ -55,14 +58,14 @@ describe('ProfileController', () => {
 
   describe('getMyProfile', () => {
     it('should return user profile information', async () => {
-      const mockProfileInfo = {
+      const mockProfileInfo: ProfileInfoDto = {
         id: mockUser.id,
-        name: mockUser.name as string,
+        name: mockUser.name,
         loginId: mockUser.loginId,
         phoneNumber: mockUser.phoneNumber || '',
         bankAccount: mockUser.accountNumber || '',
         bankName: mockUser.bankName || '',
-        deliveryAddresses: [],
+        shippingAddress: mockUser.address || '',
       };
 
       userService.findOne.mockResolvedValue(mockUser);
@@ -70,14 +73,10 @@ describe('ProfileController', () => {
       const result = await controller.getMyProfile(mockUser);
 
       expect(userService.findOne).toHaveBeenCalledWith(mockUser.id);
-      expect(result).toEqual(
-        expect.objectContaining({
-          data: mockProfileInfo,
-          message: '프로필 정보입니다.',
-          statusCode: 200,
-          success: true,
-        }),
-      );
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('프로필 정보입니다.');
+      expect(result.data).toEqual(mockProfileInfo);
       expect(result.timestamp).toEqual(expect.any(String));
     });
   });
@@ -87,39 +86,58 @@ describe('ProfileController', () => {
       const updateProfileDto: UpdateProfileRequestDto = {
         name: 'Updated Name',
         phoneNumber: '01087654321',
+        shippingAddress: 'Updated Address',
         bankName: 'Updated Bank',
         accountNumber: '0987654321',
       };
 
-      const updatedUserMock = {
-        ...mockUser,
-        name: updateProfileDto.name as string,
-        phoneNumber: updateProfileDto.phoneNumber as string,
-        bankName: updateProfileDto.bankName as string,
-        accountNumber: updateProfileDto.accountNumber as string,
+      const baseForUpdate = { ...mockUserWithId };
+
+      const updatedUserPartial = {
+        ...baseForUpdate,
+        name: updateProfileDto.name,
+        phoneNumber: updateProfileDto.phoneNumber,
+        address: updateProfileDto.shippingAddress,
       } as User;
 
-      userService.updateProfile.mockResolvedValue(updatedUserMock);
-      userService.updateBankInfo.mockResolvedValue(updatedUserMock);
+      const updatedUserWithBank = {
+        ...updatedUserPartial,
+        bankName: updateProfileDto.bankName,
+        accountNumber: updateProfileDto.accountNumber,
+      } as User;
+
+      const refreshedUser = { ...updatedUserWithBank } as User;
+
+      userService.updateProfile.mockResolvedValue(updatedUserPartial);
+      userService.updateBankInfo.mockResolvedValue(updatedUserWithBank);
+      userService.findOne.mockResolvedValue(refreshedUser);
 
       const result = await controller.updateMyProfile(mockUser, updateProfileDto);
+
+      const expectedProfileInfo: ProfileInfoDto = {
+        id: refreshedUser.id,
+        name: refreshedUser.name,
+        loginId: refreshedUser.loginId,
+        phoneNumber: refreshedUser.phoneNumber || '',
+        bankAccount: refreshedUser.accountNumber || '',
+        bankName: refreshedUser.bankName || '',
+        shippingAddress: refreshedUser.address || '',
+      };
 
       expect(userService.updateProfile).toHaveBeenCalledWith(mockUser.id, {
         name: updateProfileDto.name,
         phoneNumber: updateProfileDto.phoneNumber,
+        address: updateProfileDto.shippingAddress,
       });
       expect(userService.updateBankInfo).toHaveBeenCalledWith(mockUser.id, {
         bankName: updateProfileDto.bankName,
         accountNumber: updateProfileDto.accountNumber,
       });
-      expect(result).toEqual(
-        expect.objectContaining({
-          data: updatedUserMock,
-          message: '프로필 정보가 업데이트되었습니다.',
-          statusCode: 200,
-          success: true,
-        }),
-      );
+      expect(userService.findOne).toHaveBeenCalledWith(mockUser.id);
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('프로필 정보가 업데이트되었습니다.');
+      expect(result.data).toEqual(expectedProfileInfo);
       expect(result.timestamp).toEqual(expect.any(String));
     });
 
@@ -127,31 +145,50 @@ describe('ProfileController', () => {
       const updateProfileDto: UpdateProfileRequestDto = {
         name: 'Updated Name',
         phoneNumber: '01087654321',
+        shippingAddress: 'Another Updated Address',
       };
 
-      const updatedUserMock = {
-        ...mockUser,
-        name: updateProfileDto.name as string,
-        phoneNumber: updateProfileDto.phoneNumber as string,
+      const baseForUpdate = { ...mockUserWithId };
+
+      const updatedUserPartial = {
+        ...baseForUpdate,
+        name: updateProfileDto.name,
+        phoneNumber: updateProfileDto.phoneNumber,
+        address: updateProfileDto.shippingAddress,
       } as User;
 
-      userService.updateProfile.mockResolvedValue(updatedUserMock);
+      const refreshedUser = {
+        ...updatedUserPartial,
+        bankName: baseForUpdate.bankName,
+        accountNumber: baseForUpdate.accountNumber,
+      } as User;
+
+      userService.updateProfile.mockResolvedValue(updatedUserPartial);
+      userService.findOne.mockResolvedValue(refreshedUser);
 
       const result = await controller.updateMyProfile(mockUser, updateProfileDto);
+
+      const expectedProfileInfo: ProfileInfoDto = {
+        id: refreshedUser.id,
+        name: refreshedUser.name,
+        loginId: refreshedUser.loginId,
+        phoneNumber: refreshedUser.phoneNumber || '',
+        bankAccount: refreshedUser.accountNumber || '',
+        bankName: refreshedUser.bankName || '',
+        shippingAddress: refreshedUser.address || '',
+      };
 
       expect(userService.updateProfile).toHaveBeenCalledWith(mockUser.id, {
         name: updateProfileDto.name,
         phoneNumber: updateProfileDto.phoneNumber,
+        address: updateProfileDto.shippingAddress,
       });
       expect(userService.updateBankInfo).not.toHaveBeenCalled();
-      expect(result).toEqual(
-        expect.objectContaining({
-          data: updatedUserMock,
-          message: '프로필 정보가 업데이트되었습니다.',
-          statusCode: 200,
-          success: true,
-        }),
-      );
+      expect(userService.findOne).toHaveBeenCalledWith(mockUser.id);
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('프로필 정보가 업데이트되었습니다.');
+      expect(result.data).toEqual(expectedProfileInfo);
       expect(result.timestamp).toEqual(expect.any(String));
     });
   });

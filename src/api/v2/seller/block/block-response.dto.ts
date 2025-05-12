@@ -1,30 +1,36 @@
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { SellerUserBlock, BlockType } from '@/module/user/entity/seller-user-block.entity';
 import { User } from '@/module/user/entity/user.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 /**
  * 차단된 사용자 정보 응답 바디 DTO
  */
 export class SellerBlockedUserResponseBody {
-  userId!: string;
-  loginId!: string;
-  name?: string;
-  profileImage?: string;
-  blockedAt!: Date;
+  @ApiProperty({ description: '차단 관계 ID', example: 'block-relation-uuid' })
+  blockId: string;
+
+  @ApiProperty({ description: '차단된 사용자 ID', example: 'blocked-user-uuid' })
+  userId: string;
+
+  @ApiProperty({ description: '차단 유형', enum: BlockType, example: BlockType.FULL_BLOCK })
+  blockType: BlockType;
+
+  @ApiProperty({ description: '차단 사유', example: '부적절한 메시지', required: false })
   reason?: string;
-  blockType!: BlockType;
 
-  static fromEntity(blockEntity: SellerUserBlock): SellerBlockedUserResponseBody {
+  @ApiProperty({ description: '차단 일시' })
+  blockedAt: Date;
+
+  static fromEntity(entity: SellerUserBlock): SellerBlockedUserResponseBody {
     const responseBody = new SellerBlockedUserResponseBody();
-    const blockedUser = blockEntity.blockedUser as User; // Populate된 blockedUser라고 가정
+    const blockedUser = entity.blockedUser as User; // Populate된 blockedUser라고 가정
 
+    responseBody.blockId = entity.id;
     responseBody.userId = blockedUser.id;
-    responseBody.loginId = blockedUser.loginId;
-    responseBody.name = blockedUser.name; // User 엔티티에 name이 있다고 가정
-    responseBody.profileImage = blockedUser.profileImage; // User 엔티티에 profileImage가 있다고 가정
-    responseBody.blockedAt = blockEntity.createdAt; // SellerUserBlock의 생성일자를 차단일자로 사용
-    responseBody.reason = blockEntity.reason;
-    responseBody.blockType = blockEntity.type;
+    responseBody.blockType = entity.type;
+    responseBody.reason = entity.reason;
+    responseBody.blockedAt = entity.createdAt;
     return responseBody;
   }
 }
@@ -33,19 +39,12 @@ export class SellerBlockedUserResponseBody {
  * 차단된 사용자 목록 응답 DTO
  */
 export class SellerBlockedUserListResponse extends BaseResponseV2<SellerBlockedUserResponseBody[]> {
-  static success(
-    data: SellerBlockedUserResponseBody[],
-    message = '차단된 사용자 목록입니다.',
-  ): SellerBlockedUserListResponse {
-    return BaseResponseV2.success(data, message, 200) as SellerBlockedUserListResponse;
-  }
+  // success 메서드 제거
 }
 
 /**
  * 단일 차단된 사용자 정보 응답 DTO (차단 성공 시)
  */
 export class SellerBlockedUserResponse extends BaseResponseV2<SellerBlockedUserResponseBody> {
-  static success(data: SellerBlockedUserResponseBody, message = '사용자를 차단했습니다.'): SellerBlockedUserResponse {
-    return BaseResponseV2.success(data, message, 201) as SellerBlockedUserResponse;
-  }
+  // success 메서드 제거
 }

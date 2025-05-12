@@ -41,7 +41,7 @@ export class ProfileController {
       shippingAddress: userInfo.address || '',
     };
 
-    return ProfileInfoResponseDto.success(profileInfo);
+    return BaseResponseV2.success(profileInfo, '프로필 정보입니다.');
   }
 
   /**

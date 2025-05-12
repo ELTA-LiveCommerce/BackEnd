@@ -1,10 +1,12 @@
 import { Controller, Get, Param, Query, NotFoundException, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiOperation, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { ProductService } from '@/module/product/product.service';
 import { UserService } from '@/module/user/user.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
+import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 
 import {
   SellerInfoRequestDto,
@@ -23,6 +25,7 @@ import {
   SellerSearchResponseDto,
 } from './seller.dto';
 
+@ApiTags('v2/viewer/sellers')
 @Controller('v2/viewer/sellers')
 @UseGuards(AuthGuard('jwt'))
 export class SellerController {
@@ -36,6 +39,8 @@ export class SellerController {
    * 키워드로 판매자 검색 (자동완성용)
    */
   @Get('search')
+  @ApiOperation({ summary: '판매자 검색' })
+  @ApiOkResponse({ type: SellerSearchResponseDto })
   async searchSellers(@Query() query: SellerSearchRequestDto): Promise<SellerSearchResponseDto> {
     const { keyword, limit = 10 } = query;
 
@@ -50,13 +55,15 @@ export class SellerController {
       profileImage: seller.profileImage,
     }));
 
-    return SellerSearchResponseDto.success(searchResults);
+    return BaseResponseV2.success(searchResults, '판매자 검색 결과입니다.');
   }
 
   /**
    * 셀러 정보를 조회합니다.
    */
   @Get(':sellerId')
+  @ApiOperation({ summary: '판매자 정보 조회' })
+  @ApiOkResponse({ type: SellerInfoResponseDto })
   async getSellerInfo(
     @Param('sellerId') sellerId: string,
     @Query() query: SellerInfoRequestDto,
@@ -91,79 +98,31 @@ export class SellerController {
    * 셀러의 라이브 방송 목록을 조회합니다.
    */
   @Get(':sellerId/lives')
+  @ApiOperation({ summary: '판매자 라이브 목록 조회' })
+  @ApiOkResponse({ type: SellerLiveResponseDto })
   async getSellerLives(
     @Param('sellerId') sellerId: string,
     @Query() query: SellerLiveRequestDto,
   ): Promise<SellerLiveResponseDto> {
-    const { page = 1, limit = 10 } = query;
-
-    // 셀러의 방송 목록 조회
     const broadcasts = await this.broadcastService.findBySellerId(sellerId);
+    const items = broadcasts.map((b) => SellerLiveItemDto.fromEntity(b));
 
-    // 페이지네이션 적용
-    const total = broadcasts.length;
-    const skip = (page - 1) * limit;
-    const paginatedBroadcasts = broadcasts.slice(skip, skip + limit);
-
-    // 응답 데이터 변환
-    const items: SellerLiveItemDto[] = paginatedBroadcasts.map((broadcast) => ({
-      id: broadcast.id,
-      title: broadcast.title,
-      thumbnailImage: broadcast.thumbnailImage,
-      viewerCount: 0, // 실제 구현 필요
-      startedAt: broadcast.scheduledDate,
-      status: broadcast.isLive ? 'LIVE' : 'SCHEDULED',
-    }));
-
-    const livePageDto: SellerLivePageDto = {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-
-    return SellerLiveResponseDto.success(livePageDto);
+    return BaseResponseV2.success(items, '판매자 라이브 목록입니다.');
   }
 
   /**
    * 셀러의 상품 목록을 조회합니다.
    */
   @Get(':sellerId/products')
+  @ApiOperation({ summary: '판매자 상품 목록 조회' })
+  @ApiOkResponse({ type: SellerProductResponseDto })
   async getSellerProducts(
     @Param('sellerId') sellerId: string,
     @Query() query: SellerProductRequestDto,
   ): Promise<SellerProductResponseDto> {
-    const { page = 1, limit = 10 } = query;
-
-    // 셀러의 상품 목록 조회
     const products = await this.productService.findProductsBySeller(sellerId);
+    const items = products.map((p) => SellerProductItemDto.fromEntity(p));
 
-    // 페이지네이션 적용
-    const total = products.length;
-    const skip = (page - 1) * limit;
-    const paginatedProducts = products.slice(skip, skip + limit);
-
-    // 응답 데이터 변환
-    const items: SellerProductItemDto[] = paginatedProducts.map((product) => ({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      thumbnailImage: product.mainImage,
-      description: product.shortDescription,
-      stock: product.stockQuantity,
-      salesCount: 0, // 실제 구현 필요
-      rating: 0, // 실제 구현 필요
-    }));
-
-    const productPageDto: SellerProductPageDto = {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-
-    return SellerProductResponseDto.success(productPageDto);
+    return BaseResponseV2.success(items, '판매자 상품 목록입니다.');
   }
 }

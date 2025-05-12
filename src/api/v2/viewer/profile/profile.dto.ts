@@ -94,16 +94,7 @@ export class ProfileInfoDto {
  * 프로필 조회 응답 DTO
  */
 export class ProfileInfoResponseDto extends BaseResponseV2<ProfileInfoDto> {
-  /**
-   * 성공 응답 생성
-   */
-  static success(
-    data: ProfileInfoDto,
-    message = '프로필 정보입니다.',
-    statusCode = 200,
-  ): BaseResponseV2<ProfileInfoDto> {
-    return BaseResponseV2.success(data, message, statusCode);
-  }
+  // success 메서드 제거
 }
 
 /**
@@ -153,30 +144,12 @@ export class DeliveryAddressRequestDto {
  * 배송지 응답 DTO
  */
 export class DeliveryAddressResponseDto extends BaseResponseV2<DeliveryAddressDto> {
-  /**
-   * 성공 응답 생성
-   */
-  static success(
-    data: DeliveryAddressDto,
-    message = '배송지 정보입니다.',
-    statusCode = 200,
-  ): BaseResponseV2<DeliveryAddressDto> {
-    return BaseResponseV2.success(data, message, statusCode);
-  }
+  // success 메서드 제거
 }
 
 /**
  * 배송지 목록 응답 DTO
  */
 export class DeliveryAddressListResponseDto extends BaseResponseV2<DeliveryAddressDto[]> {
-  /**
-   * 성공 응답 생성
-   */
-  static success(
-    data: DeliveryAddressDto[],
-    message = '배송지 목록입니다.',
-    statusCode = 200,
-  ): BaseResponseV2<DeliveryAddressDto[]> {
-    return BaseResponseV2.success(data, message, statusCode);
-  }
+  // success 메서드 제거
 }

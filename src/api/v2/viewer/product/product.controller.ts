@@ -7,6 +7,7 @@ import {
   ViewerProductResponseBodyDto,
 } from './product-response.dto';
 import { ApiTags, ApiOperation, ApiOkResponse, ApiParam } from '@nestjs/swagger';
+import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 
 @ApiTags('Viewer - Product')
 @Controller({
@@ -21,9 +22,8 @@ export class ProductController {
   @ApiOkResponse({ type: ViewerProductListResponseDto })
   async findAllProducts(@Query() query: ViewerProductListRequestDto): Promise<ViewerProductListResponseDto> {
     const { items, total, page, limit } = await this.productService.findAllForViewer(query);
-    // Product 엔티티 목록을 ViewerProductResponseBodyDto 목록으로 변환
     const responseBodyItems = items.map((product) => ViewerProductResponseBodyDto.fromEntity(product));
-    return ViewerProductListResponseDto.createPaged(responseBodyItems, total, page, limit);
+    return PagedResponseV2.create(responseBodyItems, total, page, limit, '상품 목록 조회 성공');
   }
 
   @Get(':productId')
@@ -32,7 +32,7 @@ export class ProductController {
   @ApiOkResponse({ type: ViewerProductResponseDto })
   async findOneProduct(@Param('productId', ParseUUIDPipe) productId: string): Promise<ViewerProductResponseDto> {
     const product = await this.productService.findOneForViewer(productId);
-    // Product 엔티티를 ViewerProductResponseBodyDto로 변환
-    return ViewerProductResponseDto.success(ViewerProductResponseBodyDto.fromEntity(product));
+    const responseBody = ViewerProductResponseBodyDto.fromEntity(product);
+    return BaseResponseV2.success(responseBody, '상품 상세 정보입니다.');
   }
 }

@@ -1,52 +1,38 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 /**
  * V2 API의 기본 응답 형식
  */
 export class BaseResponseV2<T> {
-  /**
-   * 응답 상태 코드
-   */
-  statusCode: number;
-
-  /**
-   * 응답 메시지
-   */
-  message: string;
-
-  /**
-   * 요청 성공 여부
-   */
+  @ApiProperty({ example: true, description: '성공 여부' })
   success: boolean;
 
-  /**
-   * 응답 데이터
-   */
+  @ApiProperty({ example: 200, description: 'HTTP 상태 코드' })
+  statusCode: number;
+
+  @ApiProperty({ example: '요청 성공', description: '응답 메시지' })
+  message: string;
+
+  @ApiProperty({ description: '응답 데이터' })
   data: T;
 
-  /**
-   * 응답 생성 시간
-   */
+  @ApiProperty({ example: '2024-05-12T14:30:00Z', description: '응답 타임스탬프' })
   timestamp: string;
 
-  constructor(data: T, statusCode = 200, message = 'OK', success = true) {
+  constructor(success: boolean, statusCode: number, message: string, data: T) {
+    this.success = success;
     this.statusCode = statusCode;
     this.message = message;
-    this.success = success;
     this.data = data;
     this.timestamp = new Date().toISOString();
   }
 
-  /**
-   * 성공 응답 생성
-   */
-  static success(data: any, message = 'OK', statusCode = 200): BaseResponseV2<any> {
-    return new BaseResponseV2<any>(data, statusCode, message, true);
+  static success<T>(data: T, message = '요청 성공', statusCode = 200): BaseResponseV2<T> {
+    return new BaseResponseV2(true, statusCode, message, data);
   }
 
-  /**
-   * 실패 응답 생성
-   */
-  static error(message: string, statusCode = 400, data?: any): BaseResponseV2<any> {
-    return new BaseResponseV2<any>(data || null, statusCode, message, false);
+  static error<T>(message = '요청 실패', statusCode = 500, data: T | null = null): BaseResponseV2<T | null> {
+    return new BaseResponseV2(false, statusCode, message, data);
   }
 }
 
@@ -84,20 +70,24 @@ export interface PagedResponseData<T> {
  * 페이지네이션된 응답을 위한 클래스
  */
 export class PagedResponseV2<T> extends BaseResponseV2<PagedResponseData<T>> {
+  constructor(items: T[], total: number, page: number, limit: number, message = '요청 성공', statusCode = 200) {
+    const totalPages = Math.ceil(total / limit);
+    const data: PagedResponseData<T> = { items, total, page, limit, totalPages };
+    super(true, statusCode, message, data);
+  }
+
   /**
    * 페이지네이션 응답 생성
    */
-  static from<T>(items: T[], total: number, page: number, limit: number, message = 'OK'): PagedResponseV2<T> {
-    const totalPages = Math.ceil(total / limit);
-    const data: PagedResponseData<T> = {
-      items,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
-
-    return new PagedResponseV2<T>(data, 200, message, true);
+  static create<T>(
+    items: T[],
+    total: number,
+    page: number,
+    limit: number,
+    message = '요청 성공',
+    statusCode = 200,
+  ): PagedResponseV2<T> {
+    return new PagedResponseV2(items, total, page, limit, message, statusCode);
   }
 }
 
@@ -106,6 +96,12 @@ export class PagedResponseV2<T> extends BaseResponseV2<PagedResponseData<T>> {
  */
 export class EmptyResponseV2 extends BaseResponseV2<null> {
   constructor(message = 'OK', statusCode = 200, success = true) {
-    super(null, statusCode, message, success);
+    super(success, statusCode, message, null);
+  }
+}
+
+export class ErrorResponseV2 extends BaseResponseV2<null> {
+  constructor(message: string, statusCode: number) {
+    super(false, statusCode, message, null);
   }
 }
