@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEnum, IsDateString, IsInt, Min, IsIn } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsEnum, IsDateString, IsIn } from 'class-validator';
 import { SellerDeliverySearchField } from './delivery-search-field.enum';
 import { SellerDeliveryDateField } from './delivery-date-field.enum';
 import { PaginationRequestDto } from '@/api/v2/common/pagination.dto';
@@ -35,18 +34,4 @@ export class SellerDeliveryListRequestDto extends PaginationRequestDto {
   @IsOptional()
   @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc';
-
-  @ApiProperty({ description: '페이지 번호', required: false, default: 1, minimum: 1 })
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  @IsOptional()
-  page?: number = 1;
-
-  @ApiProperty({ description: '페이지당 항목 수', required: false, default: 10, minimum: 1 })
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  @IsOptional()
-  limit?: number = 10;
 }

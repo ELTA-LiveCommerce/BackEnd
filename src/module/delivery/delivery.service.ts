@@ -312,7 +312,7 @@ export class DeliveryService {
   ): Promise<{
     items: {
       delivery: Loaded<Delivery, 'order.user'>;
-      orderItem: Loaded<OrderItem, 'product'> | null;
+      orderItems: Loaded<OrderItem, 'product'>[];
       order: Loaded<Order, 'user' | 'items.product'>;
     }[];
     total: number;
@@ -394,11 +394,11 @@ export class DeliveryService {
       // delivery.order should be Loaded<Order, 'user' | 'items.product'>
       const order = delivery.order; // Direct access, no need for isInitialized or load
       // Find the first orderItem (assuming one item per delivery for now)
-      const orderItem = order.items.getItems()[0] ?? null;
+      const orderItems = order.items.getItems();
 
       return {
         delivery: delivery as Loaded<Delivery, 'order.user'>,
-        orderItem: orderItem as Loaded<OrderItem, 'product'> | null,
+        orderItems: orderItems as Loaded<OrderItem, 'product'>[],
         order: order as Loaded<Order, 'user' | 'items.product'>,
       };
     });

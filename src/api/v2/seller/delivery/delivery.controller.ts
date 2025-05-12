@@ -28,8 +28,8 @@ export class DeliveryController {
   ): Promise<SellerDeliveryListResponseDto> {
     const { items, total, page, limit } = await this.deliveryService.findSellerDeliveriesPaged(seller.id, query);
 
-    const responseItems = items.map((item) =>
-      SellerDeliveryListItemDto.fromEntities(item.delivery, item.orderItem, item.order),
+    const responseItems = items.flatMap((item) =>
+      item.orderItems.map((orderItem) => SellerDeliveryListItemDto.fromEntities(item.delivery, orderItem, item.order)),
     );
 
     return PagedResponseV2.create(responseItems, total, page, limit, '배송 목록 조회 성공');
