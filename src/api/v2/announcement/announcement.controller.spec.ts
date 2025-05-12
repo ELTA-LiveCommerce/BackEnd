@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeepMocked, createMock } from '@golevelup/ts-jest'; // ts-jest의 createMock 사용
+import { Collection } from '@mikro-orm/core'; // Collection import 추가
 
 import { AnnouncementController } from './announcement.controller';
 import { AnnouncementService } from '@/module/announcement/announcement.service';
@@ -26,47 +27,13 @@ describe('AnnouncementController', () => {
     password: 'hashedPassword',
     role: UserRole.ADMIN,
     isVerified: true,
-    status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),
-    logins: {
-      add: jest.fn(),
-      remove: jest.fn(),
-      contains: jest.fn(),
-      getSnapshot: jest.fn().mockReturnValue([]),
-    } as any,
-    products: {
-      add: jest.fn(),
-      remove: jest.fn(),
-      contains: jest.fn(),
-      getSnapshot: jest.fn().mockReturnValue([]),
-    } as any,
-    userProfile: null,
-    sentFollowRequests: {
-      add: jest.fn(),
-      remove: jest.fn(),
-      contains: jest.fn(),
-      getSnapshot: jest.fn().mockReturnValue([]),
-    } as any,
-    receivedFollowRequests: {
-      add: jest.fn(),
-      remove: jest.fn(),
-      contains: jest.fn(),
-      getSnapshot: jest.fn().mockReturnValue([]),
-    } as any,
-    followers: {
-      add: jest.fn(),
-      remove: jest.fn(),
-      contains: jest.fn(),
-      getSnapshot: jest.fn().mockReturnValue([]),
-    } as any,
-    following: {
-      add: jest.fn(),
-      remove: jest.fn(),
-      contains: jest.fn(),
-      getSnapshot: jest.fn().mockReturnValue([]),
-    } as any,
-    qas: { add: jest.fn(), remove: jest.fn(), contains: jest.fn(), getSnapshot: jest.fn().mockReturnValue([]) } as any,
+    logins: new Collection<any>(this as any), // logins 필드 모킹 수정
+    following: new Collection<any>(this as any),
+    followers: new Collection<any>(this as any),
+    blockedUsersByMe: new Collection<any>(this as any), // 추가된 필드
+    blockingSellersOfMe: new Collection<any>(this as any), // 추가된 필드
   } as UserEntity;
 
   beforeEach(async () => {

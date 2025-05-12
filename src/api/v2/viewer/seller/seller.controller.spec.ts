@@ -19,7 +19,7 @@ import {
   SellerLivePageDto,
   SellerProductPageDto,
 } from './seller.dto';
-import { UserRole, UserStatus } from '@/shared/enum/user.enum';
+import { UserRole } from '@/shared/enum/user-role.enum';
 import { NotFoundException } from '@nestjs/common';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { AuthGuard } from '@nestjs/passport';
@@ -36,7 +36,6 @@ describe('SellerController', () => {
     name: 'Test Seller',
     profileImage: 'http://example.com/seller.jpg',
     role: UserRole.SELLER,
-    status: UserStatus.ACTIVE,
     password: 'hashedPassword',
     isVerified: true,
   } as unknown as User;
@@ -71,18 +70,24 @@ describe('SellerController', () => {
       const mockSellers = [mockSellerUser];
       userService.findByUsernameContaining.mockResolvedValue(mockSellers);
 
-      const expectedResponse = SellerSearchResponseDto.success([
-        {
-          id: mockSellerUser.id,
-          username: mockSellerUser.loginId,
-          name: mockSellerUser.name || mockSellerUser.loginId,
-          profileImage: mockSellerUser.profileImage,
-        },
-      ]);
+      const expectedResponseData = {
+        data: [
+          {
+            id: mockSellerUser.id,
+            username: mockSellerUser.loginId,
+            name: mockSellerUser.name || mockSellerUser.loginId,
+            profileImage: mockSellerUser.profileImage,
+          },
+        ],
+        message: '판매자 검색 결과입니다.',
+        statusCode: 200,
+        success: true,
+      };
 
       const result = await controller.searchSellers(query);
       expect(userService.findByUsernameContaining).toHaveBeenCalledWith(query.keyword, UserRole.SELLER, query.limit);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toEqual(expect.objectContaining(expectedResponseData));
+      expect(result.timestamp).toEqual(expect.any(String));
     });
   });
 

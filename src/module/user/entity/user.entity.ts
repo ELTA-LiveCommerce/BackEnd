@@ -1,11 +1,23 @@
-import { Collection, Entity, Enum, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
+import {
+  Collection,
+  Entity,
+  Enum,
+  OneToMany,
+  PrimaryKey,
+  Property,
+  OneToOne,
+  Cascade,
+  ManyToMany,
+  Unique,
+} from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { Login } from '@/module/auth/entity/login.entity';
-import { UserStatus } from '@/module/user/dto/update-user-status.dto';
 import { Follow } from '@/module/user/entity/follow.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { UserRole } from '@/shared/enum/user-role.enum';
+import { SellerUserBlock } from './seller-user-block.entity';
+import { SellerInfo } from './seller-info.entity'; // 주석 해제
 
 @Entity({ tableName: 'users' })
 export class User extends BaseEntity {
@@ -39,12 +51,6 @@ export class User extends BaseEntity {
   @Property({ default: false, type: 'boolean' })
   isVerified: boolean = false;
 
-  @Enum({ items: () => UserStatus, default: UserStatus.ACTIVE, type: 'string' })
-  status: UserStatus = UserStatus.ACTIVE;
-
-  @Property({ nullable: true, type: 'string' })
-  blockReason?: string;
-
   @Property({ nullable: true, type: 'string' })
   address?: string;
 
@@ -62,4 +68,18 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Follow, (follow) => follow.following)
   followers = new Collection<Follow>(this);
+
+  @OneToOne(() => SellerInfo, (sellerInfo) => sellerInfo.user, {
+    cascade: [Cascade.ALL],
+    eager: true,
+    nullable: true,
+    mappedBy: 'user',
+  })
+  sellerInfo?: SellerInfo;
+
+  @OneToMany(() => SellerUserBlock, (block) => block.seller, { cascade: [Cascade.ALL] })
+  blockedUsersByMe = new Collection<SellerUserBlock>(this);
+
+  @OneToMany(() => SellerUserBlock, (block) => block.blockedUser, { cascade: [Cascade.ALL] })
+  blockingSellersOfMe = new Collection<SellerUserBlock>(this);
 }

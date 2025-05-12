@@ -8,7 +8,6 @@ import { AutocompleteDto, AutocompleteResultDto } from '@/module/user/dto/autoco
 import { CreateUserDto } from '@/module/user/dto/create-user.dto';
 import { PaginatedSearchResultDto, SearchUserDto, UserSearchResultDto } from '@/module/user/dto/search-user.dto';
 import { ChangePasswordDto, UpdateBankInfoDto, UpdateProfileDto } from '@/module/user/dto/update-profile.dto';
-import { UpdateUserStatusDto, UserStatus } from '@/module/user/dto/update-user-status.dto';
 import { UserSearchDto } from '@/module/user/dto/user-search.dto';
 import { User } from '@/module/user/entity/user.entity';
 import { UserFollowService } from '@/module/user/user-follow.service';
@@ -288,31 +287,6 @@ export class UserService {
   }
 
   /**
-   * 회원 상태 업데이트 (차단/활성화 등)
-   * @param id 사용자 ID
-   * @param statusDto 상태 업데이트 정보
-   * @returns 업데이트된 사용자 정보
-   */
-  async updateStatus(id: string, statusDto: UpdateUserStatusDto): Promise<User> {
-    const user = await this.findOne(id);
-
-    user.status = statusDto.status;
-
-    // 차단 사유 저장 (차단 상태인 경우)
-    if (statusDto.status === UserStatus.BLOCKED && statusDto.blockReason) {
-      user.blockReason = statusDto.blockReason;
-    }
-
-    // 차단 해제 시 차단 사유 초기화
-    if (statusDto.status === UserStatus.ACTIVE) {
-      user.blockReason = undefined;
-    }
-
-    await this.em.persistAndFlush(user);
-    return user;
-  }
-
-  /**
    * 회원 삭제 (또는 비활성화)
    * @param id 사용자 ID
    * @returns 성공 여부
@@ -321,7 +295,7 @@ export class UserService {
     const user = await this.findOne(id);
 
     // 실제 삭제 대신 비활성화 처리 (소프트 삭제)
-    user.status = UserStatus.INACTIVE;
+    // user.status = UserStatus.INACTIVE; // 주석 처리
     user.deletedAt = new Date();
 
     await this.em.persistAndFlush(user);

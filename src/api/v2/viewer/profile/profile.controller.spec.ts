@@ -3,9 +3,9 @@ import { ProfileController } from './profile.controller';
 import { UserService } from '@/module/user/user.service';
 import { User } from '@/module/user/entity/user.entity';
 import { UpdateProfileRequestDto, ProfileInfoResponseDto } from './profile.dto';
-import { UserRole, UserStatus } from '@/shared/enum/user.enum';
+import { UserRole } from '@/shared/enum/user-role.enum';
 import { mock, MockProxy } from 'jest-mock-extended';
-import { Gender } from '@/module/user/entity/user-profile.entity';
+// import { Gender } from '@/module/user/entity/user-profile.entity';
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { Login } from '@/module/auth/entity/login.entity';
 
@@ -22,13 +22,11 @@ describe('ProfileController', () => {
     bankName: 'Test Bank',
     accountNumber: '1234567890',
     role: UserRole.VIEWER,
-    status: UserStatus.ACTIVE,
     isVerified: true,
     profile: {
       id: 'test-profile-id',
       nickname: 'testNickname',
       phone: '01012345678',
-      gender: Gender.MALE,
       birthDate: new Date('1990-01-01'),
       profileImageUrl: 'http://example.com/profile.jpg',
       createdAt: new Date(),
@@ -66,14 +64,21 @@ describe('ProfileController', () => {
         bankName: mockUser.bankName || '',
         deliveryAddresses: [],
       };
-      const expectedResponse = ProfileInfoResponseDto.success(mockProfileInfo);
 
       userService.findOne.mockResolvedValue(mockUser);
 
       const result = await controller.getMyProfile(mockUser);
 
       expect(userService.findOne).toHaveBeenCalledWith(mockUser.id);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toEqual(
+        expect.objectContaining({
+          data: mockProfileInfo,
+          message: '프로필 정보입니다.',
+          statusCode: 200,
+          success: true,
+        }),
+      );
+      expect(result.timestamp).toEqual(expect.any(String));
     });
   });
 
@@ -94,8 +99,6 @@ describe('ProfileController', () => {
         accountNumber: updateProfileDto.accountNumber as string,
       } as User;
 
-      const expectedResponse = BaseResponseV2.success(updatedUserMock, '프로필 정보가 업데이트되었습니다.');
-
       userService.updateProfile.mockResolvedValue(updatedUserMock);
       userService.updateBankInfo.mockResolvedValue(updatedUserMock);
 
@@ -109,7 +112,15 @@ describe('ProfileController', () => {
         bankName: updateProfileDto.bankName,
         accountNumber: updateProfileDto.accountNumber,
       });
-      expect(result).toEqual(expectedResponse);
+      expect(result).toEqual(
+        expect.objectContaining({
+          data: updatedUserMock,
+          message: '프로필 정보가 업데이트되었습니다.',
+          statusCode: 200,
+          success: true,
+        }),
+      );
+      expect(result.timestamp).toEqual(expect.any(String));
     });
 
     it('should update profile without bank info if bank info is not provided', async () => {
@@ -123,7 +134,6 @@ describe('ProfileController', () => {
         name: updateProfileDto.name as string,
         phoneNumber: updateProfileDto.phoneNumber as string,
       } as User;
-      const expectedResponse = BaseResponseV2.success(updatedUserMock, '프로필 정보가 업데이트되었습니다.');
 
       userService.updateProfile.mockResolvedValue(updatedUserMock);
 
@@ -134,7 +144,15 @@ describe('ProfileController', () => {
         phoneNumber: updateProfileDto.phoneNumber,
       });
       expect(userService.updateBankInfo).not.toHaveBeenCalled();
-      expect(result).toEqual(expectedResponse);
+      expect(result).toEqual(
+        expect.objectContaining({
+          data: updatedUserMock,
+          message: '프로필 정보가 업데이트되었습니다.',
+          statusCode: 200,
+          success: true,
+        }),
+      );
+      expect(result.timestamp).toEqual(expect.any(String));
     });
   });
 });
