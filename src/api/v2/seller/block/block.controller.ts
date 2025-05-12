@@ -12,7 +12,7 @@ import {
 import { EmptyResponseV2, BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { BlockType } from '@/module/user/entity/seller-user-block.entity';
 
-@Controller('v2/sellers/blocks')
+@Controller('v2/seller/blocks')
 @UseGuards(JwtAuthGuard)
 export class SellerBlockController {
   constructor(private readonly userBlockService: UserBlockService) {}

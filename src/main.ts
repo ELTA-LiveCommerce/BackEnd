@@ -8,13 +8,12 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 import { initDatabase } from './database';
 import { HttpExceptionFilter } from './shared/filter/http-exception.filter';
-import { setupSwagger } from './infra/swagger/swagger.config';
+import { swagger } from './swagger';
 
 const logger = new Logger('Bootstrap');
 
 async function bootstrap() {
   await initDatabase();
-  // const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });
@@ -32,12 +31,12 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
+  // CORS 설정 수정: undefined 제거
+  const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL].filter(Boolean) as string[];
   app.enableCors({
-    origin: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    // origin: ['http://localhost:3000', process.env.FRONTEND_URL],
+    origin: allowedOrigins,
     credentials: true,
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
   });
 
   app.useGlobalPipes(
@@ -51,9 +50,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger
-  setupSwagger(app);
-
   // Global Filters
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
@@ -61,7 +57,7 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: '2gb' });
 
   if (NODE_ENV === 'development') {
-    await setupSwagger(app);
+    swagger(app);
   }
 
   await app.listen(servicePort);

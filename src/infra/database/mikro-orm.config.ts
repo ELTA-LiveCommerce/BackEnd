@@ -20,6 +20,9 @@ import { Product } from '@/module/product/entity/product.entity';
 import { Follow } from '@/module/user/entity/follow.entity';
 // import { ShippingAddress } from '@/module/user/entity/shipping-address.entity';
 import { User } from '@/module/user/entity/user.entity';
+import { SellerInfo } from '@/module/user/entity/seller-info.entity';
+import { SellerUserBlock } from '@/module/user/entity/seller-user-block.entity';
+import { Announcement } from '@/module/announcement/entity/announcement.entity';
 // import { UserFollow } from '@/module/user/entity/user-follow.entity'; // Remove unintended import
 // import { UserBlock } from '@/module/user/entity/user-block.entity'; // Remove unintended import
 
@@ -49,6 +52,9 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
     User,
     // UserFollow, // Remove unintended entity
     // UserBlock, // Remove unintended entity
+    Announcement,
+    SellerInfo,
+    SellerUserBlock,
   ];
 
   // config 객체의 타입도 다시 any로 변경

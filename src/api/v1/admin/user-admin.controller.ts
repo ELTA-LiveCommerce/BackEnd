@@ -4,7 +4,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from '@/module/user/user.service';
 import { User } from '@/module/user/entity/user.entity';
 // import { UpdateUserStatusDto } from '@/module/user/dto/update-user-status.dto';
-import { GetUsersDto } from '@/module/user/dto/get-users.dto';
+import { UserSearchDto } from '@/module/user/dto/user-search.dto';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { Roles } from '@/shared/common/decorators/roles.decorator';
 import { UserRole } from '@/shared/enum/user-role.enum';
@@ -20,14 +20,14 @@ export class UserAdminController {
 
   @Get()
   @ApiOperation({ summary: '모든 사용자 목록 조회 (관리자)' })
-  async findAll(@Query() getUsersDto: GetUsersDto): Promise<{ users: User[]; total: number }> {
-    return this.userService.findAllAdmin(getUsersDto);
+  async findAll(@Query() userSearchDto: UserSearchDto): Promise<{ users: User[]; total: number }> {
+    return this.userService.searchForAdmin(userSearchDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: '특정 사용자 정보 조회 (관리자)' })
   async findOne(@Param('id') id: string): Promise<User | null> {
-    return this.userService.findOneAdmin(id);
+    return this.userService.findOne(id);
   }
 
   // @Patch(':id/status')
