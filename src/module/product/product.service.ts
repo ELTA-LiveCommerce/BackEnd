@@ -1,8 +1,9 @@
-import { EntityManager } from '@mikro-orm/core';
+import { EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository } from '@mikro-orm/postgresql';
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { Transactional } from '@nestjs-cls/transactional';
+import { QueryOrder, RequestContext, wrap } from '@mikro-orm/core';
+import { EntityManager, QueryBuilder } from '@mikro-orm/postgresql';
 
 import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
@@ -20,6 +21,9 @@ import {
 } from '@/api/v2/seller/product/product.request.dto';
 import { SellerProductSearchField } from '@/api/v2/seller/product/search-field.enum';
 import { SellerProductDateField } from '@/api/v2/seller/product/date-field.enum';
+import { BaseRepository } from '@/shared/common/base.repository';
+import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
+import { SellerProductListItemDto } from './dto/seller-product-list-item.dto';
 
 @Injectable()
 export class ProductService {
@@ -306,20 +310,16 @@ export class ProductService {
   async findAllForViewer(
     query: ViewerProductListRequestDto,
   ): Promise<{ items: Product[]; total: number; page: number; limit: number }> {
-    const page = query.page || 1;
-    const limit = query.limit || 10;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
     const offset = (page - 1) * limit;
 
-    const qb = this.productRepository.createQueryBuilder('p').select(['p.*']).leftJoinAndSelect('p.seller', 's'); // 판매자 정보는 항상 필요하므로 join & select
-    // .where({ status: ProductStatus.ACTIVE }); // 예시: 활성화된 상품만 조회. ProductStatus enum 필요
+    const qb = this.em.createQueryBuilder(Product, 'p').select(['p.*']).leftJoinAndSelect('p.seller', 's');
 
     if (query.searchQuery) {
-      qb.andWhere({ name: { $like: `%${query.searchQuery}%` } }); // 상품명 검색
-      // 필요시 설명 등 다른 필드에도 검색 조건 추가 가능
-      // qb.orWhere({ description: { $like: `%${query.searchQuery}%` } });
+      qb.andWhere({ name: { $like: `%${query.searchQuery}%` } });
     }
 
-    // 정렬 조건
     switch (query.sortBy) {
       case ViewerProductSortBy.PRICE_ASC:
         qb.orderBy({ price: 'ASC' });
@@ -327,22 +327,18 @@ export class ProductService {
       case ViewerProductSortBy.PRICE_DESC:
         qb.orderBy({ price: 'DESC' });
         break;
-      // TODO: ViewerProductSortBy.POPULARITY 인기순 정렬 로직 추가 (예: 판매량, 조회수 기준)
       case ViewerProductSortBy.LATEST:
       default:
         qb.orderBy({ createdAt: 'DESC' });
         break;
     }
 
-    const totalQuery = qb.clone().count('p.id', true); // count() 메서드로 변경, alias 명시
-    const itemsQuery = qb.limit(limit).offset(offset); // itemsQuery는 그대로 유지
+    const totalQuery = qb.clone().count('p.id', true);
+    const itemsQuery = qb.limit(limit).offset(offset);
 
-    const [totalResult, items] = await Promise.all([
-      totalQuery.execute('get'), // count 쿼리 실행
-      itemsQuery.getResultList(), // 목록 쿼리 실행
-    ]);
+    const [totalResult, items] = await Promise.all([totalQuery.execute('get'), itemsQuery.getResultList()]);
 
-    const total = (totalResult as any).count; // count 결과에서 실제 개수 추출
+    const total = (totalResult as any).count;
 
     return { items, total, page, limit };
   }
@@ -353,15 +349,11 @@ export class ProductService {
    * @returns 상품 정보
    */
   async findOneForViewer(id: string): Promise<Product> {
-    // module-relation-rules에 따라 상세 조회 시 seller 정보 populate
     const product = await this.productRepository.findOne({ id }, { populate: ['seller'] });
 
     if (!product) {
       throw new NotFoundException(`상품 ID ${id}를 찾을 수 없습니다.`);
     }
-    // if (product.status !== ProductStatus.ACTIVE) { // 예시: 활성화된 상품만 조회 가능하도록
-    //   throw new NotFoundException(`상품 ID ${id}를 찾을 수 없거나 비활성화된 상품입니다.`);
-    // }
 
     return product;
   }
@@ -373,7 +365,6 @@ export class ProductService {
   async createSellerProduct(sellerId: string, createDto: SellerProductCreateRequestDto): Promise<Product> {
     const seller = await this.userService.findOne(sellerId);
     if (!seller) {
-      // 이론적으로 JwtAuthGuard와 RolesGuard를 통과했으므로 발생 가능성 낮음
       throw new NotFoundException('Seller not found.');
     }
 
@@ -403,12 +394,10 @@ export class ProductService {
   ): Promise<Product> {
     const product = await this.findOne(productId);
 
-    // 상품 존재 여부 및 판매자 소유권 확인
     if (product.seller.id !== sellerId) {
       throw new ForbiddenException('You can only update your own products.');
     }
 
-    // DTO에 포함된 필드만 업데이트
     if (updateDto.name !== undefined) product.name = updateDto.name;
     if (updateDto.price !== undefined) product.price = updateDto.price;
     if (updateDto.stockQuantity !== undefined) product.stockQuantity = updateDto.stockQuantity;
@@ -417,68 +406,72 @@ export class ProductService {
     if (updateDto.mainImage !== undefined) product.mainImage = updateDto.mainImage;
     if (updateDto.images !== undefined) product.images = updateDto.images;
 
-    await this.productRepository.flush(); // 변경 사항 저장
+    await this.productRepository.flush();
     return product;
   }
 
   /**
    * V2 API: 판매자 상품 목록 조회 (페이지네이션 및 필터링)
    */
+  @Transactional()
   async findSellerProductsPaged(
-    sellerId: string,
+    userId: string,
     query: SellerProductListRequestDto,
-  ): Promise<{ items: Product[]; total: number; page: number; limit: number }> {
-    const page = query.page || 1;
-    const limit = query.limit || 10;
-    const offset = (page - 1) * limit;
+  ): Promise<PagedResponseV2<SellerProductListItemDto>> {
+    const qb: QueryBuilder<Product> = this.em
+      .createQueryBuilder(Product, 'p')
+      .select([
+        'p.id',
+        'p.name',
+        'p.price',
+        'p.discountPrice',
+        'p.stockQuantity',
+        'p.mainImage',
+        'p.createdAt',
+        'p.updatedAt',
+        'p.deletedAt',
+      ])
+      .where({ seller: { id: userId } });
 
-    const qb = this.productRepository.createQueryBuilder('p');
-
-    qb.where({ seller: { id: sellerId } });
-
-    // 상품명 검색 -> 필드 기반 검색으로 변경
-    if (query.searchKeyword && query.searchField) {
-      const field = query.searchField;
-      const keyword = `%${query.searchKeyword}%`;
-
-      switch (field) {
+    if (query.searchKeyword) {
+      switch (query.searchField) {
         case SellerProductSearchField.NAME:
-          qb.andWhere({ name: { $like: keyword } });
+          qb.andWhere({ name: { $like: `%${query.searchKeyword}%` } });
           break;
         case SellerProductSearchField.DESCRIPTION:
-          qb.andWhere({ description: { $like: keyword } });
-          break;
-        // 다른 검색 필드 케이스 추가 가능
-        default:
-          // 기본적으로 상품명 검색 또는 에러 처리
-          qb.andWhere({ name: { $like: keyword } });
+          qb.andWhere({ description: { $like: `%${query.searchKeyword}%` } });
           break;
       }
     }
 
-    // 등록일 기간 검색 -> 필드 기반 기간 검색으로 변경
-    const dateFieldName = query.dateField || SellerProductDateField.CREATED_AT;
+    const dateFieldMap = {
+      [SellerProductDateField.CREATED_AT]: 'createdAt',
+      [SellerProductDateField.UPDATED_AT]: 'updatedAt',
+    };
+    const dateField = dateFieldMap[query.dateField ?? SellerProductDateField.CREATED_AT];
     if (query.startDate) {
-      qb.andWhere({ [dateFieldName]: { $gte: new Date(query.startDate) } });
+      qb.andWhere({ [`${dateField} >=`]: query.startDate });
     }
     if (query.endDate) {
-      // endDate는 해당 날짜의 23:59:59.999까지 포함하도록 설정
-      const endDate = new Date(query.endDate);
-      endDate.setHours(23, 59, 59, 999);
-      qb.andWhere({ [dateFieldName]: { $lte: endDate } });
+      qb.andWhere({ [`${dateField} <=`]: query.endDate });
     }
 
-    // 정렬 (기본: 최신 등록순)
-    qb.orderBy({ createdAt: 'DESC' });
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const offset = (page - 1) * limit;
 
-    // 페이지네이션 적용 및 결과 조회
-    const totalQuery = qb.clone().count('p.id', true);
-    const itemsQuery = qb.select('*').limit(limit).offset(offset);
+    qb.orderBy({ [dateField]: QueryOrder.DESC });
 
-    const [totalResult, items] = await Promise.all([totalQuery.execute('get'), itemsQuery.getResultList()]);
+    const countQb = qb.clone().count('p.id', true);
+    qb.limit(limit).offset(offset);
 
-    const total = (totalResult as any).count;
+    const [productMaps, totalResult] = await Promise.all([qb.getResult(), countQb.execute('get')]);
+    const total = totalResult.count;
 
-    return { items, total, page, limit };
+    const items = productMaps.map((map: any) => {
+      return SellerProductListItemDto.fromEntity(map as Product);
+    });
+
+    return PagedResponseV2.create(items, total, page, limit);
   }
 }

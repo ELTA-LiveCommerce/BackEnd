@@ -5,13 +5,13 @@ import {
   SellerProductCreateRequestDto,
   SellerProductUpdateRequestDto,
   SellerProductListRequestDto,
-} from './product.request.dto';
+} from '@/api/v2/seller/product/product.request.dto';
 import {
   SellerProductResponseDto,
   SellerProductResponseBodyDto,
   SellerProductListResponseDto,
-  SellerProductListItemDto,
-} from './product.response.dto';
+} from '@/api/v2/seller/product/product.response.dto';
+import { SellerProductListItemDto } from '@/module/product/dto/seller-product-list-item.dto';
 import { User } from '@/module/user/entity/user.entity';
 import { Product } from '@/module/product/entity/product.entity';
 import { UserRole } from '@/shared/enum/user-role.enum';
@@ -19,9 +19,9 @@ import { mock, MockProxy } from 'jest-mock-extended';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { HttpStatus, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
-import { SellerProductSearchField } from './search-field.enum';
-import { SellerProductDateField } from './date-field.enum';
+import { BaseResponseV2, PagedResponseV2, PagedResponseData } from '@/api/v2/common/base-response.dto';
+import { SellerProductSearchField } from '@/api/v2/seller/product/search-field.enum';
+import { SellerProductDateField } from '@/api/v2/seller/product/date-field.enum';
 
 describe('ProductController (Seller V2)', () => {
   let controller: ProductController;
@@ -66,50 +66,43 @@ describe('ProductController (Seller V2)', () => {
   });
 
   describe('createProduct', () => {
-    it('should create a product successfully', async () => {
+    it('should create a product and return success response', async () => {
       const createDto: SellerProductCreateRequestDto = {
-        name: '새 상품',
-        price: 20000,
-        stockQuantity: 50,
-        description: '새 상품 설명',
+        name: 'New Product',
+        price: 100,
+        stockQuantity: 10,
+        description: 'Product description',
       };
-      productService.createSellerProduct.mockResolvedValue({
-        ...mockProduct, // 기존 mockProduct 기반으로 생성
-        ...createDto, // DTO 내용으로 덮어쓰기
-        seller: mockSeller, // seller 정보 유지
-      });
+      productService.createSellerProduct.mockResolvedValue(mockProduct);
+      const expectedBody = SellerProductResponseBodyDto.fromEntity(mockProduct);
 
       const result = await controller.createProduct(createDto, mockSeller);
 
       expect(productService.createSellerProduct).toHaveBeenCalledWith(mockSeller.id, createDto);
+      expect(result).toBeInstanceOf(BaseResponseV2);
       expect(result.success).toBe(true);
       expect(result.statusCode).toBe(HttpStatus.CREATED);
       expect(result.message).toBe('상품이 성공적으로 등록되었습니다.');
-      expect(result.data.name).toBe(createDto.name);
+      expect(result.data).toEqual(expectedBody);
     });
   });
 
   describe('updateProduct', () => {
     const productId = 'product-uuid-1';
-    const updateDto: SellerProductUpdateRequestDto = {
-      name: '수정된 상품명',
-      price: 15000,
-    };
+    const updateDto: SellerProductUpdateRequestDto = { name: 'Updated Product' };
 
-    it('should update a product successfully', async () => {
-      productService.updateSellerProduct.mockResolvedValue({
-        ...mockProduct,
-        ...updateDto,
-      });
+    it('should update a product and return success response', async () => {
+      productService.updateSellerProduct.mockResolvedValue(mockProduct);
+      const expectedBody = SellerProductResponseBodyDto.fromEntity(mockProduct);
 
       const result = await controller.updateProduct(productId, updateDto, mockSeller);
 
       expect(productService.updateSellerProduct).toHaveBeenCalledWith(mockSeller.id, productId, updateDto);
+      expect(result).toBeInstanceOf(BaseResponseV2);
       expect(result.success).toBe(true);
       expect(result.statusCode).toBe(HttpStatus.OK);
       expect(result.message).toBe('상품 정보가 성공적으로 수정되었습니다.');
-      expect(result.data.name).toBe(updateDto.name);
-      expect(result.data.price).toBe(updateDto.price);
+      expect(result.data).toEqual(expectedBody);
     });
 
     it('should throw NotFoundException if product does not exist', async () => {
@@ -126,25 +119,77 @@ describe('ProductController (Seller V2)', () => {
   });
 
   describe('getSellerProducts', () => {
-    it('should return a paginated list of seller products', async () => {
-      const query: SellerProductListRequestDto = { page: 1, limit: 10 };
-      const mockProducts = [mockProduct, { ...mockProduct, id: 'product-uuid-2' }];
-      const pagedResult = { items: mockProducts, total: 2, page: 1, limit: 10 };
-      productService.findSellerProductsPaged.mockResolvedValue(pagedResult);
+    it('should return paginated list of seller products', async () => {
+      const query = new SellerProductListRequestDto();
+      const sellerId = 'test-seller-id';
+      const seller = { id: sellerId, role: UserRole.SELLER } as User;
+      const mockProducts = [
+        { id: 'prod-1', name: 'Test Product 1', price: 100, stockQuantity: 10, seller: seller } as Product,
+        { id: 'prod-2', name: 'Test Product 2', price: 200, stockQuantity: 5, seller: seller } as Product,
+      ];
+      const pagedResultItems = mockProducts.map(SellerProductListItemDto.fromEntity);
+      const mockServiceResponse = PagedResponseV2.create(
+        pagedResultItems,
+        mockProducts.length,
+        query.page ?? 1,
+        query.limit ?? 10,
+        '상품 목록 조회 성공',
+      );
+      productService.findSellerProductsPaged.mockResolvedValue(mockServiceResponse);
 
-      const expectedListItems = mockProducts.map(SellerProductListItemDto.fromEntity);
+      const result = await controller.getSellerProducts(query, seller);
 
-      const result = await controller.getSellerProducts(query, mockSeller);
-
-      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, query);
+      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(sellerId, query);
+      expect(result).toEqual(mockServiceResponse);
       expect(result).toBeInstanceOf(PagedResponseV2);
+      expect(result.data.items).toEqual(pagedResultItems);
+      expect(result.data.total).toBe(mockProducts.length);
       expect(result.success).toBe(true);
       expect(result.statusCode).toBe(HttpStatus.OK);
-      expect(result.message).toBe('상품 목록 조회 성공');
-      expect(result.data.items).toEqual(expectedListItems);
-      expect(result.data.total).toBe(2);
-      expect(result.data.page).toBe(1);
-      expect(result.data.limit).toBe(10);
+      expect(result.timestamp).toEqual(expect.any(String));
+    });
+
+    it('should handle search keyword', async () => {
+      const query = new SellerProductListRequestDto();
+      query.searchKeyword = '캠핑';
+      query.searchField = SellerProductSearchField.NAME;
+      const sellerId = 'test-seller-id';
+      const seller = { id: sellerId, role: UserRole.SELLER } as User;
+      const mockServiceResponse = PagedResponseV2.create<SellerProductListItemDto>(
+        [],
+        0,
+        query.page ?? 1,
+        query.limit ?? 10,
+        '상품 목록 조회 성공',
+      );
+      productService.findSellerProductsPaged.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.getSellerProducts(query, seller);
+
+      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(sellerId, query);
+      expect(result).toEqual(mockServiceResponse);
+    });
+
+    it('should handle date range filter', async () => {
+      const query = new SellerProductListRequestDto();
+      query.startDate = '2024-01-01';
+      query.endDate = '2024-01-31';
+      query.dateField = SellerProductDateField.CREATED_AT;
+      const sellerId = 'test-seller-id';
+      const seller = { id: sellerId, role: UserRole.SELLER } as User;
+      const mockServiceResponse = PagedResponseV2.create<SellerProductListItemDto>(
+        [],
+        0,
+        query.page ?? 1,
+        query.limit ?? 10,
+        '상품 목록 조회 성공',
+      );
+      productService.findSellerProductsPaged.mockResolvedValue(mockServiceResponse);
+
+      const result = await controller.getSellerProducts(query, seller);
+
+      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(sellerId, query);
+      expect(result).toEqual(mockServiceResponse);
     });
 
     it('should handle filtering by keyword and date range', async () => {
@@ -155,18 +200,20 @@ describe('ProductController (Seller V2)', () => {
         page: 2,
         limit: 5,
       };
-      const pagedResult = { items: [mockProduct], total: 1, page: 2, limit: 5 };
-      productService.findSellerProductsPaged.mockResolvedValue(pagedResult);
+      const mockProductItems = [SellerProductListItemDto.fromEntity(mockProduct)];
+      const mockServiceResponse = PagedResponseV2.create(
+        mockProductItems,
+        1,
+        query.page ?? 1,
+        query.limit ?? 5,
+        '상품 목록 조회 성공',
+      );
+      productService.findSellerProductsPaged.mockResolvedValue(mockServiceResponse);
 
-      await controller.getSellerProducts(query, mockSeller);
+      const result = await controller.getSellerProducts(query, mockSeller);
 
-      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, {
-        searchKeyword: '테스트',
-        startDate: '2024-01-01',
-        endDate: '2024-01-15',
-        page: 2,
-        limit: 5,
-      });
+      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, query);
+      expect(result).toEqual(mockServiceResponse);
     });
 
     it('should handle filtering by keyword, field, and date range', async () => {
@@ -178,19 +225,20 @@ describe('ProductController (Seller V2)', () => {
         page: 2,
         limit: 5,
       };
-      const pagedResult = { items: [mockProduct], total: 1, page: 2, limit: 5 };
-      productService.findSellerProductsPaged.mockResolvedValue(pagedResult);
+      const mockProductItems = [SellerProductListItemDto.fromEntity(mockProduct)];
+      const mockServiceResponse = PagedResponseV2.create(
+        mockProductItems,
+        1,
+        query.page ?? 1,
+        query.limit ?? 5,
+        '상품 목록 조회 성공',
+      );
+      productService.findSellerProductsPaged.mockResolvedValue(mockServiceResponse);
 
-      await controller.getSellerProducts(query, mockSeller);
+      const result = await controller.getSellerProducts(query, mockSeller);
 
-      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, {
-        searchField: SellerProductSearchField.DESCRIPTION,
-        searchKeyword: '테스트',
-        startDate: '2024-01-01',
-        endDate: '2024-01-15',
-        page: 2,
-        limit: 5,
-      });
+      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, query);
+      expect(result).toEqual(mockServiceResponse);
     });
 
     it('should handle filtering by keyword, field, date field, and date range', async () => {
@@ -203,42 +251,41 @@ describe('ProductController (Seller V2)', () => {
         page: 2,
         limit: 5,
       };
-      const pagedResult = { items: [mockProduct], total: 1, page: 2, limit: 5 };
-      productService.findSellerProductsPaged.mockResolvedValue(pagedResult);
+      const mockProductItems = [SellerProductListItemDto.fromEntity(mockProduct)];
+      const mockServiceResponse = PagedResponseV2.create(
+        mockProductItems,
+        1,
+        query.page ?? 1,
+        query.limit ?? 5,
+        '상품 목록 조회 성공',
+      );
+      productService.findSellerProductsPaged.mockResolvedValue(mockServiceResponse);
 
-      await controller.getSellerProducts(query, mockSeller);
+      const result = await controller.getSellerProducts(query, mockSeller);
 
-      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, {
-        searchField: SellerProductSearchField.DESCRIPTION,
-        searchKeyword: '테스트',
-        dateField: SellerProductDateField.UPDATED_AT,
-        startDate: '2024-01-01',
-        endDate: '2024-01-15',
-        page: 2,
-        limit: 5,
-      });
+      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, query);
+      expect(result).toEqual(mockServiceResponse);
     });
 
-    it('should use default search field (NAME) and date field (CREATED_AT) if not provided', async () => {
-      const query: SellerProductListRequestDto = {
-        searchField: SellerProductSearchField.NAME,
-        dateField: SellerProductDateField.CREATED_AT,
-        searchKeyword: '기본',
-        page: 1,
-        limit: 10,
-      };
-      const pagedResult = { items: [], total: 0, page: 1, limit: 10 };
-      productService.findSellerProductsPaged.mockResolvedValue(pagedResult);
+    it('should return empty list when no products match', async () => {
+      const query = new SellerProductListRequestDto();
+      const sellerId = 'test-seller-id';
+      const seller = { id: sellerId, role: UserRole.SELLER } as User;
+      const mockServiceResponse = PagedResponseV2.create<SellerProductListItemDto>(
+        [],
+        0,
+        query.page ?? 1,
+        query.limit ?? 10,
+        '상품 목록 조회 성공',
+      );
+      productService.findSellerProductsPaged.mockResolvedValue(mockServiceResponse);
 
-      await controller.getSellerProducts(query, mockSeller);
+      const result = await controller.getSellerProducts(query, seller);
 
-      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, {
-        searchField: SellerProductSearchField.NAME,
-        dateField: SellerProductDateField.CREATED_AT,
-        searchKeyword: '기본',
-        page: 1,
-        limit: 10,
-      });
+      expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(sellerId, query);
+      expect(result).toEqual(mockServiceResponse);
+      expect(result.data.items).toEqual([]);
+      expect(result.data.total).toBe(0);
     });
   });
 });

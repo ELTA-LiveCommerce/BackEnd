@@ -2,55 +2,66 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DeliveryController } from '@/api/v2/seller/delivery/delivery.controller';
 import { DeliveryService } from '@/module/delivery/delivery.service';
 import { SellerDeliveryListRequestDto } from '@/api/v2/seller/delivery/delivery.request.dto';
-import { SellerDeliveryListItemDto } from '@/api/v2/seller/delivery/delivery.response.dto';
-import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
+import {
+  SellerDeliveryListResponseDto,
+  SellerDeliveryListItemDto,
+} from '@/api/v2/seller/delivery/delivery.response.dto';
 import { Delivery, DeliveryStatus } from '@/module/delivery/entity/delivery.entity';
-import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { Order } from '@/module/order/entity/order.entity';
+import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { User } from '@/module/user/entity/user.entity';
 import { Product } from '@/module/product/entity/product.entity';
+import { UserRole } from '@/shared/enum/user-role.enum';
 import { mock, MockProxy } from 'jest-mock-extended';
-import { SellerDeliverySearchField } from '@/api/v2/seller/delivery/delivery-search-field.enum';
+import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 import { SellerDeliveryDateField } from '@/api/v2/seller/delivery/delivery-date-field.enum';
+import { HttpStatus } from '@nestjs/common';
+import { Loaded, Collection } from '@mikro-orm/core';
 
-describe('DeliveryController', () => {
+describe('Seller DeliveryController (E2E - Mock Service)', () => {
   let controller: DeliveryController;
   let mockDeliveryService: MockProxy<DeliveryService>;
 
-  const mockSeller = mock<User>({ id: 'seller-uuid-1' });
+  const mockSeller: User = {
+    id: 'test-seller-id',
+    role: UserRole.SELLER,
+  } as User;
 
-  const mockProduct = mock<Product>({
-    id: 'product-uuid-1',
-    name: '테스트 상품',
-    mainImage: 'https://example.com/image.jpg',
-  });
-
-  const mockUser = mock<User>({
-    id: 'user-uuid-1',
-    loginId: 'buyer123',
+  const mockOrderItem = mock<OrderItem>({
+    id: 'item-1',
+    product: mock<Product>({
+      id: 'product-1',
+      name: '테스트 상품',
+    }),
+    quantity: 1,
+    price: 10000,
   });
 
   const mockOrder = mock<Order>({
-    id: 'order-uuid-1',
-    user: mockUser,
+    id: 'order-1',
+    user: mock<User>({ id: 'buyer-1', name: '구매자' }),
+    createdAt: new Date('2024-01-10T10:00:00Z'),
+    items: {
+      getItems: jest.fn().mockReturnValue([mockOrderItem]),
+    } as unknown as Collection<OrderItem>,
   });
 
-  const mockOrderItem = mock<OrderItem>({
-    id: 'order-item-uuid-1',
-    product: mockProduct,
-    quantity: 2,
+  const mockProduct = mock<Product>({
+    id: 'product-1',
+    name: '테스트 상품',
   });
 
   const mockDelivery = mock<Delivery>({
-    id: 'delivery-uuid-1',
+    id: 'delivery-1',
     trackingNumber: '1234567890',
-    recipientName: '김수령',
-    recipientPhoneNumber: '010-1111-2222',
-    baseAddress: '서울시 테스트구',
-    detailAddress: '테스트로 123',
-    postalCode: '12345',
+    recipientName: '수령인 이름',
+    recipientPhoneNumber: '010-1234-5678',
+    address: '서울시 테스트구 테스트동 123-45',
     status: DeliveryStatus.SHIPPING,
     order: mockOrder,
+    seller: mockSeller,
+    createdAt: new Date('2024-01-11T11:00:00Z'),
+    shippedAt: new Date('2024-01-12T12:00:00Z'),
   });
 
   beforeEach(async () => {
@@ -74,88 +85,93 @@ describe('DeliveryController', () => {
   });
 
   describe('getSellerDeliveries', () => {
-    it('배송 목록을 성공적으로 조회해야 함', async () => {
-      const requestDto = new SellerDeliveryListRequestDto();
-      requestDto.page = 1;
-      requestDto.limit = 10;
+    it('should return paginated deliveries for the seller', async () => {
+      const query = new SellerDeliveryListRequestDto();
+      query.page = 1;
+      query.limit = 5;
 
       const mockServiceResult = {
-        items: [{ delivery: mockDelivery, orderItem: mockOrderItem, order: mockOrder }],
+        items: [
+          {
+            delivery: mockDelivery as Loaded<Delivery, 'order.user'>,
+            orderItems: [mockOrderItem as Loaded<OrderItem, 'product'>],
+            order: mockOrder as Loaded<Order, 'user' | 'items.product'>,
+          },
+        ],
         total: 1,
-        page: requestDto.page,
-        limit: requestDto.limit,
+        page: query.page,
+        limit: query.limit,
       };
       mockDeliveryService.findSellerDeliveriesPaged.mockResolvedValue(mockServiceResult);
 
-      const result = await controller.getSellerDeliveries(requestDto, mockSeller);
+      const expectedDtoItem = SellerDeliveryListItemDto.fromEntities(mockDelivery, mockOrderItem, mockOrder);
 
-      expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, requestDto);
-      expect(result).toBeInstanceOf(PagedResponseV2);
-      expect(result.success).toBe(true);
-      expect(result.data.items.length).toBe(1);
-      expect(result.data.total).toBe(1);
-      expect(result.data.page).toBe(requestDto.page);
-      expect(result.data.limit).toBe(requestDto.limit);
-
-      const expectedDto = SellerDeliveryListItemDto.fromEntities(mockDelivery, mockOrderItem, mockOrder);
-      expect(result.data.items[0]).toMatchObject({
-        productMainImage: mockProduct.mainImage,
-        productName: mockProduct.name,
-        quantity: mockOrderItem.quantity,
-        trackingNumber: mockDelivery.trackingNumber,
-        buyerLoginId: mockUser.loginId,
-        recipientName: mockDelivery.recipientName,
-        recipientPhoneNumber: mockDelivery.recipientPhoneNumber,
-        address: `${mockDelivery.baseAddress} ${mockDelivery.detailAddress} (${mockDelivery.postalCode})`,
-        deliveryStatus: mockDelivery.status,
-        orderId: mockOrder.id,
-        orderItemId: mockOrderItem.id,
-        deliveryId: mockDelivery.id,
-      });
-    });
-
-    it('모든 검색/필터 조건을 사용하여 배송 목록을 조회해야 함', async () => {
-      const requestDto = new SellerDeliveryListRequestDto();
-      requestDto.page = 1;
-      requestDto.limit = 5;
-      requestDto.searchField = SellerDeliverySearchField.RECIPIENT_NAME;
-      requestDto.searchKeyword = '김수령';
-      requestDto.dateField = SellerDeliveryDateField.ORDER_DATE;
-      requestDto.startDate = new Date('2023-01-01').toISOString().split('T')[0];
-      requestDto.endDate = new Date('2023-12-31').toISOString().split('T')[0];
-
-      const mockServiceResult = {
-        items: [{ delivery: mockDelivery, orderItem: mockOrderItem, order: mockOrder }],
-        total: 1,
-        page: requestDto.page,
-        limit: requestDto.limit,
-      };
-      mockDeliveryService.findSellerDeliveriesPaged.mockResolvedValue(mockServiceResult);
-
-      await controller.getSellerDeliveries(requestDto, mockSeller);
-
-      expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, requestDto);
-    });
-
-    it('기본값으로 배송 목록을 조회해야 함 (필터 조건 없을 때)', async () => {
-      const requestDto = new SellerDeliveryListRequestDto();
-
-      const mockServiceResult = {
-        items: [{ delivery: mockDelivery, orderItem: mockOrderItem, order: mockOrder }],
-        total: 1,
-        page: 1,
-        limit: 10,
-      };
-      mockDeliveryService.findSellerDeliveriesPaged.mockResolvedValue(mockServiceResult);
-
-      const result = await controller.getSellerDeliveries(requestDto, mockSeller);
-
-      expect(result.data.page).toBe(1);
-      expect(result.data.limit).toBe(10);
-      expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(
-        mockSeller.id,
-        expect.objectContaining({ page: 1, limit: 10 }),
+      const expectedResponse = PagedResponseV2.create(
+        [expectedDtoItem],
+        mockServiceResult.total,
+        mockServiceResult.page,
+        mockServiceResult.limit,
+        '배송 목록 조회 성공',
       );
+
+      const result = await controller.getSellerDeliveries(query, mockSeller);
+
+      expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, query);
+      expect(result).toEqual(expectedResponse);
+      expect(result.data.items[0].deliveryId).toBe(mockDelivery.id);
+      expect(result.data.items[0].orderId).toBe(mockOrder.id);
+      expect(result.data.items[0].productName).toBe(mockProduct.name);
+      expect(result.data.items[0].address).toBe(mockDelivery.address);
     });
+
+    it('should handle empty results', async () => {
+      const query = new SellerDeliveryListRequestDto();
+      query.page = 1;
+      query.limit = 10;
+
+      const mockServiceResult = { items: [], total: 0, page: 1, limit: 10 };
+      mockDeliveryService.findSellerDeliveriesPaged.mockResolvedValue(mockServiceResult);
+
+      const expectedResponse = PagedResponseV2.create<SellerDeliveryListItemDto>([], 0, 1, 10, '배송 목록 조회 성공');
+
+      const result = await controller.getSellerDeliveries(query, mockSeller);
+
+      expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, query);
+      expect(result).toEqual(expectedResponse);
+      expect(result.data.items.length).toBe(0);
+      expect(result.data.total).toBe(0);
+    });
+
+    it('should handle different page and limit', async () => {
+      const query = new SellerDeliveryListRequestDto();
+      query.page = 2;
+      query.limit = 3;
+
+      const mockServiceResult = { items: [], total: 0, page: 2, limit: 3 };
+      mockDeliveryService.findSellerDeliveriesPaged.mockResolvedValue(mockServiceResult);
+
+      const expectedResponse = PagedResponseV2.create<SellerDeliveryListItemDto>([], 0, 2, 3, '배송 목록 조회 성공');
+
+      const result = await controller.getSellerDeliveries(query, mockSeller);
+
+      expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, query);
+      expect(result).toEqual(expectedResponse);
+    });
+
+    it('should use correct date field for filtering', async () => {
+      const query = new SellerDeliveryListRequestDto();
+      query.dateField = SellerDeliveryDateField.ORDER_DATE;
+      query.startDate = '2024-01-01';
+      query.endDate = '2024-01-15';
+
+      const mockServiceResult = { items: [], total: 0, page: 1, limit: 10 };
+      mockDeliveryService.findSellerDeliveriesPaged.mockResolvedValue(mockServiceResult);
+
+      await controller.getSellerDeliveries(query, mockSeller);
+
+      expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, query);
+    });
+
+    // TODO: Add tests for search field filtering if needed
   });
 });

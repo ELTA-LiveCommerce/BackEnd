@@ -30,14 +30,14 @@ export class ProductController {
 
   @Get()
   @ApiOperation({ summary: '판매자 상품 목록 조회' })
-  @ApiOkResponse({ type: SellerProductListResponseDto })
+  @ApiOkResponse({ description: '상품 목록 조회 성공', type: SellerProductListResponseDto })
   async getSellerProducts(
     @Query() query: SellerProductListRequestDto,
     @GetUser() seller: User,
   ): Promise<SellerProductListResponseDto> {
-    const { items, total, page, limit } = await this.productService.findSellerProductsPaged(seller.id, query);
-    const responseItems = items.map(SellerProductListItemDto.fromEntity);
-    return PagedResponseV2.create(responseItems, total, page, limit, '상품 목록 조회 성공');
+    const serviceResponse = await this.productService.findSellerProductsPaged(seller.id, query);
+    const { items, total, page, limit } = serviceResponse.data;
+    return PagedResponseV2.create(items, total, page, limit, '상품 목록 조회 성공');
   }
 
   @Post()
