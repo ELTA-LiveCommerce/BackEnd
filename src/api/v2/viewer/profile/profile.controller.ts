@@ -17,7 +17,9 @@ import {
   DeliveryAddressListResponseDto,
 } from './profile.dto';
 import { UpdateProfileDto } from '@/module/user/dto/update-profile.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('v2/viewer/profile')
 @Controller('v2/viewer/profile')
 export class ProfileController {
   constructor(private readonly userService: UserService) {}

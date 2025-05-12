@@ -4,13 +4,10 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { JwtAuthGuard } from '../../../module/auth/guards/jwt-auth.guard';
 import { UserService } from '../../../module/user/user.service'; // Assuming UserService exists
 
-@ApiTags('User v2')
+@ApiTags('v2/user')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller({
-  path: 'user',
-  version: '2',
-})
+@Controller('v2/user')
 export class UserController {
   constructor(private readonly userService: UserService) {} // Assuming UserService exists and is injectable
 

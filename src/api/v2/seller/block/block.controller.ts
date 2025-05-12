@@ -11,7 +11,9 @@ import {
 } from './block-response.dto';
 import { EmptyResponseV2, BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { BlockType } from '@/module/user/entity/seller-user-block.entity';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('v2/seller/blocks')
 @Controller('v2/seller/blocks')
 @UseGuards(JwtAuthGuard)
 export class SellerBlockController {

@@ -9,7 +9,7 @@ import {
 import { ApiTags, ApiOperation, ApiOkResponse, ApiParam } from '@nestjs/swagger';
 import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 
-@ApiTags('Viewer - Product')
+@ApiTags('v2/viewer/products')
 @Controller('v2/viewer/products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
