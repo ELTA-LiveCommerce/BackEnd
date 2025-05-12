@@ -11,6 +11,7 @@ import { GetProductListDto } from './dto/get-product-list.dto';
 import { ProductListItemDto } from './dto/product-list-item.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entity/product.entity';
+import { ViewerProductListRequestDto, ViewerProductSortBy } from '@/api/v2/viewer/product/product-request.dto';
 
 @Injectable()
 export class ProductService {
@@ -286,6 +287,74 @@ export class ProductService {
     product.discountPrice = undefined;
 
     await this.em.flush();
+    return product;
+  }
+
+  /**
+   * Viewer용 상품 목록을 조회합니다.
+   * @param query ViewerProductListRequestDto
+   * @returns 상품 목록 및 전체 개수
+   */
+  async findAllForViewer(
+    query: ViewerProductListRequestDto,
+  ): Promise<{ items: Product[]; total: number; page: number; limit: number }> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const qb = this.productRepository.createQueryBuilder('p').select(['p.*']).leftJoinAndSelect('p.seller', 's'); // 판매자 정보는 항상 필요하므로 join & select
+    // .where({ status: ProductStatus.ACTIVE }); // 예시: 활성화된 상품만 조회. ProductStatus enum 필요
+
+    if (query.searchQuery) {
+      qb.andWhere({ name: { $like: `%${query.searchQuery}%` } }); // 상품명 검색
+      // 필요시 설명 등 다른 필드에도 검색 조건 추가 가능
+      // qb.orWhere({ description: { $like: `%${query.searchQuery}%` } });
+    }
+
+    // 정렬 조건
+    switch (query.sortBy) {
+      case ViewerProductSortBy.PRICE_ASC:
+        qb.orderBy({ price: 'ASC' });
+        break;
+      case ViewerProductSortBy.PRICE_DESC:
+        qb.orderBy({ price: 'DESC' });
+        break;
+      // TODO: ViewerProductSortBy.POPULARITY 인기순 정렬 로직 추가 (예: 판매량, 조회수 기준)
+      case ViewerProductSortBy.LATEST:
+      default:
+        qb.orderBy({ createdAt: 'DESC' });
+        break;
+    }
+
+    const totalQuery = qb.clone().count('p.id', true); // count() 메서드로 변경, alias 명시
+    const itemsQuery = qb.limit(limit).offset(offset); // itemsQuery는 그대로 유지
+
+    const [totalResult, items] = await Promise.all([
+      totalQuery.execute('get'), // count 쿼리 실행
+      itemsQuery.getResultList(), // 목록 쿼리 실행
+    ]);
+
+    const total = (totalResult as any).count; // count 결과에서 실제 개수 추출
+
+    return { items, total, page, limit };
+  }
+
+  /**
+   * Viewer용 특정 상품 상세 정보를 조회합니다.
+   * @param id 상품 ID
+   * @returns 상품 정보
+   */
+  async findOneForViewer(id: string): Promise<Product> {
+    // module-relation-rules에 따라 상세 조회 시 seller 정보 populate
+    const product = await this.productRepository.findOne({ id }, { populate: ['seller'] });
+
+    if (!product) {
+      throw new NotFoundException(`상품 ID ${id}를 찾을 수 없습니다.`);
+    }
+    // if (product.status !== ProductStatus.ACTIVE) { // 예시: 활성화된 상품만 조회 가능하도록
+    //   throw new NotFoundException(`상품 ID ${id}를 찾을 수 없거나 비활성화된 상품입니다.`);
+    // }
+
     return product;
   }
 }
