@@ -1,5 +1,5 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository, EntityManager } from '@mikro-orm/postgresql'; // 또는 사용하는 DB에 맞게
+import { EntityRepository, EntityManager, QueryBuilder } from '@mikro-orm/postgresql'; // 또는 사용하는 DB에 맞게
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 
@@ -8,6 +8,10 @@ import { Broadcast } from './entity/broadcast.entity';
 import { BroadcastProduct } from '../product/entity/broadcast-product.entity';
 import { Product } from '../product/entity/product.entity';
 import { User } from '../user/entity/user.entity';
+import { BroadcastListRequestDto } from '@/api/v2/seller/lives/dto/broadcast-list.request.dto';
+import { BroadcastPagedResponseDto } from '@/api/v2/seller/lives/dto/broadcast-paged-response.dto';
+import { BroadcastListItemDto } from './dto/broadcast-list-item.dto';
+import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 // import { User } from '@/module/user/entity/user.entity'; // User 엔티티가 필요할 경우
 
 @Injectable()
@@ -26,14 +30,16 @@ export class BroadcastService {
   async create(createBroadcastDto: CreateBroadcastDto, seller: User): Promise<Broadcast> {
     // 트랜잭션 시작
     return this.em.transactional(async (em) => {
-      // 방송 생성
-      const broadcast = new Broadcast();
-      broadcast.id = v4();
-      broadcast.title = createBroadcastDto.title;
+      // 방송 생성 - 생성자에 DTO의 scheduledDate 전달
+      const broadcast = new Broadcast(
+        seller,
+        createBroadcastDto.title,
+        createBroadcastDto.scheduledDate, // DTO의 scheduledDate를 생성자에 전달
+      );
+      // 생성자에서 처리되지 않은 추가 속성 설정
+      // broadcast.id = v4(); // BaseEntity가 ID를 처리하도록 함 (필요 시)
       broadcast.description = createBroadcastDto.description;
-      broadcast.scheduledDate = createBroadcastDto.scheduledDate;
       broadcast.thumbnailImage = createBroadcastDto.thumbnailImage;
-      broadcast.seller = seller;
       broadcast.streamKey = `stream-${v4()}`; // 유니크한 스트림 키 생성
       broadcast.isLive = createBroadcastDto.isLive ?? false;
 
@@ -93,9 +99,60 @@ export class BroadcastService {
       { seller: { id: sellerId } },
       {
         populate: ['products.product'],
-        orderBy: { scheduledDate: 'DESC' },
+        orderBy: { scheduledAt: 'DESC' }, // Corrected property name
       },
     );
+  }
+
+  async findSellerBroadcastsPaged(
+    sellerId: string,
+    query: BroadcastListRequestDto,
+  ): Promise<PagedResponseV2<BroadcastListItemDto>> {
+    const { page = 1, limit = 10, keyword, startDate, endDate } = query;
+    const offset = (page - 1) * limit;
+
+    const qb: QueryBuilder<Broadcast> = this.broadcastRepository.createQueryBuilder('b');
+
+    qb.where({ seller: sellerId });
+
+    if (keyword) {
+      qb.andWhere({ title: { $like: `%${keyword}%` } });
+    }
+
+    if (startDate) {
+      qb.andWhere({ scheduledAt: { $gte: new Date(startDate) } });
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setDate(end.getDate() + 1);
+      qb.andWhere({ scheduledAt: { $lt: end } });
+    }
+
+    // Create a separate query for counting before applying offset/limit
+    const countQb = qb.clone();
+
+    // TODO: Add relations to fetch (e.g., products)
+    // qb.leftJoinAndSelect('b.products', 'p');
+
+    qb.orderBy({ scheduledAt: 'DESC' }).offset(offset).limit(limit);
+
+    const broadcasts = await qb.getResultList();
+    const total = await countQb.getCount();
+
+    // TODO: Map broadcasts to BroadcastListItemDto, including product info
+    const items = broadcasts.map(
+      (b) =>
+        new BroadcastListItemDto({
+          id: b.id,
+          title: b.title,
+          thumbnailUrl: b.thumbnailUrl,
+          scheduledAt: b.scheduledAt,
+          products: [], // Placeholder
+        }),
+    );
+
+    return new PagedResponseV2<BroadcastListItemDto>(items, total, page, limit);
   }
 
   // TODO: Update, Delete 메서드 추가

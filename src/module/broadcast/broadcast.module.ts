@@ -1,17 +1,14 @@
-import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Module } from '@nestjs/common';
-
-import { BroadcastService } from './broadcast.service';
+import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Broadcast } from './entity/broadcast.entity';
-import { BroadcastProduct } from '../product/entity/broadcast-product.entity';
-import { Product } from '../product/entity/product.entity';
-// import { UserModule } from '@/module/user/user.module'; // UserService 사용 시 필요
+import { BroadcastService } from './broadcast.service';
+// Import related entities needed for repository injection
+import { Product } from '@/module/product/entity/product.entity';
+import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
 
 @Module({
-  imports: [
-    MikroOrmModule.forFeature([Broadcast, BroadcastProduct, Product]),
-    // UserModule, // UserService 사용 시 필요
-  ],
+  // Register Broadcast, Product, and BroadcastProduct entities
+  imports: [MikroOrmModule.forFeature([Broadcast, Product, BroadcastProduct])],
   providers: [BroadcastService],
   exports: [BroadcastService],
 })

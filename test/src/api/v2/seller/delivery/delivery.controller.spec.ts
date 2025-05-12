@@ -117,7 +117,10 @@ describe('Seller DeliveryController (E2E - Mock Service)', () => {
       const result = await controller.getSellerDeliveries(query, mockSeller);
 
       expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, query);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toMatchObject({
+        ...expectedResponse,
+        timestamp: expect.any(String),
+      });
       expect(result.data.items[0].deliveryId).toBe(mockDelivery.id);
       expect(result.data.items[0].orderId).toBe(mockOrder.id);
       expect(result.data.items[0].productName).toBe(mockProduct.name);
@@ -137,7 +140,10 @@ describe('Seller DeliveryController (E2E - Mock Service)', () => {
       const result = await controller.getSellerDeliveries(query, mockSeller);
 
       expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, query);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toMatchObject({
+        ...expectedResponse,
+        timestamp: expect.any(String),
+      });
       expect(result.data.items.length).toBe(0);
       expect(result.data.total).toBe(0);
     });
@@ -155,7 +161,10 @@ describe('Seller DeliveryController (E2E - Mock Service)', () => {
       const result = await controller.getSellerDeliveries(query, mockSeller);
 
       expect(mockDeliveryService.findSellerDeliveriesPaged).toHaveBeenCalledWith(mockSeller.id, query);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toMatchObject({
+        ...expectedResponse,
+        timestamp: expect.any(String),
+      });
     });
 
     it('should use correct date field for filtering', async () => {

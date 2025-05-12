@@ -18,17 +18,22 @@ import {
   SellerInfoDto,
   SellerLivePageDto,
   SellerProductPageDto,
+  SellerLiveItemDto,
 } from './seller.dto';
+import { BroadcastListItemDto } from '@/module/broadcast/dto/broadcast-list-item.dto';
+import { PagedResponseV2, PagedResponseData } from '@/api/v2/common/base-response.dto';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { NotFoundException } from '@nestjs/common';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { AuthGuard } from '@nestjs/passport';
+import { UserFollowService } from '@/module/user/user-follow.service';
 
 describe('SellerController', () => {
   let controller: SellerController;
   let userService: MockProxy<UserService>;
   let broadcastService: MockProxy<BroadcastService>;
   let productService: MockProxy<ProductService>;
+  let userFollowService: MockProxy<UserFollowService>;
 
   const mockSellerUser = {
     id: 'test-seller-id',
@@ -44,6 +49,7 @@ describe('SellerController', () => {
     userService = mock<UserService>();
     broadcastService = mock<BroadcastService>();
     productService = mock<ProductService>();
+    userFollowService = mock<UserFollowService>();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SellerController],
@@ -51,6 +57,7 @@ describe('SellerController', () => {
         { provide: UserService, useValue: userService },
         { provide: BroadcastService, useValue: broadcastService },
         { provide: ProductService, useValue: productService },
+        { provide: UserFollowService, useValue: userFollowService },
       ],
     })
       .overrideGuard(AuthGuard('jwt'))
@@ -126,51 +133,60 @@ describe('SellerController', () => {
   });
 
   describe('getSellerLives', () => {
-    it('should return a list of seller lives', async () => {
+    it('should return a paged list of seller lives (BroadcastListItemDto)', async () => {
       const sellerId = 'test-seller-id';
-      const query: SellerLiveRequestDto = {};
-      const mockBroadcasts = [
-        {
+      const query = { page: 1, limit: 10 };
+      const mockSeller = { id: sellerId } as User;
+
+      const mockItems: BroadcastListItemDto[] = [
+        new BroadcastListItemDto({
           id: 'b1',
           title: 'Live 1',
-          thumbnailImage: 'img1.jpg',
-          scheduledDate: new Date(),
-          isLive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          seller: mockSellerUser,
+          thumbnailUrl: 'img1.jpg',
+          scheduledAt: new Date(),
           products: [],
-        },
-        {
+        }),
+        new BroadcastListItemDto({
           id: 'b2',
           title: 'Live 2',
-          thumbnailImage: 'img2.jpg',
-          scheduledDate: new Date(),
-          isLive: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          seller: mockSellerUser,
+          thumbnailUrl: 'img2.jpg',
+          scheduledAt: new Date(),
           products: [],
-        },
-      ] as unknown as Broadcast[];
-      broadcastService.findBySellerId.mockResolvedValue(mockBroadcasts);
+        }),
+      ];
 
-      const expectedItems = mockBroadcasts.map((b) => ({
-        id: b.id,
-        title: b.title,
-        thumbnailImage: b.thumbnailImage,
-        viewerCount: 0,
-        startedAt: b.scheduledDate,
-        status: b.isLive ? 'LIVE' : 'SCHEDULED',
-      }));
+      const mockPagedResponse = new PagedResponseV2<BroadcastListItemDto>(
+        mockItems,
+        mockItems.length,
+        query.page,
+        query.limit,
+        '방송 목록 조회 성공',
+      );
 
-      const result = await controller.getSellerLives(sellerId, query);
-      expect(broadcastService.findBySellerId).toHaveBeenCalledWith(sellerId);
+      userService.findOne.mockResolvedValueOnce(mockSeller);
+      broadcastService.findSellerBroadcastsPaged.mockResolvedValueOnce(mockPagedResponse);
+
+      const result: PagedResponseV2<BroadcastListItemDto> = await controller.getSellerLives(sellerId, query);
+
+      expect(userService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(broadcastService.findSellerBroadcastsPaged).toHaveBeenCalledWith(sellerId, query);
+      expect(result).toBeInstanceOf(PagedResponseV2);
       expect(result.success).toBe(true);
-      expect(result.statusCode).toBe(200);
-      expect(result.message).toBe('판매자 라이브 목록입니다.');
-      expect(result.data).toEqual(expectedItems);
+      expect((result.data as PagedResponseData<BroadcastListItemDto>).items).toEqual(mockItems);
+      expect((result.data as PagedResponseData<BroadcastListItemDto>).total).toBe(mockItems.length);
+      expect((result.data as PagedResponseData<BroadcastListItemDto>).page).toBe(query.page);
+      expect((result.data as PagedResponseData<BroadcastListItemDto>).limit).toBe(query.limit);
       expect(result.timestamp).toEqual(expect.any(String));
+    });
+
+    it('should throw NotFoundException if seller does not exist', async () => {
+      const sellerId = 'non-existent-seller';
+      const query = { page: 1, limit: 10 };
+      userService.findOne.mockRejectedValueOnce(new NotFoundException());
+
+      await expect(controller.getSellerLives(sellerId, query)).rejects.toThrow(NotFoundException);
+      expect(userService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(broadcastService.findSellerBroadcastsPaged).not.toHaveBeenCalled();
     });
   });
 

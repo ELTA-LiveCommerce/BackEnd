@@ -1,17 +1,31 @@
-import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
+import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property, ManyToMany } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
 import { User } from '@/module/user/entity/user.entity';
 import { BaseEntity } from '@/shared/entity/base.entity'; // 공통 BaseEntity가 있다면 사용
+import { Product } from '@/module/product/entity/product.entity';
 
 @Entity({ tableName: 'broadcasts' })
 export class Broadcast extends BaseEntity {
-  @PrimaryKey({ type: 'uuid' })
-  id: string = v4();
+  // @PrimaryKey({ type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  // id: string;
 
-  @Property({ type: 'string' })
-  title!: string;
+  @ManyToOne(() => User)
+  seller: User;
+
+  @Property()
+  title: string;
+
+  @Property({ nullable: true })
+  thumbnailUrl?: string;
+
+  // TODO: Define relation with Product, potentially ManyToMany
+  // @ManyToMany(() => Product, product => product.broadcasts, { owner: true })
+  // products = new Collection<Product>(this);
+
+  @Property()
+  scheduledAt: Date;
 
   @Property({ type: 'text', nullable: true })
   description?: string;
@@ -22,21 +36,17 @@ export class Broadcast extends BaseEntity {
   @Property({ type: 'boolean', default: false })
   isLive!: boolean;
 
-  @Property({ type: 'date' })
-  scheduledDate!: Date; // 방송 예정 날짜
-
   @Property({ type: 'string', nullable: true })
   thumbnailImage?: string; // 대표 이미지 URL
-
-  // User (Seller)와의 관계 설정
-  @ManyToOne(() => User)
-  seller!: User;
 
   // BroadcastProduct와의 관계 설정 (방송에 연결된 상품)
   @OneToMany(() => BroadcastProduct, (broadcastProduct) => broadcastProduct.broadcast, { orphanRemoval: true })
   products = new Collection<BroadcastProduct>(this);
 
-  constructor() {
+  constructor(seller: User, title: string, scheduledAt: Date) {
     super();
+    this.seller = seller;
+    this.title = title;
+    this.scheduledAt = scheduledAt;
   }
 }

@@ -91,6 +91,7 @@ export class SellerLiveItemDto {
   viewerCount: number;
   startedAt: Date;
   status: string;
+  isLive: boolean;
 
   static fromEntity(broadcast: Broadcast): SellerLiveItemDto {
     const dto = new SellerLiveItemDto();
@@ -98,7 +99,8 @@ export class SellerLiveItemDto {
     dto.title = broadcast.title;
     dto.thumbnailImage = broadcast.thumbnailImage;
     dto.viewerCount = 0; // 실제 구현 필요
-    dto.startedAt = broadcast.scheduledDate;
+    dto.isLive = broadcast.isLive;
+    dto.startedAt = broadcast.scheduledAt;
     dto.status = broadcast.isLive ? 'LIVE' : 'SCHEDULED';
     return dto;
   }

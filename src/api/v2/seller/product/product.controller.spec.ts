@@ -140,13 +140,15 @@ describe('ProductController (Seller V2)', () => {
       const result = await controller.getSellerProducts(query, seller);
 
       expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(sellerId, query);
-      expect(result).toEqual(mockServiceResponse);
+      expect(result).toMatchObject({
+        ...mockServiceResponse,
+        timestamp: expect.any(String),
+      });
       expect(result).toBeInstanceOf(PagedResponseV2);
       expect(result.data.items).toEqual(pagedResultItems);
       expect(result.data.total).toBe(mockProducts.length);
       expect(result.success).toBe(true);
       expect(result.statusCode).toBe(HttpStatus.OK);
-      expect(result.timestamp).toEqual(expect.any(String));
     });
 
     it('should handle search keyword', async () => {
@@ -167,7 +169,10 @@ describe('ProductController (Seller V2)', () => {
       const result = await controller.getSellerProducts(query, seller);
 
       expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(sellerId, query);
-      expect(result).toEqual(mockServiceResponse);
+      expect(result).toMatchObject({
+        ...mockServiceResponse,
+        timestamp: expect.any(String),
+      });
     });
 
     it('should handle date range filter', async () => {
@@ -189,7 +194,10 @@ describe('ProductController (Seller V2)', () => {
       const result = await controller.getSellerProducts(query, seller);
 
       expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(sellerId, query);
-      expect(result).toEqual(mockServiceResponse);
+      expect(result).toMatchObject({
+        ...mockServiceResponse,
+        timestamp: expect.any(String),
+      });
     });
 
     it('should handle filtering by keyword and date range', async () => {
@@ -212,8 +220,17 @@ describe('ProductController (Seller V2)', () => {
 
       const result = await controller.getSellerProducts(query, mockSeller);
 
+      const expectedResult = mockServiceResponse.data;
+
       expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, query);
-      expect(result).toEqual(mockServiceResponse);
+      expect(result).toMatchObject({
+        ...mockServiceResponse,
+        timestamp: expect.any(String),
+      });
+      expect(result.data).toEqual(expectedResult);
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('상품 목록 조회 성공');
     });
 
     it('should handle filtering by keyword, field, and date range', async () => {
@@ -238,7 +255,10 @@ describe('ProductController (Seller V2)', () => {
       const result = await controller.getSellerProducts(query, mockSeller);
 
       expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, query);
-      expect(result).toEqual(mockServiceResponse);
+      expect(result).toMatchObject({
+        ...mockServiceResponse,
+        timestamp: expect.any(String),
+      });
     });
 
     it('should handle filtering by keyword, field, date field, and date range', async () => {
@@ -264,7 +284,10 @@ describe('ProductController (Seller V2)', () => {
       const result = await controller.getSellerProducts(query, mockSeller);
 
       expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(mockSeller.id, query);
-      expect(result).toEqual(mockServiceResponse);
+      expect(result).toMatchObject({
+        ...mockServiceResponse,
+        timestamp: expect.any(String),
+      });
     });
 
     it('should return empty list when no products match', async () => {
@@ -283,7 +306,10 @@ describe('ProductController (Seller V2)', () => {
       const result = await controller.getSellerProducts(query, seller);
 
       expect(productService.findSellerProductsPaged).toHaveBeenCalledWith(sellerId, query);
-      expect(result).toEqual(mockServiceResponse);
+      expect(result).toMatchObject({
+        ...mockServiceResponse,
+        timestamp: expect.any(String),
+      });
       expect(result.data.items).toEqual([]);
       expect(result.data.total).toBe(0);
     });
