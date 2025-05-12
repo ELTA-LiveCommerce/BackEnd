@@ -340,4 +340,24 @@ export class UserService {
     // 결과 조회
     return await queryBuilder.getResult();
   }
+
+  /**
+   * 회원 탈퇴 처리
+   * @param userId - 탈퇴할 사용자의 ID
+   */
+  async withdrawUser(userId: string): Promise<void> {
+    const user = await this.userRepository.findOne({ id: userId });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found.`);
+    }
+
+    // 사용자 삭제 (MikroORM에서는 soft-delete가 기본적으로 활성화되어 있을 수 있음)
+    // 엔티티에 @UseSoftDelete() 데코레이터가 있거나 글로벌 필터로 설정된 경우 removeAndFlush가 soft delete 수행
+    await this.userRepository.removeAndFlush(user);
+
+    // TODO: 관련된 다른 데이터 정리 로직 추가 (예: 게시글, 댓글 등)
+    // 예를 들어, 사용자가 작성한 게시글 처리, 팔로우 관계 해제 등
+    // this.postService.handleUserWithdrawal(userId);
+    // this.followService.handleUserWithdrawal(userId);
+  }
 }

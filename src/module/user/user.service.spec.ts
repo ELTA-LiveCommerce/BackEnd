@@ -2,6 +2,7 @@ import { EntityManager } from '@mikro-orm/core';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
+import { NotFoundException } from '@nestjs/common';
 
 import { AutocompleteDto } from '@/module/user/dto/autocomplete.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -59,9 +60,16 @@ describe('UserService', () => {
     };
 
     mockUserRepository = {
+      removeAndFlush: jest.fn().mockResolvedValue(undefined),
       findOne: jest.fn().mockImplementation((criteria) => {
-        const user = mockUsers.find((u) => u.id === criteria.id);
-        return Promise.resolve(user || null);
+        const userId = criteria.id;
+        const user = mockUsers.find((u) => u.id === userId);
+        if (user) {
+          const userInstance = new User();
+          Object.assign(userInstance, user);
+          return Promise.resolve(userInstance);
+        }
+        return Promise.resolve(null);
       }),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
     };
@@ -295,6 +303,38 @@ describe('UserService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe(mockUsers[0].name);
+    });
+  });
+
+  describe('withdrawUser', () => {
+    const userId = 'user-id-1';
+
+    it('should call findOne and removeAndFlush when user exists', async () => {
+      const mockUserInstance = new User();
+      Object.assign(
+        mockUserInstance,
+        mockUsers.find((u) => u.id === userId),
+      );
+      mockUserRepository.findOne.mockResolvedValueOnce(mockUserInstance);
+      mockUserRepository.removeAndFlush.mockClear();
+
+      await service.withdrawUser(userId);
+
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: userId });
+      expect(mockUserRepository.removeAndFlush).toHaveBeenCalledWith(mockUserInstance);
+    });
+
+    it('should throw NotFoundException when user does not exist', async () => {
+      const nonExistentUserId = 'non-existent-id';
+      mockUserRepository.findOne.mockResolvedValueOnce(null);
+      mockUserRepository.removeAndFlush.mockClear();
+
+      await expect(service.withdrawUser(nonExistentUserId)).rejects.toThrow(
+        new NotFoundException(`User with ID ${nonExistentUserId} not found.`),
+      );
+
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: nonExistentUserId });
+      expect(mockUserRepository.removeAndFlush).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,7 +1,8 @@
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BaseRepository } from '@/shared/common/base.repository';
-import { EntityRepository, EntityManager } from '@mikro-orm/core';
+import { EntityRepository } from '@mikro-orm/core';
+import { EntityManager } from '@mikro-orm/postgresql';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { Loaded } from '@mikro-orm/core';
