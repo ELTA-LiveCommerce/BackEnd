@@ -1,4 +1,17 @@
-import { Body, Controller, Post, Put, Param, UseGuards, ParseUUIDPipe, HttpStatus, Get, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Put,
+  Param,
+  UseGuards,
+  ParseUUIDPipe,
+  HttpStatus,
+  Get,
+  Query,
+  Delete,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiCreatedResponse, ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
@@ -19,6 +32,7 @@ import {
   SellerProductListItemDto,
 } from './product.response.dto';
 import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
+import { CurrentUser } from '@/shared/common/decorators/current-user.decorator';
 
 @ApiTags('v2/seller/products')
 @ApiBearerAuth()
@@ -65,5 +79,12 @@ export class ProductController {
     const product = await this.productService.updateSellerProduct(seller.id, productId, updateDto);
     const responseBody = SellerProductResponseBodyDto.fromEntity(product);
     return BaseResponseV2.success(responseBody, '상품 정보가 성공적으로 수정되었습니다.');
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '판매자 상품 삭제' })
+  async remove(@Param('id') id: string, @CurrentUser() seller: User): Promise<void> {
+    await this.productService.remove(id, seller);
   }
 }

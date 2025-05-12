@@ -288,4 +288,25 @@ describe('ProductController (Seller V2)', () => {
       expect(result.data.total).toBe(0);
     });
   });
+
+  describe('remove', () => {
+    it('should call productService.remove with correct parameters and return void', async () => {
+      const productId = 'test-product-id';
+      const seller = new User();
+      seller.id = 'seller-id';
+      seller.role = UserRole.SELLER;
+
+      productService.remove.mockResolvedValue(undefined); // ProductService.remove는 void를 반환하거나 아무것도 반환하지 않음
+
+      // HttpCode(HttpStatus.NO_CONTENT) 이므로 undefined를 기대
+      await expect(controller.remove(productId, seller)).resolves.toBeUndefined();
+
+      expect(productService.remove).toHaveBeenCalledWith(productId, seller);
+      expect(productService.remove).toHaveBeenCalledTimes(1);
+    });
+
+    // ProductService.remove에서 발생할 수 있는 예외 (e.g., ForbiddenException, NotFoundException)에 대한 테스트는
+    // ProductService의 단위 테스트에서 다루어져야 합니다.
+    // 컨트롤러는 서비스의 예외를 그대로 전달하는 역할을 주로 합니다.
+  });
 });
