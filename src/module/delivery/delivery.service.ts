@@ -235,27 +235,62 @@ export class DeliveryService {
 
     // 배송 상태 업데이트 시 날짜 자동 설정
     if (updateDeliveryDto.status) {
-      if (updateDeliveryDto.status === DeliveryStatus.SHIPPING && delivery.status !== DeliveryStatus.SHIPPING) {
-        delivery.shippedAt = new Date();
-      } else if (
-        updateDeliveryDto.status === DeliveryStatus.DELIVERED &&
-        delivery.status !== DeliveryStatus.DELIVERED
-      ) {
-        delivery.deliveredAt = new Date();
-      } else if (updateDeliveryDto.status === DeliveryStatus.CANCELED && delivery.status !== DeliveryStatus.CANCELED) {
-        delivery.canceledAt = new Date();
-      }
+      this.updateStatusTimestamps(delivery, updateDeliveryDto.status);
     }
 
     // assign 메서드로 객체 복사 (MikroORM 방식)
     this.entityManager.assign(delivery, updateDeliveryDto);
     await this.entityManager.flush();
+    return delivery;
+  }
+
+  /**
+   * 배송 송장 정보를 업데이트합니다.
+   */
+  async updateTrackingInfo(
+    id: string,
+    trackingNumber: string,
+    courierCompany: string | undefined,
+    user: User,
+  ): Promise<Delivery> {
+    const delivery = await this.findOne(id);
+
+    // 판매자 권한 확인
+    if (delivery.seller.id !== user.id && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('You do not have permission to update this delivery information');
+    }
+
+    delivery.trackingNumber = trackingNumber;
+    if (courierCompany !== undefined) {
+      delivery.courierCompany = courierCompany;
+    }
+
+    await this.entityManager.flush();
+    return delivery;
+  }
+
+  /**
+   * 배송 상태를 업데이트합니다.
+   */
+  async updateDeliveryStatus(id: string, status: DeliveryStatus, user: User): Promise<Delivery> {
+    const delivery = await this.findOne(id);
+
+    // 판매자 권한 확인
+    if (delivery.seller.id !== user.id && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('You do not have permission to update this delivery information');
+    }
+
+    if (delivery.status !== status) {
+      this.updateStatusTimestamps(delivery, status);
+      delivery.status = status;
+      await this.entityManager.flush();
+    }
 
     return delivery;
   }
 
   /**
-   * 배송 정보를 삭제합니다.
+   * ID로 배송 정보를 삭제합니다.
    */
   async remove(id: string, user: User): Promise<void> {
     const delivery = await this.findOne(id);
@@ -265,41 +300,33 @@ export class DeliveryService {
       throw new ForbiddenException('You do not have permission to delete this delivery information');
     }
 
-    await this.deliveryRepository.nativeDelete({ id });
+    await this.entityManager.removeAndFlush(delivery);
   }
 
   /**
-   * 배송 상태 일괄 변경
+   * 여러 배송 정보의 상태를 일괄 업데이트합니다.
    */
   async updateStatus(ids: string[], status: DeliveryStatus, user: User): Promise<void> {
-    // 배송 정보 조회
     const deliveries = await this.deliveryRepository.find({ id: { $in: ids } });
 
-    if (deliveries.length === 0) {
-      throw new NotFoundException('선택한 배송 정보를 찾을 수 없습니다');
+    if (deliveries.length !== ids.length) {
+      const foundIds = deliveries.map((d) => d.id);
+      const notFoundIds = ids.filter((id) => !foundIds.includes(id));
+      throw new NotFoundException(`Deliveries with IDs ${notFoundIds.join(', ')} not found`);
     }
 
-    // 모든 배송이 해당 판매자/관리자의 것인지 확인
-    const hasPermission = deliveries.every(
-      (delivery) => delivery.seller.id === user.id || user.role === UserRole.ADMIN,
-    );
-
-    if (!hasPermission) {
-      throw new ForbiddenException('일부 배송 정보에 대한 수정 권한이 없습니다');
+    // 판매자 권한 확인
+    if (user.role !== UserRole.ADMIN) {
+      const unauthorized = deliveries.some((d) => d.seller.id !== user.id);
+      if (unauthorized) {
+        throw new ForbiddenException('You do not have permission to update one or more of these deliveries');
+      }
     }
 
-    // 상태 및 날짜 업데이트
-    const now = new Date();
     for (const delivery of deliveries) {
-      delivery.status = status;
-
-      // 상태에 따른 날짜 업데이트
-      if (status === DeliveryStatus.SHIPPING) {
-        delivery.shippedAt = now;
-      } else if (status === DeliveryStatus.DELIVERED) {
-        delivery.deliveredAt = now;
-      } else if (status === DeliveryStatus.CANCELED) {
-        delivery.canceledAt = now;
+      if (delivery.status !== status) {
+        this.updateStatusTimestamps(delivery, status);
+        delivery.status = status;
       }
     }
 
@@ -412,17 +439,27 @@ export class DeliveryService {
   }
 
   private getDateColumn(dateField?: SellerDeliveryDateField): string | null {
+    if (!dateField) return null;
+
     switch (dateField) {
       case SellerDeliveryDateField.ORDER_DATE:
-        return 'o.createdAt';
-      case SellerDeliveryDateField.PAYMENT_DATE:
-        return 'o.paidAt';
+        return 'd.createdAt'; // Delivery 생성 시점을 기준으로 변경
       case SellerDeliveryDateField.DELIVERY_START_DATE:
         return 'd.shippedAt';
       case SellerDeliveryDateField.DELIVERY_COMPLETED_DATE:
         return 'd.deliveredAt';
       default:
-        return 'o.createdAt'; // Default sort/filter by order date
+        return null;
+    }
+  }
+
+  private updateStatusTimestamps(delivery: Delivery, newStatus: DeliveryStatus): void {
+    if (newStatus === DeliveryStatus.SHIPPING && delivery.status !== DeliveryStatus.SHIPPING) {
+      delivery.shippedAt = new Date();
+    } else if (newStatus === DeliveryStatus.DELIVERED && delivery.status !== DeliveryStatus.DELIVERED) {
+      delivery.deliveredAt = new Date();
+    } else if (newStatus === DeliveryStatus.CANCELED && delivery.status !== DeliveryStatus.CANCELED) {
+      delivery.canceledAt = new Date();
     }
   }
 }

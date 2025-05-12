@@ -64,3 +64,64 @@ export class SellerDeliveryListItemDto {
 export class SellerDeliveryListResponseDto extends PagedResponseV2<SellerDeliveryListItemDto> {
   // PagedResponseV2.create 사용
 }
+
+export class DeliveryDetailResponseDto {
+  @ApiProperty({ description: '배송 ID', example: 'delivery-uuid-789' })
+  deliveryId: string;
+
+  @ApiProperty({ description: '주문 ID', example: 'order-uuid-123' })
+  orderId: string;
+
+  // 주문자 정보는 필요시 추가 (예: order.user.loginId)
+
+  @ApiProperty({ description: '수령인 이름', example: '김배송' })
+  recipientName: string;
+
+  @ApiProperty({ description: '수령인 전화번호', example: '010-1234-5678' })
+  recipientPhoneNumber: string;
+
+  @ApiProperty({ description: '배송 주소', example: '서울시 강남구 테헤란로 123' })
+  address: string;
+
+  @ApiProperty({ description: '배송 상태', enum: DeliveryStatus, example: DeliveryStatus.PREPARING })
+  deliveryStatus: DeliveryStatus;
+
+  @ApiProperty({ description: '송장번호', example: '1234567890', required: false })
+  trackingNumber?: string;
+
+  @ApiProperty({ description: '택배사', example: 'CJ대한통운', required: false })
+  courierCompany?: string;
+
+  @ApiProperty({ description: '배송 시작일시', required: false })
+  shippedAt?: Date;
+
+  @ApiProperty({ description: '배송 완료일시', required: false })
+  deliveredAt?: Date;
+
+  @ApiProperty({ description: '배송 취소일시', required: false })
+  canceledAt?: Date;
+
+  @ApiProperty({ description: '생성일시' })
+  createdAt: Date;
+
+  @ApiProperty({ description: '수정일시' })
+  updatedAt: Date;
+
+  static fromEntity(delivery: Delivery): DeliveryDetailResponseDto {
+    const dto = new DeliveryDetailResponseDto();
+    dto.deliveryId = delivery.id;
+    dto.orderId = delivery.order.id; // Reference 사용
+    dto.recipientName = delivery.recipientName;
+    dto.recipientPhoneNumber = delivery.recipientPhoneNumber;
+    dto.address = delivery.address;
+    dto.deliveryStatus = delivery.status;
+    dto.trackingNumber = delivery.trackingNumber;
+    dto.courierCompany = delivery.courierCompany;
+    dto.shippedAt = delivery.shippedAt;
+    dto.deliveredAt = delivery.deliveredAt;
+    dto.canceledAt = delivery.canceledAt;
+    dto.createdAt = delivery.createdAt;
+    dto.updatedAt = delivery.updatedAt;
+    return dto;
+  }
+}
