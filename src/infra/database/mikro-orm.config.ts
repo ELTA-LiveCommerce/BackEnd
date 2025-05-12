@@ -18,8 +18,10 @@ import { Refund } from '@/module/payment/entity/refund.entity';
 import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
 import { Product } from '@/module/product/entity/product.entity';
 import { Follow } from '@/module/user/entity/follow.entity';
-import { ShippingAddress } from '@/module/user/entity/shipping-address.entity';
+// import { ShippingAddress } from '@/module/user/entity/shipping-address.entity';
 import { User } from '@/module/user/entity/user.entity';
+// import { UserFollow } from '@/module/user/entity/user-follow.entity'; // Remove unintended import
+// import { UserBlock } from '@/module/user/entity/user-block.entity'; // Remove unintended import
 
 // MikroOrmOptions 타입 정의 제거 또는 주석 처리 (MikroOrmModuleOptions 사용)
 
@@ -43,8 +45,10 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
     BroadcastProduct,
     Product,
     Follow,
-    ShippingAddress,
+    // ShippingAddress, // Remove from entities array
     User,
+    // UserFollow, // Remove unintended entity
+    // UserBlock, // Remove unintended entity
   ];
 
   // config 객체의 타입도 다시 any로 변경

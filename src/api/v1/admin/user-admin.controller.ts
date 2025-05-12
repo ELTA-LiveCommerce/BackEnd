@@ -1,50 +1,43 @@
-import { Body, Controller, Delete, Get, Param, Put, Query, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Body, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
-import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '@/module/auth/guards/roles.guard';
-import { UpdateUserStatusDto } from '@/module/user/dto/update-user-status.dto';
-import { UserSearchDto } from '@/module/user/dto/user-search.dto';
-import { User } from '@/module/user/entity/user.entity';
 import { UserService } from '@/module/user/user.service';
-import { Roles } from '@/shared/common/roles.decorator';
+import { User } from '@/module/user/entity/user.entity';
+// import { UpdateUserStatusDto } from '@/module/user/dto/update-user-status.dto';
+import { GetUsersDto } from '@/module/user/dto/get-users.dto';
+import { RolesGuard } from '@/module/auth/guards/roles.guard';
+import { Roles } from '@/shared/common/decorators/roles.decorator';
 import { UserRole } from '@/shared/enum/user-role.enum';
+import { AuthGuard } from '@nestjs/passport';
 
-@Controller('v1/admin/users')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiTags('Admin - Users')
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.ADMIN)
+@Controller('v1/admin/users')
 export class UserAdminController {
   constructor(private readonly userService: UserService) {}
 
-  /**
-   * 회원 목록 조회 (검색, 필터링, 페이지네이션 기능 포함)
-   */
   @Get()
-  async findAll(@Query() searchDto: UserSearchDto) {
-    return this.userService.searchForAdmin(searchDto);
+  @ApiOperation({ summary: '모든 사용자 목록 조회 (관리자)' })
+  async findAll(@Query() getUsersDto: GetUsersDto): Promise<{ users: User[]; total: number }> {
+    return this.userService.findAllAdmin(getUsersDto);
   }
 
-  /**
-   * 회원 상세 정보 조회
-   */
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<User> {
-    return this.userService.findOne(id);
+  @ApiOperation({ summary: '특정 사용자 정보 조회 (관리자)' })
+  async findOne(@Param('id') id: string): Promise<User | null> {
+    return this.userService.findOneAdmin(id);
   }
 
-  /**
-   * 회원 상태 변경 (정상/차단)
-   */
-  @Put(':id/status')
-  async updateStatus(@Param('id') id: string, @Body() statusDto: UpdateUserStatusDto): Promise<User> {
-    return this.userService.updateStatus(id, statusDto);
-  }
+  // @Patch(':id/status')
+  // @ApiOperation({ summary: '사용자 상태 변경 (관리자)' })
+  // async updateStatus(
+  //   @Param('id') id: string,
+  //   @Body() statusDto: UpdateUserStatusDto,
+  // ): Promise<User> {
+  //   return this.userService.updateStatus(id, statusDto);
+  // }
 
-  /**
-   * 회원 삭제 (비활성화)
-   */
-  @Delete(':id')
-  async remove(@Param('id') id: string): Promise<{ success: boolean }> {
-    const result = await this.userService.deleteUser(id);
-    return { success: result };
-  }
+  // TODO: Add endpoints for deleting users, updating roles, etc. (Admin only)
 }

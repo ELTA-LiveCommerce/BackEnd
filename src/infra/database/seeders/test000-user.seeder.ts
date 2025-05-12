@@ -1,8 +1,6 @@
-import { EntityManager, IDatabaseDriver } from '@mikro-orm/core';
+import { EntityManager } from '@mikro-orm/core';
 import { Seeder } from '@mikro-orm/seeder';
-import { v4 } from 'uuid';
-
-import { UserStatus } from '../../../module/user/dto/update-user-status.dto';
+import * as bcrypt from 'bcrypt';
 import { User } from '../../../module/user/entity/user.entity';
 import { UserRole } from '../../../shared/enum/user-role.enum';
 
@@ -10,86 +8,76 @@ import { UserRole } from '../../../shared/enum/user-role.enum';
  * 테스트용 사용자 데이터를 생성하는 시더
  */
 export class Test000UserSeeder extends Seeder {
-  async run(em: EntityManager<IDatabaseDriver>): Promise<void> {
-    const now = new Date();
+  async run(em: EntityManager): Promise<void> {
+    const saltRounds = 10;
+    const password = await bcrypt.hash('test1234', saltRounds);
 
-    // 관리자 생성
-    const admin = em.create(User, {
-      id: v4(),
-      email: 'admin@example.com',
-      password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
+    const adminUser = em.create(User, {
+      id: 'test-admin-uuid',
+      loginId: 'admin@example.com',
+      password: password,
       name: '관리자',
       role: UserRole.ADMIN,
       isVerified: true,
-      status: UserStatus.ACTIVE,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
-    // 판매자 생성
-    const seller = em.create(User, {
-      id: v4(),
-      email: 'seller@example.com',
-      password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
-      name: '판매자',
+    const sellerUser = em.create(User, {
+      id: 'test-seller-uuid',
+      loginId: 'seller@example.com',
+      password: password,
+      name: '판매자일',
       role: UserRole.SELLER,
       isVerified: true,
-      status: UserStatus.ACTIVE,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
-    // 일반 사용자 생성
-    const viewer = em.create(User, {
-      id: v4(),
-      email: 'viewer@example.com',
-      password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
-      name: '일반 사용자',
+    const viewerUser = em.create(User, {
+      id: 'test-viewer-uuid',
+      loginId: 'viewer@example.com',
+      password: password,
+      name: '구매자일',
       role: UserRole.VIEWER,
       isVerified: true,
-      status: UserStatus.ACTIVE,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
-    // 추가 테스트 사용자들
     const testViewer = em.create(User, {
-      id: v4(),
-      email: 'test-viewer@example.com',
-      password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
-      name: '테스트 뷰어',
+      id: 'test-viewer-uuid-for-follow',
+      loginId: 'test-viewer@example.com',
+      password: password,
+      name: '팔로우 테스트 구매자',
       role: UserRole.VIEWER,
       isVerified: true,
-      status: UserStatus.ACTIVE,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     const testSeller = em.create(User, {
-      id: v4(),
-      email: 'test-seller@example.com',
-      password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
-      name: '테스트 판매자',
+      id: 'test-seller-uuid-for-follow',
+      loginId: 'test-seller@example.com',
+      password: password,
+      name: '팔로우 테스트 판매자',
       role: UserRole.SELLER,
       isVerified: true,
-      status: UserStatus.ACTIVE,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     const testProfileViewer = em.create(User, {
-      id: v4(),
-      email: 'test-profile-viewer@example.com',
-      password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
-      name: '프로필 테스트 사용자',
+      id: 'test-profile-viewer-uuid',
+      loginId: 'test-profile-viewer@example.com',
+      password: password,
+      name: '프로필 테스트 구매자',
       role: UserRole.VIEWER,
       isVerified: true,
-      status: UserStatus.ACTIVE,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
-    // 엔티티 저장
-    em.persistAndFlush([admin, seller, viewer, testViewer, testSeller, testProfileViewer]);
+    await em.persistAndFlush([adminUser, sellerUser, viewerUser, testViewer, testSeller, testProfileViewer]);
   }
 }

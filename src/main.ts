@@ -1,14 +1,14 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 import { join } from 'path';
 
 import { AppModule } from './app.module';
 import { initDatabase } from './database';
-import { HttpExceptionFilter } from './shared/filter';
-import { swagger } from './swagger';
+import { HttpExceptionFilter } from './shared/filter/http-exception.filter';
+import { setupSwagger } from './infra/swagger/swagger.config';
 
 const logger = new Logger('Bootstrap');
 
@@ -34,7 +34,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: true,
-    methods: 'GET,PUT,PATCH,POST,DELETE',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
@@ -43,6 +43,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      forbidNonWhitelisted: true,
       transform: true,
       transformOptions: {
         enableImplicitConversion: true,
@@ -50,12 +51,17 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalFilters(new HttpExceptionFilter());
+  // Swagger
+  setupSwagger(app);
+
+  // Global Filters
+  const httpAdapterHost = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
 
   app.useBodyParser('json', { limit: '2gb' });
 
   if (NODE_ENV === 'development') {
-    await swagger(app);
+    await setupSwagger(app);
   }
 
   await app.listen(servicePort);

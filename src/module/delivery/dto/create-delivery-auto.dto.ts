@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsArray } from 'class-validator';
+import { IsNotEmpty, IsString, IsArray, IsOptional } from 'class-validator';
 
 /**
  * 자동 배송 생성을 위한 DTO
@@ -21,14 +21,29 @@ export class CreateDeliveryAutoDto {
   /**
    * 상품 ID 목록
    */
+  @IsNotEmpty()
   @IsArray()
   @IsString({ each: true })
   productIds: string[];
 
   /**
-   * 배송지 주소
+   * 수령인 이름
    */
   @IsNotEmpty()
   @IsString()
-  shippingAddress: string;
+  recipientName: string;
+
+  /**
+   * 수령인 전화번호
+   */
+  @IsNotEmpty()
+  @IsString()
+  recipientPhoneNumber: string;
+
+  /**
+   * 주소 필드 통합
+   */
+  @IsNotEmpty()
+  @IsString()
+  address: string;
 }

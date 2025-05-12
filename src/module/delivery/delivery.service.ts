@@ -1,7 +1,8 @@
-import { EntityRepository } from '@mikro-orm/core';
+import { EntityRepository, Reference, Loaded } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { SqlEntityManager } from '@mikro-orm/postgresql';
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { QueryOrderMap } from '@mikro-orm/core';
 
 import { UserRole } from '@/shared/enum/user-role.enum';
 
@@ -13,13 +14,23 @@ import { Delivery, DeliveryStatus } from './entity/delivery.entity';
 import { Order } from '../order/entity/order.entity';
 import { Product } from '../product/entity/product.entity';
 import { User } from '../user/entity/user.entity';
+import { SellerDeliveryListRequestDto } from '@/api/v2/seller/delivery/delivery.request.dto';
+import { SellerDeliverySearchField } from '@/api/v2/seller/delivery/delivery-search-field.enum';
+import { SellerDeliveryDateField } from '@/api/v2/seller/delivery/delivery-date-field.enum';
+import { OrderItem } from '@/module/order/entity/order-item.entity';
 
 @Injectable()
 export class DeliveryService {
+  private readonly logger = new Logger(DeliveryService.name);
+
   constructor(
     @InjectRepository(Delivery)
     private deliveryRepository: EntityRepository<Delivery>,
     private readonly entityManager: SqlEntityManager,
+    @InjectRepository(Order)
+    private readonly orderRepository: EntityRepository<Order>,
+    @InjectRepository(OrderItem)
+    private readonly orderItemRepository: EntityRepository<OrderItem>,
   ) {}
 
   /**
@@ -43,13 +54,15 @@ export class DeliveryService {
     delivery.order = order;
     delivery.seller = seller;
     delivery.status = DeliveryStatus.PREPARING;
-    delivery.shippingAddress = createDeliveryAutoDto.shippingAddress;
+    delivery.recipientName = createDeliveryAutoDto.recipientName;
+    delivery.recipientPhoneNumber = createDeliveryAutoDto.recipientPhoneNumber;
+    delivery.address = createDeliveryAutoDto.address;
 
     // 상품이 여러 개인 경우 대표 상품으로 첫 번째 상품을 설정
     if (createDeliveryAutoDto.productIds.length > 0) {
       const product = await this.entityManager.findOne(Product, { id: createDeliveryAutoDto.productIds[0] });
       if (product) {
-        delivery.product = product;
+        this.logger.debug(`Representative product ${product.id} found for delivery, but not directly linked.`);
       }
     }
 
@@ -68,27 +81,29 @@ export class DeliveryService {
     }
 
     // 상품 확인
-    const product = await this.entityManager.findOne(Product, { id: createDeliveryDto.productId });
-    if (!product) {
-      throw new NotFoundException(`Product with ID ${createDeliveryDto.productId} not found`);
-    }
+    // const product = await this.entityManager.findOne(Product, { id: createDeliveryDto.productId });
+    // if (!product) {
+    //   throw new NotFoundException(`Product with ID ${createDeliveryDto.productId} not found`);
+    // }
 
     // 판매자 권한 확인
-    const isSellerProduct = order.items
-      .getItems()
-      .some((item) => item.product?.id === createDeliveryDto.productId && item.product?.seller?.id === user.id);
-    if (!isSellerProduct && user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('You do not have permission to create delivery for this order');
-    }
+    // const isSellerProduct = order.items
+    //   .getItems()
+    //   .some((item) => item.product?.id === createDeliveryDto.productId && item.product?.seller?.id === user.id);
+    // if (!isSellerProduct && user.role !== UserRole.ADMIN) {
+    //   throw new ForbiddenException('You do not have permission to create delivery for this order');
+    // }
 
     const delivery = new Delivery();
     delivery.order = order;
-    delivery.product = product;
+    // delivery.product = product; // 제거
     delivery.seller = user;
     delivery.status = createDeliveryDto.status || DeliveryStatus.PREPARING;
     delivery.trackingNumber = createDeliveryDto.trackingNumber;
     delivery.courierCompany = createDeliveryDto.courierCompany;
-    delivery.shippingAddress = createDeliveryDto.shippingAddress;
+    delivery.recipientName = createDeliveryDto.recipientName;
+    delivery.recipientPhoneNumber = createDeliveryDto.recipientPhoneNumber;
+    delivery.address = createDeliveryDto.address;
 
     // 배송 상태에 따라 날짜 설정
     if (delivery.status === DeliveryStatus.SHIPPING) {
@@ -110,15 +125,12 @@ export class DeliveryService {
   async findAll(user: User): Promise<Delivery[]> {
     if (user.role === UserRole.ADMIN) {
       return this.deliveryRepository.findAll({
-        populate: ['order', 'order.items', 'order.user', 'product', 'seller'],
+        populate: ['order', 'order.user', 'seller'],
       });
     }
 
     // 판매자인 경우 자신의 상품 배송만 조회
-    return this.deliveryRepository.find(
-      { seller: user },
-      { populate: ['order', 'order.items', 'order.user', 'product', 'seller'] },
-    );
+    return this.deliveryRepository.find({ seller: user }, { populate: ['order', 'order.user', 'seller'] });
   }
 
   /**
@@ -157,18 +169,15 @@ export class DeliveryService {
     const qb = this.entityManager.createQueryBuilder(Delivery, 'd');
     qb.where(where)
       .leftJoinAndSelect('d.order', 'order')
-      .leftJoinAndSelect('order.items', 'items')
       .leftJoinAndSelect('order.user', 'user')
-      .leftJoinAndSelect('d.product', 'product')
       .leftJoinAndSelect('d.seller', 'seller')
       .orderBy({ 'd.createdAt': 'DESC' });
 
     // 키워드 검색
     if (searchDto.keyword) {
-      qb.andWhere(
-        '(product.name LIKE :keyword OR user.username LIKE :keyword OR user.name LIKE :keyword OR d.trackingNumber LIKE :keyword)',
-        { keyword: `%${searchDto.keyword}%` } as any,
-      );
+      qb.andWhere('(user.username LIKE :keyword OR user.name LIKE :keyword OR d.trackingNumber LIKE :keyword)', {
+        keyword: `%${searchDto.keyword}%`,
+      } as any);
     }
 
     return qb.getResult();
@@ -178,7 +187,11 @@ export class DeliveryService {
    * 특정 주문의 배송 정보를 조회합니다.
    */
   async findByOrder(orderId: string, user: User): Promise<Delivery[]> {
-    const order = await this.entityManager.findOne(Order, { id: orderId }, { populate: ['items'] });
+    const order = await this.entityManager.findOne(
+      Order,
+      { id: orderId },
+      { populate: ['items.product.seller', 'user'] },
+    );
     if (!order) {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
@@ -193,20 +206,14 @@ export class DeliveryService {
       }
     }
 
-    return this.deliveryRepository.find(
-      { order },
-      { populate: ['order', 'order.items', 'order.user', 'product', 'seller'] },
-    );
+    return this.deliveryRepository.find({ order }, { populate: ['order', 'order.user', 'seller'] });
   }
 
   /**
    * ID로 배송 정보를 조회합니다.
    */
   async findOne(id: string): Promise<Delivery> {
-    const delivery = await this.deliveryRepository.findOne(
-      { id },
-      { populate: ['order', 'order.items', 'order.user', 'product', 'seller'] },
-    );
+    const delivery = await this.deliveryRepository.findOne({ id }, { populate: ['order', 'order.user', 'seller'] });
 
     if (!delivery) {
       throw new NotFoundException(`Delivery with ID ${id} not found`);
@@ -258,7 +265,7 @@ export class DeliveryService {
       throw new ForbiddenException('You do not have permission to delete this delivery information');
     }
 
-    await this.entityManager.removeAndFlush(delivery);
+    await this.deliveryRepository.nativeDelete({ id });
   }
 
   /**
@@ -282,19 +289,140 @@ export class DeliveryService {
     }
 
     // 상태 및 날짜 업데이트
+    const now = new Date();
     for (const delivery of deliveries) {
       delivery.status = status;
 
       // 상태에 따른 날짜 업데이트
       if (status === DeliveryStatus.SHIPPING) {
-        delivery.shippedAt = new Date();
+        delivery.shippedAt = now;
       } else if (status === DeliveryStatus.DELIVERED) {
-        delivery.deliveredAt = new Date();
+        delivery.deliveredAt = now;
       } else if (status === DeliveryStatus.CANCELED) {
-        delivery.canceledAt = new Date();
+        delivery.canceledAt = now;
       }
     }
 
     await this.entityManager.flush();
+  }
+
+  async findSellerDeliveriesPaged(
+    sellerId: string,
+    query: SellerDeliveryListRequestDto,
+  ): Promise<{
+    items: {
+      delivery: Loaded<Delivery, 'order.user'>;
+      orderItem: Loaded<OrderItem, 'product'> | null;
+      order: Loaded<Order, 'user' | 'items.product'>;
+    }[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const offset = (page - 1) * limit;
+
+    // Use EntityManager's QueryBuilder
+    const qb = this.entityManager.createQueryBuilder(Delivery, 'd');
+
+    qb.select('*')
+      .leftJoinAndSelect('d.order', 'o')
+      .leftJoinAndSelect('o.user', 'u')
+      .leftJoinAndSelect('o.items', 'oi')
+      .leftJoinAndSelect('oi.product', 'p')
+      .where({ seller: sellerId });
+
+    // Dynamic keyword search
+    if (query.searchKeyword && query.searchField) {
+      const keyword = `%${query.searchKeyword}%`;
+      switch (query.searchField) {
+        case SellerDeliverySearchField.PRODUCT_NAME:
+          qb.andWhere({ 'p.name': { $like: keyword } });
+          break;
+        case SellerDeliverySearchField.RECIPIENT_NAME:
+          qb.andWhere({ recipientName: { $like: keyword } });
+          break;
+        case SellerDeliverySearchField.ORDER_ID:
+          // Make sure to compare against the correct field if order ID is not UUID
+          qb.andWhere({ 'o.id': { $like: keyword } });
+          break;
+        case SellerDeliverySearchField.BUYER_NAME:
+          qb.andWhere({ 'u.name': { $like: keyword } });
+          break;
+        case SellerDeliverySearchField.TRACKING_NUMBER:
+          qb.andWhere({ trackingNumber: { $like: keyword } });
+          break;
+      }
+    }
+
+    // Dynamic date range filter
+    const dateColumn = this.getDateColumn(query.dateField);
+    if (dateColumn && (query.startDate || query.endDate)) {
+      const dateConditions: any = {};
+      if (query.startDate) {
+        dateConditions.$gte = query.startDate;
+      }
+      if (query.endDate) {
+        const endDate = new Date(query.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        dateConditions.$lte = endDate;
+      }
+      if (Object.keys(dateConditions).length > 0) {
+        qb.andWhere({ [dateColumn]: dateConditions });
+      }
+    }
+
+    // Sorting
+    const sortOrder = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const sortColumn = this.getDateColumn(query.dateField) ?? 'o.createdAt'; // Use date field for sorting if specified
+    qb.orderBy({ [sortColumn]: sortOrder });
+
+    // Pagination
+    qb.limit(limit).offset(offset);
+
+    // Execute queries lecithin and count separately
+    const deliveries = await qb.getResultList();
+    const total = await qb
+      .clone()
+      .count()
+      .execute('get')
+      .then((res) => res.count); // Clone for count query
+
+    // Map results. Relations are already loaded due to leftJoinAndSelect.
+    const itemsWithDetails = deliveries.map((delivery) => {
+      // delivery.order should be Loaded<Order, 'user' | 'items.product'>
+      const order = delivery.order; // Direct access, no need for isInitialized or load
+      // Find the first orderItem (assuming one item per delivery for now)
+      const orderItem = order.items.getItems()[0] ?? null;
+
+      return {
+        delivery: delivery as Loaded<Delivery, 'order.user'>,
+        orderItem: orderItem as Loaded<OrderItem, 'product'> | null,
+        order: order as Loaded<Order, 'user' | 'items.product'>,
+      };
+    });
+
+    return {
+      items: itemsWithDetails,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  private getDateColumn(dateField?: SellerDeliveryDateField): string | null {
+    switch (dateField) {
+      case SellerDeliveryDateField.ORDER_DATE:
+        return 'o.createdAt';
+      case SellerDeliveryDateField.PAYMENT_DATE:
+        return 'o.paidAt';
+      case SellerDeliveryDateField.DELIVERY_START_DATE:
+        return 'd.shippedAt';
+      case SellerDeliveryDateField.DELIVERY_COMPLETED_DATE:
+        return 'd.deliveredAt';
+      default:
+        return 'o.createdAt'; // Default sort/filter by order date
+    }
   }
 }

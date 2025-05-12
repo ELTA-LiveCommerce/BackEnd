@@ -20,6 +20,7 @@ import { Product } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
 import { User } from '@/module/user/entity/user.entity';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
+import { CreateDeliveryAutoDto } from '@/module/delivery/dto/create-delivery-auto.dto';
 
 @Injectable()
 export class OrderService {
@@ -85,12 +86,15 @@ export class OrderService {
     // 판매자별로 배송 정보 생성
     for (const [sellerId, { seller, products }] of sellerProductMap.entries()) {
       // 판매자별 배송 정보 생성
-      await this.deliveryService.createDelivery({
+      const createDeliveryDto: CreateDeliveryAutoDto = {
         orderId: order.id,
         sellerId: sellerId,
         productIds: products.map((p) => p.product.id),
-        shippingAddress: order.shippingAddress || '',
-      });
+        recipientName: order.user.name,
+        recipientPhoneNumber: order.user.phoneNumber || 'N/A',
+        address: order.shippingAddress || 'N/A',
+      };
+      await this.deliveryService.createDelivery(createDeliveryDto);
 
       // 판매자별 결제 정보 생성
       const sellerTotal = products.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);

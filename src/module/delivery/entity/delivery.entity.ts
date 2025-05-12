@@ -2,7 +2,6 @@ import { Entity, ManyToOne, Property, PrimaryKey } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { Order } from '@/module/order/entity/order.entity';
-import { Product } from '@/module/product/entity/product.entity';
 import { User } from '@/module/user/entity/user.entity';
 
 export enum DeliveryStatus {
@@ -20,9 +19,6 @@ export class Delivery {
   @ManyToOne(() => Order)
   order: Order;
 
-  @ManyToOne(() => Product, { nullable: true })
-  product?: Product;
-
   @ManyToOne(() => User)
   seller: User;
 
@@ -35,8 +31,14 @@ export class Delivery {
   @Property({ type: 'string', nullable: true })
   courierCompany?: string;
 
-  @Property({ type: 'string', nullable: true })
-  shippingAddress?: string;
+  @Property({ type: 'string' })
+  recipientName: string;
+
+  @Property({ type: 'string' })
+  recipientPhoneNumber: string;
+
+  @Property({ type: 'string' })
+  address: string;
 
   @Property({ type: 'Date', nullable: true })
   shippedAt?: Date;

@@ -7,23 +7,27 @@ export class CreateDeliveryDto {
   @IsString()
   orderId: string;
 
-  @IsNotEmpty()
-  @IsString()
-  productId: string;
-
-  @IsOptional()
   @IsEnum(DeliveryStatus)
+  @IsOptional()
   status?: DeliveryStatus;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   trackingNumber?: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   courierCompany?: string;
 
   @IsNotEmpty()
   @IsString()
-  shippingAddress: string;
+  recipientName: string;
+
+  @IsNotEmpty()
+  @IsString()
+  recipientPhoneNumber: string;
+
+  @IsNotEmpty()
+  @IsString()
+  address: string;
 }
