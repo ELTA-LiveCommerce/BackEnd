@@ -20,6 +20,7 @@ import { LoginProvider } from './entity/login.entity';
 import { LoginService } from './login.service';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { AppleIdTokenPayloadDto, AppleTokenResponseDto } from './dto/apple-auth.dto';
+import { CreateUserDto } from '../user/dto/create-user.dto';
 
 interface JwtPayload {
   sub: string;
@@ -72,6 +73,18 @@ export class AuthService {
       rateLimit: true,
       jwksRequestsPerMinute: 5,
     });
+  }
+
+  async createUser(createUserDto: CreateUserDto): Promise<User> {
+    const existingUser = await this.userService.findByLoginId(createUserDto.loginId);
+    if (existingUser) {
+      throw new UnauthorizedException('이미 존재하는 사용자입니다.');
+    }
+    const user = await this.userService.create({
+      ...createUserDto,
+    });
+
+    return user;
   }
 
   async validateKakaoUser(kakaoUserDto: KakaoUserDto): Promise<AuthResponse> {

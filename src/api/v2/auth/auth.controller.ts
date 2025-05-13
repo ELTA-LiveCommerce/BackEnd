@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../../../module/auth/guards/jwt-auth.guard';
 import { TokenResponseDto } from '../../../module/auth/dto/auth.dto';
 import { KakaoCodeRequestDto, KakaoAccessTokenRequestDto } from '../../../module/auth/dto/kakao-auth.dto';
 import { AppleAuthCodeRequestDto, AppleIdentityTokenRequestDto } from '../../../module/auth/dto/apple-auth.dto';
+import { CreateUserDto } from '@/module/user/dto/create-user.dto';
 
 @ApiTags('Auth v2')
 @Controller({
@@ -214,6 +215,21 @@ export class AuthController {
   ): Promise<TokenResponseDto> {
     const { identityToken, authorizationCode, email, firstName, lastName } = appleTokenDto;
     return this.authService.handleAppleIdentityToken(identityToken, authorizationCode, { email, firstName, lastName });
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'V2 사용자 회원가입',
+    description: '사용자 정보를 입력하여 회원가입을 진행합니다.',
+  })
+  @ApiResponse({ status: HttpStatus.CREATED, description: '회원가입 성공' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: '잘못된 요청' })
+  @ApiResponse({ status: HttpStatus.CONFLICT, description: '이미 존재하는 사용자' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: '인증되지 않은 사용자' })
+  async register(@Body() createUserDto: CreateUserDto): Promise<any> {
+    await this.authService.registerUser(createUserDto);
+    return { success: true, message: 'success register' };
   }
 
   // TODO: Implement other v2 authentication endpoints (e.g., refresh token)
