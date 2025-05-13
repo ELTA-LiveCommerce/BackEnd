@@ -228,7 +228,7 @@ export class AuthController {
   @ApiResponse({ status: HttpStatus.CONFLICT, description: '이미 존재하는 사용자' })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: '인증되지 않은 사용자' })
   async register(@Body() createUserDto: CreateUserDto): Promise<any> {
-    await this.authService.registerUser(createUserDto);
+    await this.authService.createUser(createUserDto);
     return { success: true, message: 'success register' };
   }
 
