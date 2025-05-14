@@ -24,10 +24,14 @@ export class ViewerProductSellerDto {
   @ApiProperty({ description: '판매자 이름', example: '판매자1' })
   name: string;
 
+  @ApiProperty({ description: '판매자 프로필 이미지 URL', example: 'https://example.com/profile.jpg', required: false })
+  profileImage?: string;
+
   static fromEntity(seller: Product['seller']): ViewerProductSellerDto {
     return {
       id: seller.id,
       name: seller.name || seller.loginId, // 이름이 없으면 loginId 사용
+      profileImage: seller.profileImage,
     };
   }
 }
@@ -54,6 +58,9 @@ export class ViewerProductResponseBodyDto {
   @ApiProperty({ description: '재고 수량', example: 100 })
   stockQuantity: number;
 
+  @ApiProperty({ description: '상품 상세 이미지', example: 'https://example.com/image1.jpg', required: false })
+  images?: string[];
+
   @ApiProperty({ description: '판매자 정보' })
   seller: ViewerProductSellerDto;
 
@@ -72,6 +79,7 @@ export class ViewerProductResponseBodyDto {
       shortDescription: product.shortDescription,
       stockQuantity: product.stockQuantity,
       seller: ViewerProductSellerDto.fromEntity(product.seller),
+      images: product.images,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     };

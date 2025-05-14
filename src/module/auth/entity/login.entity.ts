@@ -24,10 +24,10 @@ export class Login extends BaseEntity {
   @Property({ type: 'string', unique: true })
   providerId: string;
 
-  @Property({ type: 'string', nullable: true })
+  @Property({ type: 'string', nullable: true, length: 512 })
   accessToken?: string;
 
-  @Property({ type: 'string', nullable: true })
+  @Property({ type: 'string', nullable: true, length: 512 })
   refreshToken?: string;
 
   @Property({ type: 'string', nullable: true })

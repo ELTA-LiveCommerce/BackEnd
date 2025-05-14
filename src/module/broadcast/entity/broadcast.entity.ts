@@ -51,3 +51,26 @@ export class Broadcast extends BaseEntity {
     this.thumbnailUrl = thumbnailUrl;
   }
 }
+
+@Entity()
+export class Stream {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string;
+
+  @ManyToOne(() => User)
+  seller: User;
+
+  @Property()
+  startedAt = new Date();
+
+  @Property({ nullable: true })
+  endedAt?: Date;
+
+@Property({
+  type: 'json',
+  nullable: true,
+  defaultRaw: "'{}'::jsonb",   // ← Postgres 에 유효 JSON 기본값 생성
+})
+metadata?: Record<string, any>;
+}
+

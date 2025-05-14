@@ -361,7 +361,6 @@ export class ProductService {
   /**
    * V2 API: 판매자 상품 생성
    */
-  @Transactional()
   async createSellerProduct(sellerId: string, createDto: SellerProductCreateRequestDto): Promise<Product> {
     const seller = await this.userService.findOne(sellerId);
     if (!seller) {

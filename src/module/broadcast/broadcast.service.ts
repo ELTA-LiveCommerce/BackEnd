@@ -5,7 +5,8 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { v4 as uuidv4 } from 'uuid';
 
 import { CreateBroadcastDto } from './dto/create-broadcast.dto';
-import { Broadcast } from './entity/broadcast.entity';
+import { Broadcast, Stream } from './entity/broadcast.entity';
+import { AgoraService } from '../agora/agora.service';
 import { BroadcastProduct } from '../product/entity/broadcast-product.entity';
 import { Product } from '../product/entity/product.entity';
 import { User } from '../user/entity/user.entity';
@@ -14,6 +15,7 @@ import { BroadcastPagedResponseDto } from '@/api/v2/seller/lives/dto/broadcast-p
 import { BroadcastListItemDto } from './dto/broadcast-list-item.dto';
 import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 import { BroadcastCreateRequestDto } from '@/api/v2/seller/lives/dto/broadcast-create.request.dto';
+import { v4 as uuid } from 'uuid';
 
 @Injectable()
 export class BroadcastService {
@@ -23,6 +25,9 @@ export class BroadcastService {
     @InjectRepository(Product)
     private readonly productRepository: EntityRepository<Product>,
     private readonly em: EntityManager,
+    @InjectRepository(Stream) private readonly repo: EntityRepository<Stream>,
+    private readonly agora: AgoraService,
+    // private readonly userService: UserService, // UserService가 필요할 경우
   ) {}
 
   async createBroadcast(dto: BroadcastCreateRequestDto, sellerId: string): Promise<BroadcastListItemDto> {
@@ -145,4 +150,57 @@ export class BroadcastService {
 
   // TODO: Update, Delete 메서드 추가
   // TODO: 방송 시작/종료, 상품 연동 등의 메서드 추가
+  async start(hostUserId: string) {
+    const channelId = uuid();
+
+    // seller: 관계형 컬럼
+    const sellerRef = this.em.getReference(User, hostUserId);
+    const stream = this.repo.create({
+      id: channelId,
+      seller: sellerRef,
+      startedAt: new Date(),
+    });
+
+    /** 방법 A: EntityManager 사용 (가장 간단) */
+    await this.em.persistAndFlush(stream);
+
+    /* ───────────────────────────────
+      방법 B: Repository 두 단계 호출
+      this.repo.persist(stream);
+      await this.repo.flush();
+    ───────────────────────────────*/
+
+    const token = this.agora.rtcToken(channelId, Number(hostUserId), 'publisher');
+
+    return {
+      channelId,
+      uid: hostUserId,
+      token,
+      appId: process.env.AGORA_APP_ID,
+      expireIn: 3600,
+    };
+  }
+
+  /** 방송 입장(시청자) ------------------------------------------------------- */
+  async join(channelId: string, userId: string) {
+    const stream = await this.repo.findOne({ id: channelId });
+    if (!stream) throw new NotFoundException('방이 없습니다.');
+
+    const token = this.agora.rtcToken(channelId, Number(userId), 'subscriber');
+
+    return {
+      channelId,
+      uid: userId,
+      token,
+      appId: process.env.AGORA_APP_ID,
+      expireIn: 3600,
+    };
+  }
+
+  /** 토큰 재발급 ------------------------------------------------------------ */
+  async renew(channelId: string, uid: number, role: 'publisher' | 'subscriber') {
+    const token = this.agora.rtcToken(channelId, uid, role);
+    return { token, expireIn: 3600 };
+  }
 }
+

@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { Login } from '@/module/auth/entity/login.entity';
 import { TokenBlacklist } from '@/module/auth/entity/token-blacklist.entity';
-import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
+import { Broadcast, Stream } from '@/module/broadcast/entity/broadcast.entity';
 import { Delivery } from '@/module/delivery/entity/delivery.entity';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { Order } from '@/module/order/entity/order.entity';
@@ -55,6 +55,7 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
     Announcement,
     SellerInfo,
     SellerUserBlock,
+    Stream,
   ];
 
   // config 객체의 타입도 다시 any로 변경
