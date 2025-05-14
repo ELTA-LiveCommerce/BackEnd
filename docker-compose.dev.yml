@@ -26,9 +26,9 @@ services:
     container_name: elta-postgres-dev
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${DB_USERNAME}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_DATABASE}
+      - DB_USER=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DB=${DB_DATABASE}
     ports:
       - '5432:5432'
     volumes:

@@ -85,31 +85,31 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
 
   if (environment === 'test') {
     Object.assign(config, {
-      dbName: configService?.get<string>('POSTGRES_DB') || process.env.POSTGRES_DB || 'elta_test',
-      user: configService?.get<string>('POSTGRES_USER') || process.env.POSTGRES_USER || 'elta',
-      password: configService?.get<string>('POSTGRES_PASSWORD') || process.env.POSTGRES_PASSWORD || 'elta1234',
-      host: configService?.get<string>('POSTGRES_HOST') || process.env.POSTGRES_HOST || 'postgres-test',
-      port: configService?.get<number>('POSTGRES_PORT') || Number(process.env.POSTGRES_PORT) || 5432,
+      dbName: configService?.get<string>('DB_DB') || process.env.DB_DB || 'elta_test',
+      user: configService?.get<string>('DB_USER') || process.env.DB_USER || 'elta',
+      password: configService?.get<string>('DB_PASSWORD') || process.env.DB_PASSWORD || 'elta1234',
+      host: configService?.get<string>('DB_HOST') || process.env.DB_HOST || 'postgres-test',
+      port: configService?.get<number>('DB_PORT') || Number(process.env.DB_PORT) || 5432,
       allowGlobalContext: true,
       forceUtcTimezone: true,
       debug: false,
     });
   } else if (environment === 'development') {
     Object.assign(config, {
-      dbName: configService?.get<string>('POSTGRES_DB') || process.env.POSTGRES_DB || 'elta_dev',
-      user: configService?.get<string>('POSTGRES_USER') || process.env.POSTGRES_USER || 'elta',
-      password: configService?.get<string>('POSTGRES_PASSWORD') || process.env.POSTGRES_PASSWORD || 'elta1234',
-      host: configService?.get<string>('POSTGRES_HOST') || process.env.POSTGRES_HOST || 'postgres-dev',
-      port: configService?.get<number>('POSTGRES_PORT') || Number(process.env.POSTGRES_PORT) || 5432,
+      dbName: configService?.get<string>('DB_DB') || process.env.DB_DB || 'elta_dev',
+      user: configService?.get<string>('DB_USER') || process.env.DB_USER || 'elta',
+      password: configService?.get<string>('DB_PASSWORD') || process.env.DB_PASSWORD || 'elta1234',
+      host: configService?.get<string>('DB_HOST') || process.env.DB_HOST || 'postgres-dev',
+      port: configService?.get<number>('DB_PORT') || Number(process.env.DB_PORT) || 5432,
       forceUtcTimezone: true,
     });
   } else if (environment === 'production') {
     Object.assign(config, {
-      dbName: configService?.get<string>('POSTGRES_DB') || process.env.POSTGRES_DB,
-      user: configService?.get<string>('POSTGRES_USER') || process.env.POSTGRES_USER,
-      password: configService?.get<string>('POSTGRES_PASSWORD') || process.env.POSTGRES_PASSWORD,
-      host: configService?.get<string>('POSTGRES_HOST') || process.env.POSTGRES_HOST || 'postgres',
-      port: configService?.get<number>('POSTGRES_PORT') || Number(process.env.POSTGRES_PORT) || 5432,
+      dbName: configService?.get<string>('DB_DB') || process.env.DB_DB,
+      user: configService?.get<string>('DB_USER') || process.env.DB_USER,
+      password: configService?.get<string>('DB_PASSWORD') || process.env.DB_PASSWORD,
+      host: configService?.get<string>('DB_HOST') || process.env.DB_HOST || 'postgres',
+      port: configService?.get<number>('DB_PORT') || Number(process.env.DB_PORT) || 5432,
       forceUtcTimezone: true,
       debug: false,
     });
