@@ -85,8 +85,8 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
 
   if (environment === 'test') {
     Object.assign(config, {
-      dbName: configService?.get<string>('DB_DB') || process.env.DB_DB || 'elta_test',
-      user: configService?.get<string>('DB_USER') || process.env.DB_USER || 'elta',
+      dbName: configService?.get<string>('DB_DATABASE') || process.env.DB_DATABASE || 'elta_test',
+      user: configService?.get<string>('DB_USERNAME') || process.env.DB_USERNAME || 'elta',
       password: configService?.get<string>('DB_PASSWORD') || process.env.DB_PASSWORD || 'elta1234',
       host: configService?.get<string>('DB_HOST') || process.env.DB_HOST || 'postgres-test',
       port: configService?.get<number>('DB_PORT') || Number(process.env.DB_PORT) || 5432,
@@ -96,8 +96,8 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
     });
   } else if (environment === 'development') {
     Object.assign(config, {
-      dbName: configService?.get<string>('DB_DB') || process.env.DB_DB || 'elta_dev',
-      user: configService?.get<string>('DB_USER') || process.env.DB_USER || 'elta',
+      dbName: configService?.get<string>('DB_DATABASE') || process.env.DB_DATABASE || 'elta_dev',
+      user: configService?.get<string>('DB_USERNAME') || process.env.DB_USERNAME || 'elta',
       password: configService?.get<string>('DB_PASSWORD') || process.env.DB_PASSWORD || 'elta1234',
       host: configService?.get<string>('DB_HOST') || process.env.DB_HOST || 'postgres-dev',
       port: configService?.get<number>('DB_PORT') || Number(process.env.DB_PORT) || 5432,
@@ -105,8 +105,8 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
     });
   } else if (environment === 'production') {
     Object.assign(config, {
-      dbName: configService?.get<string>('DB_DB') || process.env.DB_DB,
-      user: configService?.get<string>('DB_USER') || process.env.DB_USER,
+      dbName: configService?.get<string>('DB_DATABASE') || process.env.DB_DATABASE,
+      user: configService?.get<string>('DB_USERNAME') || process.env.DB_USERNAME,
       password: configService?.get<string>('DB_PASSWORD') || process.env.DB_PASSWORD,
       host: configService?.get<string>('DB_HOST') || process.env.DB_HOST || 'postgres',
       port: configService?.get<number>('DB_PORT') || Number(process.env.DB_PORT) || 5432,
