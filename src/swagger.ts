@@ -8,6 +8,7 @@ export function swagger(app: INestApplication) {
     .setDescription('REST API document')
     .setVersion('1.0')
     .addBearerAuth()
+    .addSecurityRequirements('bearer')
     .addServer('/api')
     .addServer('/')
     .build();
