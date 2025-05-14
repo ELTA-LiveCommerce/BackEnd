@@ -18,17 +18,16 @@ import { v4 } from 'uuid';
 
 import { AuthService } from '../../../module/auth/auth.service';
 import { V2LoginRequestDto, V2LoginResponseDto } from '../../../module/auth/dto/v2-login.dto';
+import { V2AppLoginRequestDto, V2AppLoginResponseDto } from '../../../module/auth/dto/v2-app-login.dto';
+import { V2RefreshTokenRequestDto, V2RefreshTokenResponseDto } from '../../../module/auth/dto/v2-refresh.dto';
 import { JwtAuthGuard } from '../../../module/auth/guards/jwt-auth.guard';
 import { TokenResponseDto } from '../../../module/auth/dto/auth.dto';
 import { KakaoCodeRequestDto, KakaoAccessTokenRequestDto } from '../../../module/auth/dto/kakao-auth.dto';
 import { AppleAuthCodeRequestDto, AppleIdentityTokenRequestDto } from '../../../module/auth/dto/apple-auth.dto';
 import { CreateUserDto } from '@/module/user/dto/create-user.dto';
 
-@ApiTags('Auth v2')
-@Controller({
-  path: 'auth',
-  version: '2',
-})
+@ApiTags('v2/auth')
+@Controller('v2/auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -45,6 +44,18 @@ export class AuthController {
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: '인증 실패' })
   async login(@Body() loginRequestDto: V2LoginRequestDto): Promise<V2LoginResponseDto> {
     return this.authService.loginV2(loginRequestDto);
+  }
+
+  @Post('app-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'V2 앱 로그인',
+    description: '모바일 앱에서 사용자 아이디와 비밀번호로 로그인하여 JWT 액세스 토큰과 리프레시 토큰을 발급받습니다.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, description: '앱 로그인 성공 및 토큰 발급', type: V2AppLoginResponseDto })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: '인증 실패' })
+  async appLogin(@Body() loginRequestDto: V2AppLoginRequestDto): Promise<V2AppLoginResponseDto> {
+    return this.authService.appLoginV2(loginRequestDto);
   }
 
   @Post('logout')
@@ -103,7 +114,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '카카오 인가 코드로 로그인 (모바일용)',
-    description: '모바일 앱에서 받은 카카오 인가 코드를 전달하여 JWT를 발급받습니다.',
+    description:
+      '모바일 앱에서 받은 카카오 인가 코드를 전달하여 JWT를 발급받습니다. 리프레시 토큰은 무제한 만료 시간으로 발급됩니다.',
   })
   @ApiResponse({ status: HttpStatus.OK, description: '카카오 로그인 성공 및 JWT 토큰 발급', type: TokenResponseDto })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: '카카오 인증 실패' })
@@ -115,7 +127,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '카카오 액세스 토큰으로 로그인 (모바일용)',
-    description: '모바일 앱에서 직접 발급받은 카카오 액세스 토큰을 전달하여 JWT를 발급받습니다.',
+    description:
+      '모바일 앱에서 직접 발급받은 카카오 액세스 토큰을 전달하여 JWT를 발급받습니다. 리프레시 토큰은 무제한 만료 시간으로 발급됩니다.',
   })
   @ApiResponse({ status: HttpStatus.OK, description: '카카오 로그인 성공 및 JWT 토큰 발급', type: TokenResponseDto })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: '카카오 인증 실패' })
@@ -182,7 +195,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Apple 인가 코드/ID 토큰으로 로그인 (모바일용)',
-    description: '모바일 앱에서 받은 Apple 인가 코드와 선택적으로 ID 토큰, 사용자 정보를 전달하여 JWT를 발급받습니다.',
+    description:
+      '모바일 앱에서 받은 Apple 인가 코드와 선택적으로 ID 토큰, 사용자 정보를 전달하여 JWT를 발급받습니다. 리프레시 토큰은 무제한 만료 시간으로 발급됩니다.',
   })
   @ApiResponse({ status: HttpStatus.OK, description: 'Apple 로그인 성공 및 JWT 토큰 발급', type: TokenResponseDto })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Apple 인증 실패' })
@@ -206,7 +220,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Apple ID 토큰으로 로그인 (모바일용)',
-    description: '모바일 앱에서 직접 발급받은 Apple ID 토큰과 선택적으로 사용자 정보를 전달하여 JWT를 발급받습니다.',
+    description:
+      '모바일 앱에서 직접 발급받은 Apple ID 토큰과 선택적으로 사용자 정보를 전달하여 JWT를 발급받습니다. 리프레시 토큰은 무제한 만료 시간으로 발급됩니다.',
   })
   @ApiResponse({ status: HttpStatus.OK, description: 'Apple 로그인 성공 및 JWT 토큰 발급', type: TokenResponseDto })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Apple 인증 실패' })
@@ -230,6 +245,18 @@ export class AuthController {
   async register(@Body() createUserDto: CreateUserDto): Promise<any> {
     await this.authService.createUser(createUserDto);
     return { success: true, message: 'success register' };
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'V2 토큰 갱신',
+    description: '리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받습니다.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, description: '토큰 갱신 성공', type: V2RefreshTokenResponseDto })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: '인증 실패 또는 만료된 토큰' })
+  async refreshToken(@Body() refreshTokenDto: V2RefreshTokenRequestDto): Promise<V2RefreshTokenResponseDto> {
+    return this.authService.refreshTokenV2(refreshTokenDto);
   }
 
   // TODO: Implement other v2 authentication endpoints (e.g., refresh token)

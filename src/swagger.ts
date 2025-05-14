@@ -9,7 +9,6 @@ export function swagger(app: INestApplication) {
     .setVersion('1.0')
     .addBearerAuth()
     .addSecurityRequirements('bearer')
-    .addServer('/api')
     .addServer('/')
     .build();
 

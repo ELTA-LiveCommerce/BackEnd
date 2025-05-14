@@ -16,11 +16,13 @@ import { UserRole } from '@/shared/enum/user-role.enum';
 import { TokenResponseDto } from './dto/auth.dto';
 import { KakaoUserDto, KakaoUserInfo } from './dto/kakao-auth.dto';
 import { V2LoginRequestDto, V2LoginResponseDto } from './dto/v2-login.dto';
+import { V2AppLoginRequestDto, V2AppLoginResponseDto } from './dto/v2-app-login.dto';
 import { LoginProvider } from './entity/login.entity';
 import { LoginService } from './login.service';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { AppleIdTokenPayloadDto, AppleTokenResponseDto } from './dto/apple-auth.dto';
 import { CreateUserDto } from '../user/dto/create-user.dto';
+import { V2RefreshTokenRequestDto, V2RefreshTokenResponseDto } from './dto/v2-refresh.dto';
 
 interface JwtPayload {
   sub: string;
@@ -57,6 +59,7 @@ export class AuthService {
   public readonly logger = new Logger(AuthService.name);
   private readonly ACCESS_TOKEN_EXPIRATION = '15m'; // 액세스 토큰 만료 시간
   private readonly REFRESH_TOKEN_EXPIRATION = '7d'; // 리프레시 토큰 만료 시간
+  private readonly APP_REFRESH_TOKEN_EXPIRATION = null; // 앱 리프레시 토큰 만료 시간 (무제한)
   private jwksClient: JwksClient;
 
   constructor(
@@ -132,8 +135,77 @@ export class AuthService {
     }
 
     const accessToken = this.generateAccessToken(user);
+    const refreshToken = this.generateRefreshToken(user);
+
+    // 로그인 정보 저장
+    const login = await this.loginService.findByProviderId(LoginProvider.EMAIL, user.loginId);
+    if (login) {
+      await this.loginService.updateLoginInfo(login, {
+        refreshToken: refreshToken,
+      });
+    } else {
+      await this.loginService.createLoginInfo(user, LoginProvider.EMAIL, user.loginId, {
+        loginId: user.loginId,
+        refreshToken: refreshToken,
+      });
+    }
+
     this.logger.log(`V2 Login successful for user: ${loginRequestDto.loginId}`);
-    return new V2LoginResponseDto(accessToken);
+    return new V2LoginResponseDto(accessToken, refreshToken, user.id, user.name, user.role);
+  }
+
+  async appLoginV2(loginRequestDto: V2AppLoginRequestDto): Promise<V2AppLoginResponseDto> {
+    this.logger.log(`V2 App Login attempt for user: ${loginRequestDto.loginId}`);
+
+    // 사용자 인증
+    const user = await this.userService.findByLoginId(loginRequestDto.loginId);
+    if (!user) {
+      this.logger.warn(`User not found: ${loginRequestDto.loginId}`);
+      throw new UnauthorizedException('사용자 아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(loginRequestDto.password, user.password);
+    if (!isPasswordValid) {
+      this.logger.warn(`Invalid password for user: ${loginRequestDto.loginId}`);
+      throw new UnauthorizedException('사용자 아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    // 토큰 생성
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = this.generateAppRefreshToken(user); // 무제한 리프레시 토큰 생성
+
+    // 기기 정보 로깅 (필요시 저장 로직 추가)
+    if (loginRequestDto.deviceId) {
+      this.logger.log(
+        `App login from device: ${loginRequestDto.deviceId}, app version: ${loginRequestDto.appVersion || 'unknown'}`,
+      );
+
+      // TODO: 필요시 기기 정보 저장 로직 구현
+      // await this.loginService.updateDeviceInfo(user.id, loginRequestDto.deviceId, loginRequestDto.appVersion);
+    }
+
+    // 로그인 정보 저장
+    const login = await this.loginService.findByProviderId(LoginProvider.EMAIL, user.loginId);
+    if (login) {
+      await this.loginService.updateLoginInfo(login, {
+        refreshToken: refreshToken,
+      });
+    } else {
+      await this.loginService.createLoginInfo(user, LoginProvider.EMAIL, user.loginId, {
+        loginId: user.loginId,
+        refreshToken: refreshToken,
+      });
+    }
+
+    this.logger.log(`V2 App Login successful for user: ${loginRequestDto.loginId}`);
+
+    return new V2AppLoginResponseDto({
+      accessToken,
+      refreshToken,
+      userId: user.id,
+      name: user.name,
+      role: user.role,
+    });
   }
 
   async refreshToken(refreshToken: string): Promise<TokenResponseDto> {
@@ -185,6 +257,53 @@ export class AuthService {
     }
   }
 
+  /**
+   * V2 API용 리프레시 토큰 갱신
+   * @param refreshTokenDto 리프레시 토큰 요청 DTO
+   * @returns 새로운 액세스 토큰
+   */
+  async refreshTokenV2(refreshTokenDto: V2RefreshTokenRequestDto): Promise<V2RefreshTokenResponseDto> {
+    try {
+      // 토큰 블랙리스트 확인
+      const isBlacklisted = await this.tokenBlacklistService.isTokenBlacklisted(refreshTokenDto.refreshToken);
+      if (isBlacklisted) {
+        throw new UnauthorizedException('만료된 리프레시 토큰입니다.');
+      }
+
+      // 리프레시 토큰 검증
+      const payload = this.jwtService.verify(refreshTokenDto.refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret',
+      });
+
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedException('유효하지 않은 리프레시 토큰입니다.');
+      }
+
+      // 사용자 조회
+      const user = await this.userService.findOne(payload.sub);
+      if (!user) {
+        throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+      }
+
+      // 새 액세스 토큰만 발급
+      const accessToken = this.generateAccessToken(user);
+
+      this.logger.log(`V2 토큰 갱신 성공: 사용자 ID ${user.id}`);
+
+      return new V2RefreshTokenResponseDto({
+        accessToken,
+        expiresIn: 15 * 60, // 15분 (초 단위)
+        tokenType: 'bearer',
+      });
+    } catch (error) {
+      this.logger.error(
+        `V2 토큰 갱신 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new UnauthorizedException('토큰 갱신에 실패했습니다.');
+    }
+  }
+
   async logout(token: string, userId: string): Promise<void> {
     try {
       // 토큰 디코딩 (검증은 하지 않음)
@@ -228,8 +347,8 @@ export class AuthService {
       // 사용자 검증 후 User 객체 반환 (토큰 생성 X)
       const user = await this.validateKakaoUserAndGetUser(kakaoUserDto);
 
-      // 토큰 생성 및 반환
-      return this.generateTokens(user);
+      // 모바일 앱용 토큰 생성 및 반환 (무제한 리프레시 토큰)
+      return this.generateAppTokens(user);
     } catch (error) {
       this.logger.error(
         `카카오 모바일 로그인 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
@@ -334,7 +453,7 @@ export class AuthService {
   async handleKakaoAccessToken(kakaoAccessToken: string): Promise<TokenResponseDto> {
     const kakaoUserInfo = await this.getKakaoUserInfo(kakaoAccessToken);
     const user = await this.processKakaoUser(kakaoUserInfo);
-    return this.generateTokens(user);
+    return this.generateAppTokens(user); // 모바일 앱용 무제한 리프레시 토큰 사용
   }
 
   // processKakaoUser: 카카오 사용자 정보를 바탕으로 User 엔티티를 찾거나 생성 (기존 validateKakaoUserAndGetUser 역할)
@@ -440,6 +559,18 @@ export class AuthService {
     };
   }
 
+  /**
+   * 모바일 앱용 토큰 생성 (무제한 리프레시 토큰)
+   */
+  private generateAppTokens(user: User): TokenResponseDto {
+    return {
+      access_token: this.generateAccessToken(user),
+      refresh_token: this.generateAppRefreshToken(user),
+      expires_in: 15 * 60, // 15분 (초 단위)
+      token_type: 'bearer',
+    };
+  }
+
   private generateAccessToken(user: User): string {
     const payload: JwtPayload = {
       sub: user.id,
@@ -464,6 +595,26 @@ export class AuthService {
     return this.jwtService.sign(payload, {
       secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret',
       expiresIn: this.REFRESH_TOKEN_EXPIRATION,
+    });
+  }
+
+  /**
+   * 앱 전용 무제한 만료 리프레시 토큰 생성
+   * @param user 사용자
+   * @returns 무제한 만료 리프레시 토큰
+   */
+  private generateAppRefreshToken(user: User): string {
+    const jti = v4(); // 유니크 ID 생성
+    const payload: RefreshTokenPayload = {
+      sub: user.id,
+      jti,
+      type: 'refresh',
+    };
+
+    // expiresIn 속성을 지정하지 않으면 토큰에 만료 시간이 설정되지 않음
+    return this.jwtService.sign(payload, {
+      secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret',
+      // expiresIn 없음 = 무제한 만료
     });
   }
 
@@ -751,6 +902,12 @@ export class AuthService {
     }
 
     const user = await this.processAppleUser(appleIdPayload, userPayloadFromApple);
+
+    // 모바일 앱에서의 요청인지 확인 (idTokenHint가 없으면 모바일 앱으로 간주)
+    if (!idTokenHint) {
+      return this.generateAppTokens(user); // 모바일 앱용 무제한 리프레시 토큰 사용
+    }
+
     return this.generateTokens(user);
   }
 
@@ -762,7 +919,7 @@ export class AuthService {
     // authorizationCode는 현재 로직에서 직접 사용되진 않으나, 추후 ID 토큰 갱신 등에 활용될 수 있어 파라미터로 남겨둠
     const appleIdPayload = await this.verifyAppleIdentityToken(identityToken);
     const user = await this.processAppleUser(appleIdPayload, additionalUserInfo);
-    return this.generateTokens(user);
+    return this.generateAppTokens(user); // 모바일 앱용 무제한 리프레시 토큰 사용
   }
 
   // --- End Apple Login Methods ---
