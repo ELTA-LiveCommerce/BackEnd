@@ -7,7 +7,7 @@ import { BaseEntity } from '@/shared/entity/base.entity';
 import { RefundStatus } from '@/shared/enum/refund-status.enum';
 
 @Entity({ tableName: 'refunds' })
-export class Refund extends BaseEntity {
+export class RefundEntity extends BaseEntity {
   // 어떤 주문 항목에 대한 반품인지
   @ManyToOne(() => OrderItem)
   orderItem: OrderItem;

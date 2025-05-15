@@ -38,7 +38,7 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
   // config 객체의 타입도 다시 any로 변경
   const config: any = {
     driver: PostgreSqlDriver,
-    entities: ['./dist/**/*.entity.js'],
+    entities: ['./dist/**/*.entity.js', '!./dist/shared/**/*.entity.js'],
     strict: true,
     allowGlobalContext: process.env.MIKRO_ORM_ALLOW_GLOBAL_CONTEXT === 'true',
     tsNode: true,

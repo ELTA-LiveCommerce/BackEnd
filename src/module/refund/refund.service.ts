@@ -11,13 +11,13 @@ import { SellerRefundSearchField } from '@/shared/enum/seller-refund-search-fiel
 
 import { SellerRefundListItemDto } from './dto/seller-refund-list-item.dto';
 import { SellerRefundListRequestDto } from './dto/seller-refund-list-request.dto';
-import { Refund } from './entity/refund.entity';
+import { RefundEntity } from './entity/refund.entity';
 
 @Injectable()
 export class RefundService {
   constructor(
-    @InjectRepository(Refund)
-    private readonly refundRepository: BaseRepository<Refund>,
+    @InjectRepository(RefundEntity)
+    private readonly refundRepository: BaseRepository<RefundEntity>,
   ) {}
 
   @Transactional()

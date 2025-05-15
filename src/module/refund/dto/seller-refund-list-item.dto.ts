@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { RefundStatus } from '@/shared/enum/refund-status.enum';
 
-import { Refund } from '../entity/refund.entity';
+import { RefundEntity } from '../entity/refund.entity';
 
 // TODO: Product, User 엔티티에서 필요한 정보 타입 정의 필요 시 추가
 interface ProductInfo {
@@ -48,7 +48,7 @@ export class SellerRefundListItemDto {
   @ApiProperty({ description: '반품 신청 일시' })
   requestedAt: Date;
 
-  static fromEntity(refund: Refund): SellerRefundListItemDto {
+  static fromEntity(refund: RefundEntity): SellerRefundListItemDto {
     const dto = new SellerRefundListItemDto();
     dto.id = refund.id;
     // Assuming product and buyer are populated or loaded
