@@ -319,32 +319,18 @@ export class UserService {
    * @returns 검색된 사용자 목록
    */
   async findByUsernameContaining(keyword: string, role?: UserRole, limit = 10): Promise<User[]> {
-    let queryBuilder = this.userRepository.createQueryBuilder('u');
+    const qb = this.userRepository
+      .createQueryBuilder('u')
+      .where({
+        $or: [{ name: { $like: `%${keyword}%` } }, { loginId: { $like: `%${keyword}%` } }],
+        ...(role && { role }),
+      })
+      // 굳이 복잡한 정렬 안 걸고, 최신 가입순이나 알맞은 기본 정렬만
+      .orderBy({ createdAt: 'DESC' })
+      .limit(limit);
 
-    // 키워드로 이름 또는 이메일 검색
-    queryBuilder = queryBuilder.where({
-      $or: [{ name: { $like: `%${keyword}%` } }, { loginId: { $like: `%${keyword}%` } }],
-    });
-
-    // 역할 필터 적용 (지정된 경우)
-    if (role) {
-      queryBuilder = queryBuilder.andWhere({ role });
-    }
-
-    // 결과 제한 및 정렬 (정확도 순)
-    queryBuilder = queryBuilder.orderBy([
-      { name: keyword, direction: 'DESC' }, // 이름이 정확히 일치하는 항목 우선
-      { name: { $like: `${keyword}%` }, direction: 'DESC' }, // 이름이 키워드로 시작하는 항목 다음
-      { loginId: { $like: `${keyword}%` }, direction: 'DESC' }, // loginId 시작 일치가 다음
-    ]);
-
-    // 최대 결과 수 제한
-    queryBuilder = queryBuilder.limit(limit);
-
-    // 결과 조회
-    return await queryBuilder.getResult();
+    return qb.getResult();
   }
-
   /**
    * 회원 탈퇴 처리
    * @param userId - 탈퇴할 사용자의 ID
