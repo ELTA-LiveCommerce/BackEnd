@@ -1,7 +1,8 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository, EntityManager, QueryBuilder } from '@mikro-orm/postgresql'; // 또는 사용하는 DB에 맞게
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { v4 } from 'uuid';
+import { EntityRepository, EntityManager, QueryBuilder } from '@mikro-orm/postgresql';
+import { Loaded } from '@mikro-orm/core';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
 
 import { CreateBroadcastDto } from './dto/create-broadcast.dto';
 import { Broadcast, Stream } from './entity/broadcast.entity';
@@ -13,6 +14,7 @@ import { BroadcastListRequestDto } from '@/api/v2/seller/lives/dto/broadcast-lis
 import { BroadcastPagedResponseDto } from '@/api/v2/seller/lives/dto/broadcast-paged-response.dto';
 import { BroadcastListItemDto } from './dto/broadcast-list-item.dto';
 import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
+import { BroadcastCreateRequestDto } from '@/api/v2/seller/lives/dto/broadcast-create.request.dto';
 import { v4 as uuid } from 'uuid';
 
 @Injectable()
@@ -22,57 +24,55 @@ export class BroadcastService {
     private readonly broadcastRepository: EntityRepository<Broadcast>,
     @InjectRepository(Product)
     private readonly productRepository: EntityRepository<Product>,
-    @InjectRepository(BroadcastProduct)
-    private readonly broadcastProductRepository: EntityRepository<BroadcastProduct>,
     private readonly em: EntityManager,
     @InjectRepository(Stream) private readonly repo: EntityRepository<Stream>,
     private readonly agora: AgoraService,
     // private readonly userService: UserService, // UserService가 필요할 경우
   ) {}
 
-  async create(createBroadcastDto: CreateBroadcastDto, seller: User): Promise<Broadcast> {
-    // 트랜잭션 시작
+  async createBroadcast(dto: BroadcastCreateRequestDto, sellerId: string): Promise<BroadcastListItemDto> {
     return this.em.transactional(async (em) => {
-      // 방송 생성 - 생성자에 DTO의 scheduledDate 전달
-      const broadcast = new Broadcast(
-        seller,
-        createBroadcastDto.title,
-        createBroadcastDto.scheduledDate, // DTO의 scheduledDate를 생성자에 전달
-      );
-      // 생성자에서 처리되지 않은 추가 속성 설정
-      // broadcast.id = v4(); // BaseEntity가 ID를 처리하도록 함 (필요 시)
-      broadcast.description = createBroadcastDto.description;
-      broadcast.thumbnailImage = createBroadcastDto.thumbnailImage;
-      broadcast.streamKey = `stream-${v4()}`; // 유니크한 스트림 키 생성
-      broadcast.isLive = createBroadcastDto.isLive ?? false;
+      const seller = await em.findOne(User, { id: sellerId });
+      if (!seller) {
+        throw new NotFoundException(`Seller with ID ${sellerId} not found.`);
+      }
+
+      const broadcast = new Broadcast(seller, dto.title, new Date(dto.scheduledAt), dto.thumbnailImageUrl);
+      broadcast.streamKey = `live_${uuidv4()}`;
 
       em.persist(broadcast);
 
-      // 상품 연결
-      if (createBroadcastDto.products && createBroadcastDto.products.length > 0) {
-        for (let i = 0; i < createBroadcastDto.products.length; i++) {
-          const productDto = createBroadcastDto.products[i];
+      if (dto.productIds && dto.productIds.length > 0) {
+        const products = await this.productRepository.find({ id: { $in: dto.productIds } });
+        if (products.length !== dto.productIds.length) {
+          const foundProductIds = products.map((p) => p.id);
+          const notFoundProductIds = dto.productIds.filter((id) => !foundProductIds.includes(id));
+          throw new BadRequestException(`Following product IDs not found: ${notFoundProductIds.join(', ')}`);
+        }
 
-          // 상품 존재 여부 확인
-          const product = await this.productRepository.findOne({ id: productDto.productId });
-          if (!product) {
-            throw new NotFoundException(`상품을 찾을 수 없습니다: ${productDto.productId}`);
-          }
-
-          // 방송-상품 연결 생성
+        for (let i = 0; i < products.length; i++) {
+          const product = products[i];
           const broadcastProduct = new BroadcastProduct();
           broadcastProduct.broadcast = broadcast;
           broadcastProduct.product = product;
           broadcastProduct.sortOrder = i;
-          broadcastProduct.specialPrice = productDto.specialPrice;
-          broadcastProduct.broadcastDescription = productDto.broadcastDescription;
-
           em.persist(broadcastProduct);
         }
       }
 
-      // 트랜잭션 종료 및 반환
-      return broadcast;
+      const productInfos = broadcast.products.getItems().map((bp) => ({
+        id: bp.product.id,
+        name: bp.product.name,
+      }));
+
+      return new BroadcastListItemDto({
+        id: broadcast.id,
+        title: broadcast.title,
+        status: 'SCHEDULED',
+        thumbnailUrl: broadcast.thumbnailUrl,
+        scheduledAt: broadcast.scheduledAt,
+        products: productInfos,
+      });
     });
   }
 
@@ -92,17 +92,12 @@ export class BroadcastService {
     return broadcast;
   }
 
-  /**
-   * 특정 셀러의 모든 방송 목록을 조회합니다.
-   * @param sellerId 셀러 ID
-   * @returns 셀러의 방송 목록
-   */
   async findBySellerId(sellerId: string): Promise<Broadcast[]> {
     return this.broadcastRepository.find(
       { seller: { id: sellerId } },
       {
         populate: ['products.product'],
-        orderBy: { scheduledAt: 'DESC' }, // Corrected property name
+        orderBy: { scheduledAt: 'DESC' },
       },
     );
   }
@@ -132,18 +127,13 @@ export class BroadcastService {
       qb.andWhere({ scheduledAt: { $lt: end } });
     }
 
-    // Create a separate query for counting before applying offset/limit
     const countQb = qb.clone();
-
-    // TODO: Add relations to fetch (e.g., products)
-    // qb.leftJoinAndSelect('b.products', 'p');
 
     qb.orderBy({ scheduledAt: 'DESC' }).offset(offset).limit(limit);
 
     const broadcasts = await qb.getResultList();
     const total = await countQb.getCount();
 
-    // TODO: Map broadcasts to BroadcastListItemDto, including product info
     const items = broadcasts.map(
       (b) =>
         new BroadcastListItemDto({
@@ -151,7 +141,7 @@ export class BroadcastService {
           title: b.title,
           thumbnailUrl: b.thumbnailUrl,
           scheduledAt: b.scheduledAt,
-          products: [], // Placeholder
+          products: [],
         }),
     );
 
@@ -213,3 +203,4 @@ export class BroadcastService {
     return { token, expireIn: 3600 };
   }
 }
+

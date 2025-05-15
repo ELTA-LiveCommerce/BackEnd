@@ -35,33 +35,10 @@ import { Announcement } from '@/module/announcement/entity/announcement.entity';
 const createMikroOrmConfig = (configService?: ConfigService): any => {
   const environment = process.env.NODE_ENV || 'development';
 
-  const allEntities = [
-    Login,
-    TokenBlacklist,
-    Broadcast,
-    Delivery,
-    OrderItem,
-    Order,
-    ReturnRequest,
-    Payment,
-    Refund,
-    BroadcastProduct,
-    Product,
-    Follow,
-    // ShippingAddress, // Remove from entities array
-    User,
-    // UserFollow, // Remove unintended entity
-    // UserBlock, // Remove unintended entity
-    Announcement,
-    SellerInfo,
-    SellerUserBlock,
-    Stream,
-  ];
-
   // config 객체의 타입도 다시 any로 변경
   const config: any = {
     driver: PostgreSqlDriver,
-    entities: allEntities,
+    entities: ['./dist/**/*.entity.js'],
     strict: true,
     allowGlobalContext: process.env.MIKRO_ORM_ALLOW_GLOBAL_CONTEXT === 'true',
     tsNode: true,
@@ -124,3 +101,4 @@ export default createMikroOrmConfig;
 // CLI에서 사용하기 위한 export (defineConfig 적용)
 // import { defineConfig as cliDefineConfig } from '@mikro-orm/postgresql';
 // export const mikroOrmCliConfig = cliDefineConfig(createMikroOrmConfig());
+

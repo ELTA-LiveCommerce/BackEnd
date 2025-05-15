@@ -30,24 +30,25 @@ export class Broadcast extends BaseEntity {
   @Property({ type: 'text', nullable: true })
   description?: string;
 
-  @Property({ type: 'string' })
-  streamKey!: string; // 실제 스트림 키
+  @Property({ type: 'string', nullable: true })
+  streamKey?: string;
 
   @Property({ type: 'boolean', default: false })
-  isLive!: boolean;
-
-  @Property({ type: 'string', nullable: true })
-  thumbnailImage?: string; // 대표 이미지 URL
+  isLive: boolean = false;
 
   // BroadcastProduct와의 관계 설정 (방송에 연결된 상품)
-  @OneToMany(() => BroadcastProduct, (broadcastProduct) => broadcastProduct.broadcast, { orphanRemoval: true })
+  @OneToMany(() => BroadcastProduct, (broadcastProduct) => broadcastProduct.broadcast, {
+    orphanRemoval: true,
+    eager: true,
+  })
   products = new Collection<BroadcastProduct>(this);
 
-  constructor(seller: User, title: string, scheduledAt: Date) {
+  constructor(seller: User, title: string, scheduledAt: Date, thumbnailUrl?: string) {
     super();
     this.seller = seller;
     this.title = title;
     this.scheduledAt = scheduledAt;
+    this.thumbnailUrl = thumbnailUrl;
   }
 }
 
