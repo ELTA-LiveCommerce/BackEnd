@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { Broadcast, Stream } from './entity/broadcast.entity';
+import { Broadcast } from './entity/broadcast.entity';
+import { Stream } from './entity/stream.entity';
 import { BroadcastService } from './broadcast.service';
 // Import related entities needed for repository injection
 import { Product } from '@/module/product/entity/product.entity';

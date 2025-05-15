@@ -5,7 +5,8 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { v4 as uuidv4 } from 'uuid';
 
 import { CreateBroadcastDto } from './dto/create-broadcast.dto';
-import { Broadcast, Stream } from './entity/broadcast.entity';
+import { Broadcast } from './entity/broadcast.entity';
+import { Stream } from './entity/stream.entity';
 import { AgoraService } from '../agora/agora.service';
 import { BroadcastProduct } from '../product/entity/broadcast-product.entity';
 import { Product } from '../product/entity/product.entity';
