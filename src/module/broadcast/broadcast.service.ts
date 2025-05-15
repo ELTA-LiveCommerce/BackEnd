@@ -171,11 +171,12 @@ export class BroadcastService {
     ───────────────────────────────*/
 
     const token = this.agora.rtcToken(channelId, Number(hostUserId), 'publisher');
-
+    const chatToken = this.agora.chatToken(hostUserId);
     return {
       channelId,
       uid: hostUserId,
       token,
+      chatToken,
       appId: process.env.AGORA_APP_ID,
       expireIn: 3600,
     };
