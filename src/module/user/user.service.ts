@@ -12,6 +12,8 @@ import { UserSearchDto } from '@/module/user/dto/user-search.dto';
 import { User } from '@/module/user/entity/user.entity';
 import { UserFollowService } from '@/module/user/user-follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
+import { SellerUserStatus, SellerUserStatusUpdateRequestDto } from '@/api/v2/seller/users/seller-user-request.dto';
+import { SellerUserBlock, BlockType } from './entity/seller-user-block.entity';
 
 @Injectable()
 export class UserService {
@@ -20,6 +22,8 @@ export class UserService {
     private readonly userRepository: EntityRepository<User>,
     private readonly em: EntityManager,
     private readonly followService: UserFollowService,
+    @InjectRepository(SellerUserBlock)
+    private readonly sellerUserBlockRepository: EntityRepository<SellerUserBlock>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -359,5 +363,135 @@ export class UserService {
     // 예를 들어, 사용자가 작성한 게시글 처리, 팔로우 관계 해제 등
     // this.postService.handleUserWithdrawal(userId);
     // this.followService.handleUserWithdrawal(userId);
+  }
+
+  /**
+   * 판매자가 관리할 수 있는 사용자 목록을 조회합니다
+   * @param sellerId 판매자 ID
+   * @param queryParams 검색 및 페이지네이션 파라미터
+   * @returns 페이지네이션된 사용자 목록
+   */
+  async findUsersForSeller(
+    sellerId: string,
+    queryParams: any,
+  ): Promise<{
+    items: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit = 10, searchField, searchKeyword, status, startDate, endDate, dateField } = queryParams;
+    const skip = (page - 1) * limit;
+
+    let queryBuilder = this.userRepository.createQueryBuilder('u');
+
+    // 기본적으로 VIEWER 역할을 가진 사용자만 검색
+    queryBuilder = queryBuilder.where({ role: UserRole.VIEWER });
+
+    // 검색 조건에 따라 필터링
+    if (searchField && searchKeyword) {
+      const searchFilter = {};
+      searchFilter[searchField] = { $like: `%${searchKeyword}%` };
+      queryBuilder = queryBuilder.andWhere(searchFilter);
+    }
+
+    // 상태 필터
+    if (status) {
+      if (status === 'INACTIVE') {
+        queryBuilder = queryBuilder.andWhere({ deletedAt: { $ne: null } });
+      } else {
+        queryBuilder = queryBuilder.andWhere({ deletedAt: null });
+      }
+    }
+
+    // 날짜 필터
+    if (startDate && endDate) {
+      const dateFilter = {};
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(23, 59, 59, 999); // 종료일은 하루의 끝으로 설정
+
+      dateFilter[dateField || 'createdAt'] = { $gte: startDateTime, $lte: endDateTime };
+      queryBuilder = queryBuilder.andWhere(dateFilter);
+    }
+
+    // TODO: 판매자가 관리하는 사용자 필터링 (현재는 모든 VIEWER 사용자 반환)
+    // 예: sellerId와 연관된 사용자 (구매 이력 등)만 필터링
+    // queryBuilder = queryBuilder.andWhere({ /* 판매자 관련 조건 */ });
+
+    // 총 개수 조회
+    const total = await queryBuilder.clone().count();
+
+    // 결과 조회 (페이지네이션 적용)
+    const users = await queryBuilder.select('*').orderBy({ createdAt: 'DESC' }).limit(limit).offset(skip).getResult();
+
+    // 사용자 상태 변환 및 필요한 데이터만 포함
+    const items = users.map((user) => ({
+      id: user.id,
+      loginId: user.loginId,
+      name: user.name,
+      profileImage: user.profileImage,
+      status: user.deletedAt ? 'DELETED' : 'ACTIVE',
+      createdAt: user.createdAt,
+    }));
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * 판매자가 관리하는 사용자 상태를 변경합니다
+   * @param sellerId 판매자 ID
+   * @param userId 변경할 사용자 ID
+   * @param statusUpdateDto 상태 변경 DTO
+   * @returns 변경된 사용자 정보
+   */
+  async updateUserStatusBySeller(
+    sellerId: string,
+    userId: string,
+    statusUpdateDto: SellerUserStatusUpdateRequestDto,
+  ): Promise<User> {
+    // 1. 사용자 및 판매자 존재 여부 확인
+    const user = await this.userRepository.findOne({ id: userId, role: UserRole.VIEWER });
+    if (!user) {
+      throw new NotFoundException(`사용자를 찾을 수 없습니다: ${userId}`);
+    }
+
+    const seller = await this.userRepository.findOne({ id: sellerId, role: UserRole.SELLER });
+    if (!seller) {
+      throw new NotFoundException(`판매자를 찾을 수 없습니다: ${sellerId}`);
+    }
+
+    // 3. 사용자 상태 업데이트
+    if (statusUpdateDto.status === SellerUserStatus.INACTIVE) {
+      // 차단 처리
+      const block = new SellerUserBlock(
+        seller,
+        user,
+        BlockType.FULL_BLOCK,
+        statusUpdateDto.reason || '판매자에 의한 차단',
+      );
+
+      await this.sellerUserBlockRepository.persistAndFlush(block);
+    } else if (statusUpdateDto.status === SellerUserStatus.ACTIVE) {
+      // 차단 해제
+      const block = await this.sellerUserBlockRepository.findOne({
+        seller,
+        blockedUser: user,
+      });
+
+      if (block) {
+        await this.sellerUserBlockRepository.removeAndFlush(block);
+      }
+    }
+
+    // 4. 변경된 사용자 반환
+    return user;
   }
 }
