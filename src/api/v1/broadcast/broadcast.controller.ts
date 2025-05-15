@@ -45,29 +45,29 @@ const fileFilter = (req: any, file: any, cb: any) => {
 export class BroadcastController {
   constructor(private readonly broadcastService: BroadcastService) {}
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SELLER) // 판매자만 방송 생성 가능
-  @Post()
-  @UseInterceptors(
-    FileInterceptor('thumbnailImage', {
-      storage,
-      fileFilter,
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 제한
-    }),
-  )
-  async create(
-    @Body() createBroadcastDto: CreateBroadcastDto,
-    @Request() req: AuthenticatedRequest,
-    @UploadedFile() file?: Express.Multer.File,
-  ): Promise<Broadcast> {
-    // 이미지 파일이 업로드된 경우 경로 설정
-    if (file) {
-      createBroadcastDto.thumbnailImage = `/uploads/broadcasts/${file.filename}`;
-    }
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(UserRole.SELLER) // 판매자만 방송 생성 가능
+  // @Post()
+  // @UseInterceptors(
+  //   FileInterceptor('thumbnailImage', {
+  //     storage,
+  //     fileFilter,
+  //     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 제한
+  //   }),
+  // )
+  // async create(
+  //   @Body() createBroadcastDto: CreateBroadcastDto,
+  //   @Request() req: AuthenticatedRequest,
+  //   @UploadedFile() file?: Express.Multer.File,
+  // ): Promise<Broadcast> {
+  //   // 이미지 파일이 업로드된 경우 경로 설정
+  //   if (file) {
+  //     createBroadcastDto.thumbnailImage = `/uploads/broadcasts/${file.filename}`;
+  //   }
 
-    const seller = req.user;
-    return this.broadcastService.create(createBroadcastDto, seller);
-  }
+  //   const seller = req.user;
+  //   return this.broadcastService.create(createBroadcastDto, seller);
+  // }
 
   @Get()
   async findAll(): Promise<Broadcast[]> {

@@ -55,7 +55,7 @@ export class SellerLiveItemDto {
     const dto = new SellerLiveItemDto();
     dto.id = broadcast.id;
     dto.title = broadcast.title;
-    dto.thumbnailImage = broadcast.thumbnailImage;
+    dto.thumbnailImage = broadcast.thumbnailUrl;
     dto.viewerCount = 0; // 실제 구현 필요
     dto.isLive = broadcast.isLive;
     dto.startedAt = broadcast.scheduledAt;
