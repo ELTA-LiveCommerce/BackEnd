@@ -170,7 +170,6 @@ export class BroadcastService {
       this.repo.persist(stream);
       await this.repo.flush();
     ───────────────────────────────*/
-
     const rtcToken = this.agora.rtcTokenWithAccount(channelId, hostUserId, 'publisher');
     const chatToken = this.agora.chatToken(hostUserId);
     return {
