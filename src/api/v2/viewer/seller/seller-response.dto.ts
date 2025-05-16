@@ -1,6 +1,7 @@
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { Product } from '@/module/product/entity/product.entity';
+import { ProductService } from '@/module/product/product.service';
 
 /**
  * 판매자 검색 결과 항목 DTO
@@ -94,9 +95,8 @@ export class SellerProductItemDto {
   description?: string;
   stock: number;
   salesCount: number;
-  rating: number;
 
-  static fromEntity(product: Product): SellerProductItemDto {
+  static async fromEntity(product: Product, salesCount: number): Promise<SellerProductItemDto> {
     const dto = new SellerProductItemDto();
     dto.id = product.id;
     dto.name = product.name;
@@ -104,8 +104,10 @@ export class SellerProductItemDto {
     dto.thumbnailImage = product.mainImage;
     dto.description = product.shortDescription;
     dto.stock = product.stockQuantity;
-    dto.salesCount = 0; // 실제 구현 필요
-    dto.rating = 0; // 실제 구현 필요
+
+    // 판매량 구현
+    dto.salesCount = salesCount;
+
     return dto;
   }
 }

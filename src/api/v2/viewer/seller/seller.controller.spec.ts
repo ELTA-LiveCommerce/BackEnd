@@ -21,6 +21,7 @@ import {
   SellerLivePageDto,
   SellerProductPageDto,
   SellerLiveItemDto,
+  SellerProductItemDto,
 } from './seller-response.dto';
 import { BroadcastListItemDto } from '@/module/broadcast/dto/broadcast-list-item.dto';
 import { PagedResponseV2, PagedResponseData } from '@/api/v2/common/base-response.dto';
@@ -276,16 +277,34 @@ describe('SellerController', () => {
       ] as unknown as Product[];
       productService.findProductsBySeller.mockResolvedValue(mockProducts);
 
-      const expectedItems = mockProducts.map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        thumbnailImage: p.mainImage,
-        description: p.shortDescription,
-        stock: p.stockQuantity,
-        salesCount: 0,
-        rating: 0,
-      }));
+      // productService.getProductSalesCount를 mock 함수로 설정
+      jest.spyOn(productService, 'getProductSalesCount').mockResolvedValue(0);
+
+      // mock controller에서 반환되는 DTO 객체 생성
+      const expectedItems = mockProducts.map((p) => {
+        const dto = new SellerProductItemDto();
+        dto.id = p.id;
+        dto.name = p.name;
+        dto.price = p.price;
+        dto.thumbnailImage = p.mainImage;
+        dto.description = p.shortDescription;
+        dto.stock = p.stockQuantity;
+        dto.salesCount = 0;
+        return dto;
+      });
+
+      // SellerProductItemDto.fromEntity를 mock으로 설정
+      jest.spyOn(SellerProductItemDto, 'fromEntity').mockImplementation(async (product) => {
+        const dto = new SellerProductItemDto();
+        dto.id = product.id;
+        dto.name = product.name;
+        dto.price = product.price;
+        dto.thumbnailImage = product.mainImage;
+        dto.description = product.shortDescription;
+        dto.stock = product.stockQuantity;
+        dto.salesCount = 0;
+        return dto;
+      });
 
       const result = await controller.getSellerProducts(sellerId, query);
       expect(productService.findProductsBySeller).toHaveBeenCalledWith(sellerId);

@@ -154,7 +154,13 @@ export class SellerController {
     @Query() query: SellerProductRequestDto,
   ): Promise<SellerProductResponseDto> {
     const products = await this.productService.findProductsBySeller(sellerId);
-    const items = products.map((p) => SellerProductItemDto.fromEntity(p));
+
+    const items: SellerProductItemDto[] = [];
+    for (const product of products) {
+      const salesCount = await this.productService.getProductSalesCount(product.id);
+      const item = await SellerProductItemDto.fromEntity(product, salesCount);
+      items.push(item);
+    }
 
     return BaseResponseV2.success(items, '판매자 상품 목록입니다.');
   }

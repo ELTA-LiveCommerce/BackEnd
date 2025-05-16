@@ -24,6 +24,7 @@ import { SellerProductDateField } from '@/api/v2/seller/product/date-field.enum'
 import { BaseRepository } from '@/shared/common/base.repository';
 import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 import { SellerProductListItemDto } from './dto/seller-product-list-item.dto';
+import { OrderItem } from '@/module/order/entity/order-item.entity';
 
 @Injectable()
 export class ProductService {
@@ -473,4 +474,18 @@ export class ProductService {
 
     return PagedResponseV2.create(items, total, page, limit);
   }
+
+  /**
+   * 특정 상품의 총 판매량을 조회합니다.
+   * @param productId 상품 ID
+   * @returns 총 판매량
+   */
+  async getProductSalesCount(productId: string): Promise<number> {
+    const result = await this.em
+      .getConnection()
+      .execute('SELECT SUM(quantity) as total FROM order_items WHERE product_id = ?', [productId]);
+
+    return result && result.length > 0 && result[0].total ? parseInt(result[0].total) : 0;
+  }
 }
+
