@@ -11,16 +11,16 @@ export class Stream {
   @ManyToOne(() => User)
   seller: User;
 
-  @Property()
-  startedAt = new Date();
+  @Property({ onCreate: () => new Date() })
+  startedAt: Date;
 
   @Property({ nullable: true })
   endedAt?: Date;
 
-  @Property({
-    type: 'json',
-    nullable: true,
-    defaultRaw: "'{}'::jsonb",   // ← Postgres 에 유효 JSON 기본값 생성
-  })
-  metadata?: Record<string, any>;
+  // @Property({
+  //   type: 'json',
+  //   nullable: true,
+  //   defaultRaw: "'{}'::jsonb",   // ← Postgres 에 유효 JSON 기본값 생성
+  // })
+  // metadata?: Record<string, any>;
 }

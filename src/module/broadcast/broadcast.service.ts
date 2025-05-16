@@ -171,12 +171,12 @@ export class BroadcastService {
       await this.repo.flush();
     ───────────────────────────────*/
 
-    const token = this.agora.rtcToken(channelId, Number(hostUserId), 'publisher');
+    const rtcToken = this.agora.rtcTokenWithAccount(channelId, hostUserId, 'publisher');
     const chatToken = this.agora.chatToken(hostUserId);
     return {
       channelId,
       uid: hostUserId,
-      token,
+      rtcToken,
       chatToken,
       appId: process.env.AGORA_APP_ID,
       expireIn: 3600,
@@ -188,12 +188,12 @@ export class BroadcastService {
     const stream = await this.repo.findOne({ id: channelId });
     if (!stream) throw new NotFoundException('방이 없습니다.');
 
-    const token = this.agora.rtcToken(channelId, Number(userId), 'subscriber');
+    const rtcToken = this.agora.rtcTokenWithAccount(channelId, userId, 'subscriber');
 
     return {
       channelId,
       uid: userId,
-      token,
+      rtcToken,
       appId: process.env.AGORA_APP_ID,
       expireIn: 3600,
     };

@@ -75,6 +75,21 @@ export class AgoraService {
     }
   }
 
+  rtcTokenWithAccount(channel: string, account: string, role: 'publisher' | 'subscriber', ttl = 3600): string {
+    const expire = Math.floor(Date.now() / 1000) + ttl;
+
+    return RtcTokenBuilder.buildTokenWithUserAccount(
+      // ← 정확한 메서드명
+      this.appId,
+      this.cert,
+      channel,
+      account, // 이제 문자열 UID 사용
+      role === 'publisher' ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER,
+      expire, // tokenExpire
+      expire, // privilegeExpire
+    );
+  }
+
   /**
    * RTM 토큰이 필요하다면 아래 메서드도 활성화
    */
