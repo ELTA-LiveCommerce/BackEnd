@@ -1,15 +1,20 @@
 import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property, ManyToMany } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
+import { Broadcast } from './broadcast.entity';
 import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
 import { User } from '@/module/user/entity/user.entity';
-@Entity()
+
+@Entity({ tableName: 'streams' })
 export class Stream {
   @PrimaryKey()
   id!: string;
 
   @ManyToOne(() => User)
   seller: User;
+
+  @ManyToOne(() => Broadcast)
+  broadcast: Broadcast;
 
   @Property({ onCreate: () => new Date() })
   startedAt: Date;
@@ -24,3 +29,4 @@ export class Stream {
   // })
   // metadata?: Record<string, any>;
 }
+

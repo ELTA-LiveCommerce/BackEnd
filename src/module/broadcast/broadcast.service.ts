@@ -1,7 +1,7 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager, QueryBuilder } from '@mikro-orm/postgresql';
 import { Loaded } from '@mikro-orm/core';
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 
 import { CreateBroadcastDto } from './dto/create-broadcast.dto';
@@ -26,7 +26,7 @@ export class BroadcastService {
     @InjectRepository(Product)
     private readonly productRepository: EntityRepository<Product>,
     private readonly em: EntityManager,
-    @InjectRepository(Stream) private readonly repo: EntityRepository<Stream>,
+    @InjectRepository(Stream) private readonly streamRepository: EntityRepository<Stream>,
     private readonly agora: AgoraService,
     // private readonly userService: UserService, // UserService가 필요할 경우
   ) {}
@@ -151,31 +151,68 @@ export class BroadcastService {
 
   // TODO: Update, Delete 메서드 추가
   // TODO: 방송 시작/종료, 상품 연동 등의 메서드 추가
-  async start(hostUserId: string) {
-    const channelId = uuid();
+  async start(hostUserId: string, broadcastId: string) {
+    return this.em.transactional(async (em) => {
+      // 방송 정보 조회
+      const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller'] });
 
-    // seller: 관계형 컬럼
-    const sellerRef = this.em.getReference(User, hostUserId);
-    const stream = this.repo.create({
-      id: channelId,
-      seller: sellerRef,
-      startedAt: new Date(),
+      if (!broadcast) {
+        throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+      }
+
+      // 방송 소유자 확인
+      if (broadcast.seller.id !== hostUserId) {
+        throw new ForbiddenException('이 방송을 시작할 권한이 없습니다.');
+      }
+
+      // 이미 라이브 중인지 확인
+      if (broadcast.isLive) {
+        throw new BadRequestException('이미 라이브 중인 방송입니다.');
+      }
+
+      // 방송 상태 업데이트
+      broadcast.startLive();
+      em.persist(broadcast);
+
+      // 스트림 생성
+      const channelId = uuid();
+      const sellerRef = em.getReference(User, hostUserId);
+      const stream = new Stream(sellerRef, broadcast);
+      stream.id = channelId;
+
+      em.persist(stream);
+
+      // Agora 토큰 생성
+      const rtcToken = this.agora.rtcTokenWithAccount(channelId, hostUserId, 'publisher');
+      const chatToken = this.agora.chatToken(hostUserId);
+
+      return {
+        broadcastId: broadcast.id,
+        channelId,
+        uid: hostUserId,
+        rtcToken,
+        chatToken,
+        appId: process.env.AGORA_APP_ID,
+        expireIn: 3600,
+      };
     });
+  }
 
-    /** 방법 A: EntityManager 사용 (가장 간단) */
-    await this.em.persistAndFlush(stream);
+  /** 방송 입장(시청자) ------------------------------------------------------- */
+  async join(channelId: string, userId: string) {
+    const stream = await this.streamRepository.findOne({ id: channelId }, { populate: ['broadcast'] });
+    if (!stream) throw new NotFoundException('방송을 찾을 수 없습니다.');
 
-    /* ───────────────────────────────
-      방법 B: Repository 두 단계 호출
-      this.repo.persist(stream);
-      await this.repo.flush();
-    ───────────────────────────────*/
+    if (!stream.broadcast.isLive) {
+      throw new BadRequestException('라이브 중인 방송이 아닙니다.');
+    }
 
-    const rtcToken = this.agora.rtcTokenWithAccount(channelId, hostUserId, 'publisher');
-    const chatToken = this.agora.chatToken(hostUserId);
+    const rtcToken = this.agora.rtcTokenWithAccount(channelId, userId, 'subscriber');
+    const chatToken = this.agora.chatToken(userId);
     return {
+      broadcastId: stream.broadcast.id,
       channelId,
-      uid: hostUserId,
+      uid: userId,
       rtcToken,
       chatToken,
       appId: process.env.AGORA_APP_ID,
@@ -183,26 +220,49 @@ export class BroadcastService {
     };
   }
 
-  /** 방송 입장(시청자) ------------------------------------------------------- */
-  async join(channelId: string, userId: string) {
-    const stream = await this.repo.findOne({ id: channelId });
-    if (!stream) throw new NotFoundException('방이 없습니다.');
-
-    const rtcToken = this.agora.rtcTokenWithAccount(channelId, userId, 'subscriber');
-    const chatToken = this.agora.chatToken(userId);
-    return {
-      channelId,
-      uid: userId,
-      rtcToken,
-      appId: process.env.AGORA_APP_ID,
-      expireIn: 3600,
-    };
-  }
-
   /** 토큰 재발급 ------------------------------------------------------------ */
   async renew(channelId: string, uid: number, role: 'publisher' | 'subscriber') {
-    const token = this.agora.rtcToken(channelId, uid, role);
+    const stream = await this.streamRepository.findOne({ id: channelId });
+    if (!stream) throw new NotFoundException('방송을 찾을 수 없습니다.');
+
+    const token = this.agora.rtcTokenWithAccount(channelId, uid.toString(), role);
     return { token, expireIn: 3600 };
   }
-}
 
+  /** 방송 종료 -------------------------------------------------------------- */
+  async end(broadcastId: string, hostUserId: string) {
+    return this.em.transactional(async (em) => {
+      const broadcast = await this.broadcastRepository.findOne(
+        { id: broadcastId },
+        { populate: ['seller', 'streams'] },
+      );
+
+      if (!broadcast) {
+        throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+      }
+
+      // 방송 소유자 확인
+      if (broadcast.seller.id !== hostUserId) {
+        throw new ForbiddenException('이 방송을 종료할 권한이 없습니다.');
+      }
+
+      // 라이브 중인지 확인
+      if (!broadcast.isLive) {
+        throw new BadRequestException('라이브 중인 방송이 아닙니다.');
+      }
+
+      // 방송 상태 업데이트
+      broadcast.endLive();
+      em.persist(broadcast);
+
+      // 관련 스트림 종료 처리
+      const activeStreams = broadcast.streams.getItems().filter((stream) => !stream.endedAt);
+      for (const stream of activeStreams) {
+        stream.endedAt = new Date();
+        em.persist(stream);
+      }
+
+      return { success: true, message: '방송이 성공적으로 종료되었습니다.' };
+    });
+  }
+}
