@@ -154,7 +154,7 @@ export class BroadcastService {
   async start(hostUserId: string, broadcastId: string) {
     return this.em.transactional(async (em) => {
       // 방송 정보 조회
-      const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller'] });
+      const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
 
       if (!broadcast) {
         throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
@@ -168,6 +168,11 @@ export class BroadcastService {
       // 이미 라이브 중인지 확인
       if (broadcast.isLive) {
         throw new BadRequestException('이미 라이브 중인 방송입니다.');
+      }
+
+      // 이미 생성된 스트림이 있는지 확인
+      if (broadcast.stream) {
+        throw new BadRequestException('이미 스트림이 생성되어 있는 방송입니다.');
       }
 
       // 방송 상태 업데이트
@@ -225,7 +230,7 @@ export class BroadcastService {
   /** 토큰 재발급 ------------------------------------------------------------ */
   async renew(channelId: string, uid: number, role: 'publisher' | 'subscriber') {
     const stream = await this.streamRepository.findOne({ id: channelId });
-    if (!stream) throw new NotFoundException('방송을 찾을 수 없습니다.');
+    if (!stream) throw new NotFoundException('스트림을 찾을 수 없습니다.');
 
     const token = this.agora.rtcTokenWithAccount(channelId, uid.toString(), role);
     return { token, expireIn: 3600 };
@@ -234,10 +239,7 @@ export class BroadcastService {
   /** 방송 종료 -------------------------------------------------------------- */
   async end(broadcastId: string, hostUserId: string) {
     return this.em.transactional(async (em) => {
-      const broadcast = await this.broadcastRepository.findOne(
-        { id: broadcastId },
-        { populate: ['seller', 'streams'] },
-      );
+      const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
 
       if (!broadcast) {
         throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
@@ -253,13 +255,18 @@ export class BroadcastService {
         throw new BadRequestException('라이브 중인 방송이 아닙니다.');
       }
 
+      // 스트림이 있는지 확인
+      if (!broadcast.stream) {
+        throw new BadRequestException('활성화된 스트림이 없습니다.');
+      }
+
       // 방송 상태 업데이트
       broadcast.endLive();
       em.persist(broadcast);
 
-      // 관련 스트림 종료 처리
-      const activeStreams = broadcast.streams.getItems().filter((stream) => !stream.endedAt);
-      for (const stream of activeStreams) {
+      // 스트림 종료 처리
+      const stream = broadcast.stream;
+      if (stream && !stream.endedAt) {
         stream.endedAt = new Date();
         em.persist(stream);
       }
@@ -268,3 +275,4 @@ export class BroadcastService {
     });
   }
 }
+

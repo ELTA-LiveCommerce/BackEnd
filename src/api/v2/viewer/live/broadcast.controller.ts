@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { BroadcastListRequestDto } from './dto/broadcast-list.request.dto';
@@ -34,16 +34,15 @@ export class BroadcastController {
   /** 시청자 입장 */
   @Post('join')
   @ApiOperation({ summary: '판매자 라이브 방송 시청자 입장' })
-  @ApiOkResponse({ type: BroadcastListItemDto })
-  join(@Body() dto: JoinStreamDto, @Req() req) {
-    const userId = req.user.id as string;
-    return this.broadcastService.join(dto.channelId, userId);
+  @ApiOkResponse({ description: '방송 입장 응답' })
+  join(@Body() dto: JoinStreamDto, @CurrentUser() user: User) {
+    return this.broadcastService.join(dto.channelId, user.id);
   }
 
   /** 토큰 재발급 */
   @Post('renew')
   @ApiOperation({ summary: '판매자 라이브 방송 토큰 재발급' })
-  @ApiOkResponse({ type: BroadcastListItemDto })
+  @ApiOkResponse({ description: '토큰 재발급 응답' })
   renew(@Body() dto: RenewTokenDto) {
     return this.broadcastService.renew(dto.channelId, dto.uid, dto.role);
   }

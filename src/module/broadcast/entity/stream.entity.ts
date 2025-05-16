@@ -1,4 +1,4 @@
-import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property, ManyToMany } from '@mikro-orm/core';
+import { Collection, Entity, ManyToOne, OneToMany, OneToOne, PrimaryKey, Property, ManyToMany } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { Broadcast } from './broadcast.entity';
@@ -13,7 +13,7 @@ export class Stream {
   @ManyToOne(() => User)
   seller: User;
 
-  @ManyToOne(() => Broadcast)
+  @OneToOne(() => Broadcast, (broadcast) => broadcast.stream)
   broadcast: Broadcast;
 
   @Property({ onCreate: () => new Date() })

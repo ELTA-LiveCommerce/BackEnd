@@ -1,4 +1,4 @@
-import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property, ManyToMany } from '@mikro-orm/core';
+import { Collection, Entity, ManyToOne, OneToMany, OneToOne, PrimaryKey, Property, ManyToMany } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
@@ -37,10 +37,11 @@ export class Broadcast extends BaseEntity {
   @Property({ type: 'boolean', default: false })
   isLive: boolean = false;
 
-  @OneToMany(() => Stream, (stream) => stream.broadcast, {
+  @OneToOne(() => Stream, (stream) => stream.broadcast, {
     orphanRemoval: true,
+    nullable: true,
   })
-  streams = new Collection<Stream>(this);
+  stream?: Stream;
 
   // BroadcastProduct와의 관계 설정 (방송에 연결된 상품)
   @OneToMany(() => BroadcastProduct, (broadcastProduct) => broadcastProduct.broadcast, {
