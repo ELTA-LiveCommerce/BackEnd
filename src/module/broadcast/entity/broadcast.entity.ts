@@ -5,6 +5,7 @@ import { BroadcastProduct } from '@/module/product/entity/broadcast-product.enti
 import { User } from '@/module/user/entity/user.entity';
 import { BaseEntity } from '@/shared/entity/base.entity'; // 공통 BaseEntity가 있다면 사용
 import { Product } from '@/module/product/entity/product.entity';
+import { Stream } from './stream.entity';
 
 @Entity({ tableName: 'broadcasts' })
 export class Broadcast extends BaseEntity {
@@ -36,6 +37,11 @@ export class Broadcast extends BaseEntity {
   @Property({ type: 'boolean', default: false })
   isLive: boolean = false;
 
+  @OneToMany(() => Stream, (stream) => stream.broadcast, {
+    orphanRemoval: true,
+  })
+  streams = new Collection<Stream>(this);
+
   // BroadcastProduct와의 관계 설정 (방송에 연결된 상품)
   @OneToMany(() => BroadcastProduct, (broadcastProduct) => broadcastProduct.broadcast, {
     orphanRemoval: true,
@@ -50,6 +56,15 @@ export class Broadcast extends BaseEntity {
     this.scheduledAt = scheduledAt;
     this.thumbnailUrl = thumbnailUrl;
   }
-}
 
+  startLive() {
+    this.isLive = true;
+    return this;
+  }
+
+  endLive() {
+    this.isLive = false;
+    return this;
+  }
+}
 

@@ -126,3 +126,4 @@ export class SellerProductPageDto {
 export class SellerProductResponseDto extends BaseResponseV2<SellerProductItemDto[]> {
   // success 메서드 제거
 }
+
