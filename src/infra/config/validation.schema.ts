@@ -26,6 +26,11 @@ export const validationSchema = Joi.object({
   APPLE_PRIVATE_KEY: Joi.string().required(),
   APPLE_CALLBACK_URL: Joi.string().uri().required(),
 
+  // Kakao AlimTalk
+  KAKAO_API_KEY: Joi.string().allow('').default(''),
+  KAKAO_SENDER_ID: Joi.string().allow('').default(''),
+  KAKAO_API_URL: Joi.string().uri().allow('').default('https://alimtalk-api.kakao.com/v2/sender'),
+
   // Sentry
   SENTRY_DSN: Joi.string().allow(''), // 비워둘 수 있도록 허용
 
@@ -35,3 +40,4 @@ export const validationSchema = Joi.object({
   // AWS_REGION: Joi.string().required(),
   // AWS_S3_BUCKET_NAME: Joi.string().required(),
 });
+

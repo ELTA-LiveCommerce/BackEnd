@@ -1,7 +1,7 @@
 import { EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { SqlEntityManager } from '@mikro-orm/postgresql';
-import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
 
 import { DeliveryService } from '@/module/delivery/delivery.service';
 import { CreateOrderDto } from '@/module/order/dto/create-order.dto';
@@ -21,6 +21,7 @@ import { ProductService } from '@/module/product/product.service';
 import { User } from '@/module/user/entity/user.entity';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
 import { CreateDeliveryAutoDto } from '@/module/delivery/dto/create-delivery-auto.dto';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class OrderService {
@@ -37,6 +38,7 @@ export class OrderService {
     private readonly deliveryService: DeliveryService,
     private readonly paymentService: PaymentService,
     private readonly entityManager: SqlEntityManager,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -105,6 +107,46 @@ export class OrderService {
         paymentMethod: order.paymentMethod || '무통장입금',
         transactionId: `TR-${order.orderNumber}-${sellerId.substring(0, 4)}`,
       });
+
+      // 판매자에게 상품 판매 알림톡 발송
+      if (seller.phoneNumber) {
+        try {
+          const productNames = products.map(({ product, quantity }) => `${product.name} (${quantity}개)`).join(', ');
+
+          await this.notificationService.sendKakaoTalk(
+            'SELLER_ORDER_NOTIFICATION_TEMPLATE', // 실제 템플릿 코드로 변경 필요
+            seller.phoneNumber,
+            {
+              orderNumber: order.orderNumber,
+              buyerName: user.name,
+              productNames: productNames,
+              totalAmount: sellerTotal,
+              orderDate: new Date().toLocaleString('ko-KR'),
+            },
+          );
+        } catch (error) {
+          // 알림톡 발송 실패 시 로깅 (에러를 전파하지 않음)
+          console.error(`Failed to send KakaoTalk notification to seller ${seller.id}:`, error);
+        }
+      }
+    }
+
+    // Send notification to user
+    if (user.phoneNumber) {
+      try {
+        await this.notificationService.sendKakaoTalk(
+          'ORDER_COMPLETE_TEMPLATE', // 실제 템플릿 코드로 변경 필요
+          user.phoneNumber,
+          {
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            // 추가 파라미터들...
+          },
+        );
+      } catch (error) {
+        // 알림톡 발송 실패 시 로깅 (에러를 전파하지 않음)
+        console.error('Failed to send KakaoTalk notification', error);
+      }
     }
 
     const orderItemsData: OrderItemResponseDto[] = order.items.getItems().map((item) => ({
@@ -448,3 +490,4 @@ export class OrderService {
     await this.orderRepository.persistAndFlush(order);
   }
 }
+

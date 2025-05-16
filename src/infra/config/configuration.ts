@@ -1,3 +1,9 @@
+/**
+ * 이 설정 파일은 ConfigModule.forRoot()의 load 옵션에서 사용되지만,
+ * 실제로 대부분의 코드는 configService.get()을 직접 호출하여 환경 변수에 접근합니다.
+ * 네스트 구조(예: configService.get('kakao.clientId'))를 사용하는 코드가 없기 때문에
+ * 이 파일은 대부분 참조용으로만 사용됩니다.
+ */
 export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   database: {
@@ -17,6 +23,11 @@ export default () => ({
     clientId: process.env.KAKAO_CLIENT_ID,
     callbackUrl: process.env.KAKAO_CALLBACK_URL,
   },
+  kakaoAlimTalk: {
+    apiKey: process.env.KAKAO_API_KEY,
+    senderId: process.env.KAKAO_SENDER_ID,
+    apiUrl: process.env.KAKAO_API_URL || 'https://alimtalk-api.kakao.com/v2/sender',
+  },
   apple: {
     clientId: process.env.APPLE_CLIENT_ID,
     teamId: process.env.APPLE_TEAM_ID,
@@ -28,3 +39,4 @@ export default () => ({
   // 필요에 따라 다른 설정 추가 가능
   // 예: aws, redis 등
 });
+
