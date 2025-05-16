@@ -17,7 +17,7 @@ import {
   DeliveryAddressListResponseDto,
 } from './profile.dto';
 import { UpdateProfileDto } from '@/module/user/dto/update-profile.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('v2/viewer/profile')
 @Controller('v2/viewer/profile')
@@ -41,6 +41,8 @@ export class ProfileController {
       bankAccount: userInfo.accountNumber || '',
       bankName: userInfo.bankName || '',
       shippingAddress: userInfo.address || '',
+      profileImage: userInfo.profileImage,
+      bannerImage: userInfo.bannerImage,
     };
 
     return BaseResponseV2.success(profileInfo, '프로필 정보입니다.');
@@ -60,6 +62,8 @@ export class ProfileController {
       name: updateProfileDto.name,
       phoneNumber: updateProfileDto.phoneNumber,
       address: updateProfileDto.shippingAddress,
+      profileImage: updateProfileDto.profileImage,
+      bannerImage: updateProfileDto.bannerImage,
     };
     const updatedUser = await this.userService.updateProfile(user.id, profileUpdateData);
 
@@ -80,9 +84,39 @@ export class ProfileController {
       bankAccount: refreshedUserInfo.accountNumber || '',
       bankName: refreshedUserInfo.bankName || '',
       shippingAddress: refreshedUserInfo.address || '',
+      profileImage: refreshedUserInfo.profileImage,
+      bannerImage: refreshedUserInfo.bannerImage,
     };
 
     return BaseResponseV2.success(profileInfo, '프로필 정보가 업데이트되었습니다.');
+  }
+
+  /**
+   * 배너 이미지를 업로드합니다.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('banner-image')
+  async uploadBannerImage(
+    @GetUser() user: User,
+    @Body() uploadData: { imageUrl: string },
+  ): Promise<BaseResponseV2<{ imageUrl: string }>> {
+    const updatedUser = await this.userService.uploadBannerImage(user.id, uploadData.imageUrl);
+    const imageUrl = updatedUser.bannerImage || '';
+    return BaseResponseV2.success({ imageUrl }, '배너 이미지가 업로드되었습니다.');
+  }
+
+  /**
+   * 프로필 이미지를 업로드합니다.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('profile-image')
+  async uploadProfileImage(
+    @GetUser() user: User,
+    @Body() uploadData: { imageUrl: string },
+  ): Promise<BaseResponseV2<{ imageUrl: string }>> {
+    const updatedUser = await this.userService.uploadProfileImage(user.id, uploadData.imageUrl);
+    const imageUrl = updatedUser.profileImage || '';
+    return BaseResponseV2.success({ imageUrl }, '프로필 이미지가 업로드되었습니다.');
   }
 
   /**
@@ -102,6 +136,8 @@ export class ProfileController {
       bankAccount: updatedUser.accountNumber || '',
       bankName: updatedUser.bankName || '',
       shippingAddress: updatedUser.address || '',
+      profileImage: updatedUser.profileImage,
+      bannerImage: updatedUser.bannerImage,
     };
 
     return BaseResponseV2.success(profileInfo, '판매자로 등록되었습니다.');

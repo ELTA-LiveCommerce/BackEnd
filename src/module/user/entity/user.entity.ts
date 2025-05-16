@@ -40,6 +40,9 @@ export class User extends BaseEntity {
   profileImage?: string;
 
   @Property({ nullable: true, type: 'string' })
+  bannerImage?: string;
+
+  @Property({ nullable: true, type: 'string' })
   accountNumber?: string;
 
   @Property({ nullable: true, type: 'string' })
@@ -80,3 +83,4 @@ export class User extends BaseEntity {
   @OneToMany(() => SellerUserBlock, (block) => block.blockedUser, { cascade: [Cascade.ALL] })
   blockingSellersOfMe = new Collection<SellerUserBlock>(this);
 }
+

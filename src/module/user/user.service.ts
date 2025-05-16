@@ -95,6 +95,7 @@ export class UserService {
     if (updateProfileDto.name) user.name = updateProfileDto.name;
     if (updateProfileDto.phoneNumber) user.phoneNumber = updateProfileDto.phoneNumber;
     if (updateProfileDto.profileImage) user.profileImage = updateProfileDto.profileImage;
+    if (updateProfileDto.bannerImage) user.bannerImage = updateProfileDto.bannerImage;
     if (updateProfileDto.address) user.address = updateProfileDto.address;
 
     await this.em.persistAndFlush(user);
@@ -121,6 +122,19 @@ export class UserService {
   async uploadProfileImage(id: string, imageUrl: string): Promise<User> {
     const user = await this.findOne(id);
     user.profileImage = imageUrl;
+    await this.em.persistAndFlush(user);
+    return user;
+  }
+
+  /**
+   * 사용자의 배너 이미지를 업로드합니다.
+   * @param id 사용자 ID
+   * @param imageUrl 이미지 URL
+   * @returns 업데이트된 사용자 정보
+   */
+  async uploadBannerImage(id: string, imageUrl: string): Promise<User> {
+    const user = await this.findOne(id);
+    user.bannerImage = imageUrl;
     await this.em.persistAndFlush(user);
     return user;
   }
@@ -523,3 +537,4 @@ export class UserService {
     return user;
   }
 }
+

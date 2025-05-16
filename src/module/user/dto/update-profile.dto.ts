@@ -3,7 +3,7 @@ import { IsOptional, IsString, Length, Matches } from 'class-validator';
 export class UpdateProfileDto {
   @IsOptional()
   @IsString()
-  @Length(2, 50)
+  @Length(1, 100)
   name?: string;
 
   @IsOptional()
@@ -13,6 +13,10 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   profileImage?: string;
+
+  @IsOptional()
+  @IsString()
+  bannerImage?: string;
 
   @IsOptional()
   @IsString()
@@ -46,3 +50,4 @@ export class ChangePasswordDto {
   })
   newPassword: string;
 }
+

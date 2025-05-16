@@ -24,6 +24,8 @@ describe('ProfileController', () => {
     bankName: 'Test Bank',
     accountNumber: '1234567890',
     address: 'Test Address, 123',
+    profileImage: 'http://example.com/profile.jpg',
+    bannerImage: 'http://example.com/banner.jpg',
     role: UserRole.VIEWER,
     isVerified: true,
     logins: undefined as any,
@@ -67,6 +69,8 @@ describe('ProfileController', () => {
         bankAccount: mockUser.accountNumber || '',
         bankName: mockUser.bankName || '',
         shippingAddress: mockUser.address || '',
+        profileImage: mockUser.profileImage,
+        bannerImage: mockUser.bannerImage,
       };
 
       userService.findOne.mockResolvedValue(mockUser);
@@ -90,6 +94,8 @@ describe('ProfileController', () => {
         shippingAddress: 'Updated Address',
         bankName: 'Updated Bank',
         accountNumber: '0987654321',
+        profileImage: 'http://example.com/updated-profile.jpg',
+        bannerImage: 'http://example.com/updated-banner.jpg',
       };
 
       const baseForUpdate = { ...mockUserWithId };
@@ -99,6 +105,8 @@ describe('ProfileController', () => {
         name: updateProfileDto.name,
         phoneNumber: updateProfileDto.phoneNumber,
         address: updateProfileDto.shippingAddress,
+        profileImage: updateProfileDto.profileImage,
+        bannerImage: updateProfileDto.bannerImage,
       } as User;
 
       const updatedUserWithBank = {
@@ -123,12 +131,16 @@ describe('ProfileController', () => {
         bankAccount: refreshedUser.accountNumber || '',
         bankName: refreshedUser.bankName || '',
         shippingAddress: refreshedUser.address || '',
+        profileImage: refreshedUser.profileImage,
+        bannerImage: refreshedUser.bannerImage,
       };
 
       expect(userService.updateProfile).toHaveBeenCalledWith(mockUser.id, {
         name: updateProfileDto.name,
         phoneNumber: updateProfileDto.phoneNumber,
         address: updateProfileDto.shippingAddress,
+        profileImage: updateProfileDto.profileImage,
+        bannerImage: updateProfileDto.bannerImage,
       });
       expect(userService.updateBankInfo).toHaveBeenCalledWith(mockUser.id, {
         bankName: updateProfileDto.bankName,
@@ -177,12 +189,16 @@ describe('ProfileController', () => {
         bankAccount: refreshedUser.accountNumber || '',
         bankName: refreshedUser.bankName || '',
         shippingAddress: refreshedUser.address || '',
+        profileImage: refreshedUser.profileImage,
+        bannerImage: refreshedUser.bannerImage,
       };
 
       expect(userService.updateProfile).toHaveBeenCalledWith(mockUser.id, {
         name: updateProfileDto.name,
         phoneNumber: updateProfileDto.phoneNumber,
         address: updateProfileDto.shippingAddress,
+        profileImage: undefined,
+        bannerImage: undefined,
       });
       expect(userService.updateBankInfo).not.toHaveBeenCalled();
       expect(userService.findOne).toHaveBeenCalledWith(mockUser.id);
@@ -190,6 +206,54 @@ describe('ProfileController', () => {
       expect(result.statusCode).toBe(200);
       expect(result.message).toBe('프로필 정보가 업데이트되었습니다.');
       expect(result.data).toEqual(expectedProfileInfo);
+      expect(result.timestamp).toEqual(expect.any(String));
+    });
+  });
+
+  describe('uploadBannerImage', () => {
+    it('should upload banner image and return image URL', async () => {
+      const imageUrl = 'http://example.com/new-banner.jpg';
+      const uploadData = { imageUrl };
+
+      const updatedUser = {
+        ...mockUserBase,
+        id: mockUser.id,
+        bannerImage: imageUrl,
+      } as User;
+
+      userService.uploadBannerImage.mockResolvedValue(updatedUser);
+
+      const result = await controller.uploadBannerImage(mockUser, uploadData);
+
+      expect(userService.uploadBannerImage).toHaveBeenCalledWith(mockUser.id, imageUrl);
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('배너 이미지가 업로드되었습니다.');
+      expect(result.data).toEqual({ imageUrl });
+      expect(result.timestamp).toEqual(expect.any(String));
+    });
+  });
+
+  describe('uploadProfileImage', () => {
+    it('should upload profile image and return image URL', async () => {
+      const imageUrl = 'http://example.com/new-profile.jpg';
+      const uploadData = { imageUrl };
+
+      const updatedUser = {
+        ...mockUserBase,
+        id: mockUser.id,
+        profileImage: imageUrl,
+      } as User;
+
+      userService.uploadProfileImage.mockResolvedValue(updatedUser);
+
+      const result = await controller.uploadProfileImage(mockUser, uploadData);
+
+      expect(userService.uploadProfileImage).toHaveBeenCalledWith(mockUser.id, imageUrl);
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('프로필 이미지가 업로드되었습니다.');
+      expect(result.data).toEqual({ imageUrl });
       expect(result.timestamp).toEqual(expect.any(String));
     });
   });
@@ -222,6 +286,8 @@ describe('ProfileController', () => {
         bankAccount: updatedUser.accountNumber || '',
         bankName: updatedUser.bankName || '',
         shippingAddress: updatedUser.address || '',
+        profileImage: updatedUser.profileImage,
+        bannerImage: updatedUser.bannerImage,
       });
       expect(result.timestamp).toEqual(expect.any(String));
     });

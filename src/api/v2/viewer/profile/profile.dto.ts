@@ -56,6 +56,14 @@ export class UpdateProfileRequestDto {
   @IsOptional()
   @IsString()
   shippingAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  profileImage?: string;
+
+  @IsOptional()
+  @IsString()
+  bannerImage?: string;
 }
 
 /**
@@ -88,6 +96,8 @@ export class ProfileInfoDto {
   bankAccount: string;
   bankName: string;
   shippingAddress?: string;
+  profileImage?: string;
+  bannerImage?: string;
 }
 
 /**
@@ -153,3 +163,4 @@ export class DeliveryAddressResponseDto extends BaseResponseV2<DeliveryAddressDt
 export class DeliveryAddressListResponseDto extends BaseResponseV2<DeliveryAddressDto[]> {
   // success 메서드 제거
 }
+
