@@ -5,7 +5,7 @@ import { BroadcastProduct } from '@/module/product/entity/broadcast-product.enti
 import { User } from '@/module/user/entity/user.entity';
 @Entity()
 export class Stream {
-  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  @PrimaryKey()
   id!: string;
 
   @ManyToOne(() => User)

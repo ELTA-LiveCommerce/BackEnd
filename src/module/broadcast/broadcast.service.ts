@@ -189,7 +189,7 @@ export class BroadcastService {
     if (!stream) throw new NotFoundException('방이 없습니다.');
 
     const rtcToken = this.agora.rtcTokenWithAccount(channelId, userId, 'subscriber');
-
+    const chatToken = this.agora.chatToken(userId);
     return {
       channelId,
       uid: userId,
