@@ -12,6 +12,7 @@ import { UserFollowService } from '@/module/user/user-follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { SellerUserBlock, BlockType } from '@/module/user/entity/seller-user-block.entity';
 import { SellerUserStatus, SellerUserStatusUpdateRequestDto } from '@/api/v2/seller/users/seller-user-request.dto';
+import { SellerInfo } from '@/module/user/entity/seller-info.entity';
 
 import { UserService } from './user.service';
 
@@ -22,6 +23,8 @@ describe('UserService', () => {
   let mockUserRepository: any;
   let mockFollowService: any;
   let mockEntityManager: any;
+  let mockSellerInfoRepository: any;
+  let mockSellerUserBlockRepository: any;
   // let userRepository: jest.Mocked<EntityRepository<User>>;
   // let sellerUserBlockRepository: jest.Mocked<EntityRepository<SellerUserBlock>>;
 
@@ -84,6 +87,20 @@ describe('UserService', () => {
     mockEntityManager = {
       persistAndFlush: jest.fn(),
       flush: jest.fn(),
+      persist: jest.fn(),
+    };
+
+    mockSellerUserBlockRepository = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      create: jest.fn(),
+      persistAndFlush: jest.fn(),
+      removeAndFlush: jest.fn(),
+    };
+
+    mockSellerInfoRepository = {
+      persistAndFlush: jest.fn(),
+      persist: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -95,13 +112,11 @@ describe('UserService', () => {
         },
         {
           provide: getRepositoryToken(SellerUserBlock),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            create: jest.fn(),
-            persistAndFlush: jest.fn(),
-            removeAndFlush: jest.fn(),
-          },
+          useValue: mockSellerUserBlockRepository,
+        },
+        {
+          provide: getRepositoryToken(SellerInfo),
+          useValue: mockSellerInfoRepository,
         },
         {
           provide: EntityManager,
@@ -516,4 +531,66 @@ describe('UserService', () => {
       expect(mockUserRepository.findOne).toHaveBeenNthCalledWith(2, { id: sellerId, role: UserRole.SELLER });
     });
   });
+
+  describe('upgradeToSeller', () => {
+    it('성공적으로 사용자를 판매자로 업그레이드해야 함', async () => {
+      // 설정
+      const user = new User();
+      user.id = 'test-user-id';
+      user.name = 'Test User';
+      user.loginId = 'testuser';
+      user.role = UserRole.VIEWER;
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+
+      // 실행
+      const result = await service.upgradeToSeller(user.id);
+
+      // 검증
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: user.id });
+      expect(result.role).toBe(UserRole.SELLER);
+      expect(result.sellerInfo).toBeDefined();
+      expect(mockEntityManager.persist).toHaveBeenCalledTimes(2); // user와 sellerInfo 모두 persist 호출
+    });
+
+    it('사용자가 이미 판매자인 경우 예외를 던져야 함', async () => {
+      // 설정
+      const user = new User();
+      user.id = 'test-user-id';
+      user.role = UserRole.SELLER;
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+
+      // 실행 및 검증
+      await expect(service.upgradeToSeller(user.id)).rejects.toThrow(BadRequestException);
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: user.id });
+      expect(mockEntityManager.persist).not.toHaveBeenCalled();
+    });
+
+    it('사용자가 이미 판매자 정보를 가지고 있는 경우 예외를 던져야 함', async () => {
+      // 설정
+      const user = new User();
+      user.id = 'test-user-id';
+      user.role = UserRole.VIEWER;
+      user.sellerInfo = new SellerInfo();
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+
+      // 실행 및 검증
+      await expect(service.upgradeToSeller(user.id)).rejects.toThrow(BadRequestException);
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: user.id });
+      expect(mockEntityManager.persist).not.toHaveBeenCalled();
+    });
+
+    it('사용자가 존재하지 않는 경우 예외를 던져야 함', async () => {
+      // 설정
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      // 실행 및 검증
+      await expect(service.upgradeToSeller('non-existent-id')).rejects.toThrow(NotFoundException);
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: 'non-existent-id' });
+      expect(mockEntityManager.persist).not.toHaveBeenCalled();
+    });
+  });
 });
+

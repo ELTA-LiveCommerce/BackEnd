@@ -17,6 +17,7 @@ import { BroadcastListItemDto } from './dto/broadcast-list-item.dto';
 import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 import { BroadcastCreateRequestDto } from '@/api/v2/seller/lives/dto/broadcast-create.request.dto';
 import { v4 as uuid } from 'uuid';
+import { Transactional } from '@nestjs-cls/transactional';
 
 @Injectable()
 export class BroadcastService {
@@ -39,7 +40,6 @@ export class BroadcastService {
       }
 
       const broadcast = new Broadcast(seller, dto.title, new Date(dto.scheduledAt), dto.thumbnailImageUrl);
-      broadcast.streamKey = `live_${uuidv4()}`;
 
       em.persist(broadcast);
 
@@ -206,18 +206,27 @@ export class BroadcastService {
   }
 
   /** 방송 입장(시청자) ------------------------------------------------------- */
-  async join(channelId: string, userId: string) {
-    const stream = await this.streamRepository.findOne({ id: channelId }, { populate: ['broadcast'] });
-    if (!stream) throw new NotFoundException('방송을 찾을 수 없습니다.');
+  async join(broadcastId: string, userId: string) {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream'] });
 
-    if (!stream.broadcast.isLive) {
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    if (!broadcast.isLive) {
       throw new BadRequestException('라이브 중인 방송이 아닙니다.');
     }
 
+    if (!broadcast.stream) {
+      throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
+    }
+
+    const channelId = broadcast.stream.id;
     const rtcToken = this.agora.rtcTokenWithAccount(channelId, userId, 'subscriber');
     const chatToken = this.agora.chatToken(userId);
+
     return {
-      broadcastId: stream.broadcast.id,
+      broadcastId: broadcast.id,
       channelId,
       uid: userId,
       rtcToken,
@@ -228,10 +237,18 @@ export class BroadcastService {
   }
 
   /** 토큰 재발급 ------------------------------------------------------------ */
-  async renew(channelId: string, uid: number, role: 'publisher' | 'subscriber') {
-    const stream = await this.streamRepository.findOne({ id: channelId });
-    if (!stream) throw new NotFoundException('스트림을 찾을 수 없습니다.');
+  async renew(broadcastId: string, uid: number, role: 'publisher' | 'subscriber') {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream'] });
 
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    if (!broadcast.stream) {
+      throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
+    }
+
+    const channelId = broadcast.stream.id;
     const token = this.agora.rtcTokenWithAccount(channelId, uid.toString(), role);
     return { token, expireIn: 3600 };
   }
@@ -273,6 +290,23 @@ export class BroadcastService {
 
       return { success: true, message: '방송이 성공적으로 종료되었습니다.' };
     });
+  }
+
+  @Transactional()
+  async delete(broadcastId: string, hostUserId: string) {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    if (broadcast.seller.id !== hostUserId) {
+      throw new ForbiddenException('이 방송을 삭제할 권한이 없습니다.');
+    }
+
+    this.em.remove(broadcast);
+
+    return { success: true, message: '방송이 성공적으로 삭제되었습니다.' };
   }
 }
 

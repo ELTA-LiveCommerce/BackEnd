@@ -10,6 +10,7 @@ import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { Login } from '@/module/auth/entity/login.entity';
 import { Follow } from '@/module/user/entity/follow.entity';
 import { SellerUserBlock } from '@/module/user/entity/seller-user-block.entity';
+import { SellerInfo } from '@/module/user/entity/seller-info.entity';
 
 describe('ProfileController', () => {
   let controller: ProfileController;
@@ -192,4 +193,38 @@ describe('ProfileController', () => {
       expect(result.timestamp).toEqual(expect.any(String));
     });
   });
+
+  describe('makeSeller', () => {
+    it('성공적으로 사용자를 판매자로 업그레이드해야 함', async () => {
+      // 설정
+      const updatedUser = {
+        ...mockUserBase,
+        id: mockUser.id,
+        role: UserRole.SELLER,
+        sellerInfo: new SellerInfo(),
+      } as User;
+
+      userService.upgradeToSeller.mockResolvedValue(updatedUser);
+
+      // 실행
+      const result = await controller.makeSeller(mockUser);
+
+      // 검증
+      expect(userService.upgradeToSeller).toHaveBeenCalledWith(mockUser.id);
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('판매자로 등록되었습니다.');
+      expect(result.data).toEqual({
+        id: updatedUser.id,
+        name: updatedUser.name,
+        loginId: updatedUser.loginId,
+        phoneNumber: updatedUser.phoneNumber || '',
+        bankAccount: updatedUser.accountNumber || '',
+        bankName: updatedUser.bankName || '',
+        shippingAddress: updatedUser.address || '',
+      });
+      expect(result.timestamp).toEqual(expect.any(String));
+    });
+  });
 });
+

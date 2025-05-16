@@ -13,7 +13,7 @@ export class Stream {
   @ManyToOne(() => User)
   seller: User;
 
-  @OneToOne(() => Broadcast, (broadcast) => broadcast.stream)
+  @OneToOne(() => Broadcast, (broadcast) => broadcast.stream, { owner: true })
   broadcast: Broadcast;
 
   @Property({ onCreate: () => new Date() })

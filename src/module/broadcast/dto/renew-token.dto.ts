@@ -1,12 +1,8 @@
-import {
-  IsString,
-  IsNumber,
-  IsIn,
-} from 'class-validator';
+import { IsString, IsNumber, IsIn } from 'class-validator';
 
 export class RenewTokenDto {
   @IsString()
-  channelId!: string;
+  broadcastId!: string;
 
   @IsNumber()
   uid!: number;
@@ -14,3 +10,4 @@ export class RenewTokenDto {
   @IsIn(['publisher', 'subscriber'])
   role!: 'publisher' | 'subscriber';
 }
+

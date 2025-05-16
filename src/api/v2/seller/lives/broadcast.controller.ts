@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { BroadcastListRequestDto } from './dto/broadcast-list.request.dto';
@@ -66,19 +66,20 @@ export class BroadcastController {
     return this.broadcastService.end(broadcastId, seller.id);
   }
 
-  /** 시청자 입장 */
-  @Post('join')
-  @ApiOperation({ summary: '판매자 라이브 방송 시청자 입장' })
-  @ApiOkResponse({ description: '방송 입장 응답' })
-  join(@Body() dto: JoinStreamDto, @CurrentUser() user: User) {
-    return this.broadcastService.join(dto.channelId, user.id);
-  }
-
   /** 토큰 재발급 */
   @Post('renew')
   @ApiOperation({ summary: '판매자 라이브 방송 토큰 재발급' })
   @ApiOkResponse({ description: '토큰 재발급 응답' })
   renew(@Body() dto: RenewTokenDto) {
-    return this.broadcastService.renew(dto.channelId, dto.uid, dto.role);
+    return this.broadcastService.renew(dto.broadcastId, dto.uid, dto.role);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: '판매자 라이브 방송 삭제' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({ description: '방송 삭제 응답' })
+  async delete(@Param('id') broadcastId: string, @CurrentUser() seller: User) {
+    return this.broadcastService.delete(broadcastId, seller.id);
   }
 }
+

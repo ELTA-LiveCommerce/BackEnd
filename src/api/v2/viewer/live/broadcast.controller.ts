@@ -36,7 +36,7 @@ export class BroadcastController {
   @ApiOperation({ summary: '판매자 라이브 방송 시청자 입장' })
   @ApiOkResponse({ description: '방송 입장 응답' })
   join(@Body() dto: JoinStreamDto, @CurrentUser() user: User) {
-    return this.broadcastService.join(dto.channelId, user.id);
+    return this.broadcastService.join(dto.broadcastId, user.id);
   }
 
   /** 토큰 재발급 */
@@ -44,7 +44,7 @@ export class BroadcastController {
   @ApiOperation({ summary: '판매자 라이브 방송 토큰 재발급' })
   @ApiOkResponse({ description: '토큰 재발급 응답' })
   renew(@Body() dto: RenewTokenDto) {
-    return this.broadcastService.renew(dto.channelId, dto.uid, dto.role);
+    return this.broadcastService.renew(dto.broadcastId, dto.uid, dto.role);
   }
 }
 

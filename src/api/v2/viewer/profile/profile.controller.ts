@@ -85,37 +85,26 @@ export class ProfileController {
     return BaseResponseV2.success(profileInfo, '프로필 정보가 업데이트되었습니다.');
   }
 
-  // 아래의 배송지 목록/생성/수정/삭제 관련 엔드포인트들은 주석 처리 또는 삭제
-  /*
+  /**
+   * 판매자 등록 요청
+   * 사용자의 역할을 SELLER로 변경하고 판매자 정보를 생성합니다.
+   */
   @UseGuards(JwtAuthGuard)
-  @Get('delivery-addresses')
-  async getDeliveryAddresses(@GetUser() user: User): Promise<DeliveryAddressListResponseDto> {
-    // ... 기존 코드 ...
-  }
+  @Post('seller')
+  async makeSeller(@GetUser() user: User): Promise<BaseResponseV2<ProfileInfoDto>> {
+    const updatedUser = await this.userService.upgradeToSeller(user.id);
 
-  @UseGuards(JwtAuthGuard)
-  @Post('delivery-addresses')
-  async createDeliveryAddress(
-    @GetUser() user: User,
-    @Body() createDto: CreateDeliveryAddressRequestDto,
-  ): Promise<DeliveryAddressResponseDto> {
-    // ... 기존 코드 ...
-  }
+    const profileInfo: ProfileInfoDto = {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      loginId: updatedUser.loginId,
+      phoneNumber: updatedUser.phoneNumber || '',
+      bankAccount: updatedUser.accountNumber || '',
+      bankName: updatedUser.bankName || '',
+      shippingAddress: updatedUser.address || '',
+    };
 
-  @UseGuards(JwtAuthGuard)
-  @Put('delivery-addresses/:addressId')
-  async updateDeliveryAddress(
-    @GetUser() user: User,
-    @Param('addressId') addressId: string,
-    @Body() updateDto: UpdateDeliveryAddressRequestDto,
-  ): Promise<DeliveryAddressResponseDto> {
-    // ... 기존 코드 ...
+    return BaseResponseV2.success(profileInfo, '판매자로 등록되었습니다.');
   }
-
-  @UseGuards(JwtAuthGuard)
-  @Delete('delivery-addresses/:addressId')
-  async deleteDeliveryAddress(@GetUser() user: User, @Param('addressId') addressId: string): Promise<EmptyResponseV2> {
-    // ... 기존 코드 ...
-  }
-  */
 }
+

@@ -14,6 +14,8 @@ import { UserFollowService } from '@/module/user/user-follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { SellerUserStatus, SellerUserStatusUpdateRequestDto } from '@/api/v2/seller/users/seller-user-request.dto';
 import { SellerUserBlock, BlockType } from './entity/seller-user-block.entity';
+import { SellerInfo } from './entity/seller-info.entity';
+import { Transactional } from '@nestjs-cls/transactional';
 
 @Injectable()
 export class UserService {
@@ -24,6 +26,8 @@ export class UserService {
     private readonly followService: UserFollowService,
     @InjectRepository(SellerUserBlock)
     private readonly sellerUserBlockRepository: EntityRepository<SellerUserBlock>,
+    @InjectRepository(SellerInfo)
+    private readonly sellerInfoRepository: EntityRepository<SellerInfo>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -478,6 +482,44 @@ export class UserService {
     }
 
     // 4. 변경된 사용자 반환
+    return user;
+  }
+
+  /**
+   * 사용자를 판매자(Seller)로 업그레이드합니다.
+   * 사용자 역할을 SELLER로 변경하고 SellerInfo 엔티티를 생성합니다.
+   * @param userId 업그레이드할 사용자의 ID
+   * @returns 업그레이드된 User 객체
+   */
+  @Transactional()
+  async upgradeToSeller(userId: string): Promise<User> {
+    // 사용자 조회
+    const user = await this.userRepository.findOne({ id: userId });
+    if (!user) {
+      throw new NotFoundException(`ID가 ${userId}인 사용자를 찾을 수 없습니다.`);
+    }
+
+    // 이미 판매자인 경우 예외 처리
+    if (user.role === UserRole.SELLER) {
+      throw new BadRequestException('이미 판매자로 등록된 사용자입니다.');
+    }
+
+    // 이미 SellerInfo가 있는 경우 예외 처리
+    if (user.sellerInfo) {
+      throw new BadRequestException('이미 판매자 정보가 존재합니다.');
+    }
+
+    // 사용자 역할을 SELLER로 변경
+    user.role = UserRole.SELLER;
+
+    // SellerInfo 엔티티 생성 및 연결
+    const sellerInfo = new SellerInfo({ user });
+    user.sellerInfo = sellerInfo;
+
+    // 변경사항 저장
+    this.em.persist(user);
+    this.em.persist(sellerInfo);
+
     return user;
   }
 }
