@@ -59,14 +59,28 @@
 
 ## 6. 현재 방송 진행 상품 조회 API 개발
 
-- [ ] 라이브 방송 상품 DTO 생성
-- [ ] 라이브 방송에서 진행 중인 상품 조회 엔드포인트 구현 (/v2/viewer/lives/{id}/products)
-- [ ] 라이브 방송 상태 확인 로직 구현 (현재 방송 중인지 확인)
-- [ ] 라이브 방송에 연결된 상품 조회 로직 구현
-  - [ ] 상품 정보 조회 쿼리 최적화
-  - [ ] 재고, 가격 등 최신 정보 포함
-- [ ] 상품 순서 정렬 기능 추가 (판매자가 설정한 순서대로)
-- [ ] 테스트 케이스 작성
+- [x] 라이브 방송 상품 DTO 생성
+  - [x] 현재 판매 중인 상품 DTO (CurrentSellingProductDto) 구현
+  - [x] 방송 상품 목록 DTO (BroadcastProductsResponseDto) 구현
+  - [x] 상품 변경 요청 DTO (UpdateCurrentSellingProductDto) 구현
+- [x] 라이브 방송에서 진행 중인 상품 조회 엔드포인트 구현
+  - [x] 시청자용 현재 판매 상품 조회 API (/v2/viewer/lives/{id}/current-product)
+  - [x] 시청자용 방송 상품 목록 조회 API (/v2/viewer/lives/{id}/products)
+  - [x] 셀러용 현재 판매 상품 조회 API (/v2/seller/lives/{id}/current-product)
+  - [x] 셀러용 방송 상품 목록 조회 API (/v2/seller/lives/{id}/products)
+- [x] 셀러용 현재 판매 상품 관리 엔드포인트 구현
+  - [x] 판매 상품 변경 API (/v2/seller/lives/{id}/current-product) (PUT)
+  - [x] 판매 중지 API (/v2/seller/lives/{id}/current-product) (DELETE)
+- [x] 라이브 방송 상태 확인 로직 구현 (현재 방송 중인지 확인)
+- [x] 라이브 방송에 연결된 상품 조회 로직 구현
+  - [x] 상품 정보 조회 쿼리 최적화
+  - [x] 재고, 가격 등 최신 정보 포함
+- [x] 상품 순서 정렬 기능 추가 (판매자가 설정한 순서대로)
+- [x] 스트림 엔티티에 현재 판매 상품 필드 추가
+- [x] 테스트 케이스 작성
+  - [x] 시청자 판매 상품 조회 API 테스트
+  - [x] 셀러 판매 상품 관리 API 테스트
+  - [x] 서비스 계층 테스트
 
 ## 공통 작업
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { BroadcastListRequestDto } from './dto/broadcast-list.request.dto';
@@ -15,6 +15,12 @@ import { CurrentUser } from '@/shared/common/decorators/current-user.decorator';
 import { User } from '@/module/user/entity/user.entity';
 import { BroadcastCreateRequestDto } from './dto/broadcast-create.request.dto';
 import { BroadcastResponseDto } from './dto/broadcast.response.dto';
+import {
+  UpdateCurrentSellingProductDto,
+  CurrentSellingProductDto,
+  BroadcastProductsResponseDto,
+} from '@/module/broadcast/dto/current-selling-product.dto';
+import { ApiResponse } from '@/api/v2/common/api-response.dto';
 
 @ApiTags('v2/seller/lives')
 @Controller('v2/seller/lives')
@@ -80,6 +86,100 @@ export class BroadcastController {
   @ApiOkResponse({ description: '방송 삭제 응답' })
   async delete(@Param('id') broadcastId: string, @CurrentUser() seller: User) {
     return this.broadcastService.delete(broadcastId, seller.id);
+  }
+
+  /**
+   * 방송에서 판매 중인 상품 목록 조회
+   */
+  @Get(':id/products')
+  @ApiOperation({ summary: '방송의 상품 목록 조회' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({
+    description: '방송 상품 목록',
+    type: ApiResponse.withData(BroadcastProductsResponseDto),
+  })
+  async getBroadcastProducts(
+    @Param('id') broadcastId: string,
+    @CurrentUser() seller: User,
+  ): Promise<ApiResponse<BroadcastProductsResponseDto>> {
+    // 권한 검증은 서비스 계층에서 처리됩니다
+    const products = await this.broadcastService.getBroadcastProducts(broadcastId);
+    return ApiResponse.success(BroadcastProductsResponseDto.fromEntities(products), '방송 상품 목록 조회 성공');
+  }
+
+  /**
+   * 현재 방송에서 판매 중인 상품 조회
+   */
+  @Get(':id/current-product')
+  @ApiOperation({ summary: '현재 방송에서 판매 중인 상품 조회' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({
+    description: '현재 판매 중인 상품 정보. 없을 경우 null',
+    type: ApiResponse.withData(CurrentSellingProductDto),
+  })
+  async getCurrentSellingProduct(
+    @Param('id') broadcastId: string,
+    @CurrentUser() seller: User,
+  ): Promise<ApiResponse<CurrentSellingProductDto | null>> {
+    // 권한 검증은 서비스 계층에서 처리됩니다
+    const currentProduct = await this.broadcastService.getCurrentSellingProduct(broadcastId);
+
+    // 현재 판매 중인 상품이 없는 경우 null 반환
+    if (!currentProduct) {
+      return ApiResponse.success(null, '현재 판매 중인 상품이 없습니다.');
+    }
+
+    const productDto = CurrentSellingProductDto.fromEntity(currentProduct);
+    return ApiResponse.success(productDto, '방송 상품 조회 성공');
+  }
+
+  /**
+   * 현재 방송에서 판매 중인 상품 변경
+   */
+  @Put(':id/current-product')
+  @ApiOperation({ summary: '현재 방송에서 판매 중인 상품 변경' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({
+    description: '변경된 판매 상품 정보',
+    type: ApiResponse.withData(CurrentSellingProductDto),
+  })
+  async updateCurrentSellingProduct(
+    @Param('id') broadcastId: string,
+    @Body() dto: UpdateCurrentSellingProductDto,
+    @CurrentUser() seller: User,
+  ): Promise<ApiResponse<CurrentSellingProductDto>> {
+    const updatedProduct = await this.broadcastService.updateCurrentSellingProduct(
+      broadcastId,
+      dto.productId,
+      seller.id,
+    );
+
+    const productDto = CurrentSellingProductDto.fromEntity(updatedProduct);
+    // null이 아님을 확인
+    if (!productDto) {
+      throw new Error('상품 정보를 변환하는 중 오류가 발생했습니다.');
+    }
+
+    return ApiResponse.success(productDto, '현재 판매 상품이 변경되었습니다.');
+  }
+
+  /**
+   * 현재 방송에서 판매 중인 상품 판매 중지
+   */
+  @Delete(':id/current-product')
+  @ApiOperation({ summary: '현재 방송에서 판매 중인 상품 판매 중지' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({
+    description: '판매 중지 처리 결과',
+    type: ApiResponse.withData(Object),
+  })
+  async stopSellingProduct(
+    @Param('id') broadcastId: string,
+    @CurrentUser() seller: User,
+  ): Promise<ApiResponse<{ success: boolean }>> {
+    await this.broadcastService.stopSellingProduct(broadcastId, seller.id);
+
+    return ApiResponse.success({ success: true }, '상품 판매가 중지되었습니다.');
   }
 }
 

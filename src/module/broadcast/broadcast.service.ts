@@ -8,7 +8,7 @@ import { CreateBroadcastDto } from './dto/create-broadcast.dto';
 import { Broadcast } from './entity/broadcast.entity';
 import { Stream } from './entity/stream.entity';
 import { AgoraService } from '../agora/agora.service';
-import { BroadcastProduct } from '../product/entity/broadcast-product.entity';
+import { BroadcastProduct, BroadcastProductStatus } from '../product/entity/broadcast-product.entity';
 import { Product } from '../product/entity/product.entity';
 import { User } from '../user/entity/user.entity';
 import { BroadcastListRequestDto } from '@/api/v2/seller/lives/dto/broadcast-list.request.dto';
@@ -307,6 +307,166 @@ export class BroadcastService {
     this.em.remove(broadcast);
 
     return { success: true, message: '방송이 성공적으로 삭제되었습니다.' };
+  }
+
+  /**
+   * 현재 방송에서 판매 중인 상품을 가져옵니다.
+   */
+  async getCurrentSellingProduct(broadcastId: string): Promise<BroadcastProduct | null> {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream'] });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    if (!broadcast.isLive) {
+      throw new BadRequestException('현재 라이브 중인 방송이 아닙니다.');
+    }
+
+    if (!broadcast.stream) {
+      throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
+    }
+
+    // currentSellingProduct가 null인 경우 null 반환
+    if (!broadcast.stream.currentSellingProduct) {
+      return null;
+    }
+
+    // 현재 판매 중인 상품의 상세 정보 조회
+    return this.em.findOne(
+      BroadcastProduct,
+      { id: broadcast.stream.currentSellingProduct.id },
+      {
+        populate: ['product'],
+      },
+    );
+  }
+
+  /**
+   * 방송에서 판매 중인 상품 목록을 조회합니다.
+   */
+  async getBroadcastProducts(broadcastId: string): Promise<BroadcastProduct[]> {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    // 방송에 연결된 모든 상품 조회 (sortOrder 기준 정렬)
+    return this.em.find(
+      BroadcastProduct,
+      { broadcast: { id: broadcastId } },
+      {
+        populate: ['product'],
+        orderBy: { sortOrder: 'ASC' },
+      },
+    );
+  }
+
+  /**
+   * 방송에서 현재 판매 중인 상품을 변경합니다.
+   */
+  @Transactional()
+  async updateCurrentSellingProduct(
+    broadcastId: string,
+    productId: string,
+    sellerId: string,
+  ): Promise<BroadcastProduct> {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    // 방송 소유자 확인
+    if (broadcast.seller.id !== sellerId) {
+      throw new ForbiddenException('이 방송의 상품을 변경할 권한이 없습니다.');
+    }
+
+    if (!broadcast.isLive) {
+      throw new BadRequestException('현재 라이브 중인 방송이 아닙니다.');
+    }
+
+    if (!broadcast.stream) {
+      throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
+    }
+
+    // 방송에 연결된 상품인지 확인 (product ID로 BroadcastProduct 찾기)
+    const broadcastProduct = await this.em.findOne(
+      BroadcastProduct,
+      {
+        product: { id: productId },
+        broadcast: { id: broadcastId },
+      },
+      { populate: ['product'] },
+    );
+
+    if (!broadcastProduct) {
+      throw new NotFoundException(`해당 방송에 연결된 상품을 찾을 수 없습니다: ${productId}`);
+    }
+
+    // 기존에 판매 중인 상품이 있으면 상태 변경
+    if (broadcast.stream.currentSellingProduct) {
+      const currentProduct = await this.em.findOne(BroadcastProduct, {
+        id: broadcast.stream.currentSellingProduct.id,
+      });
+
+      if (currentProduct) {
+        currentProduct.status = BroadcastProductStatus.SOLD;
+        this.em.persist(currentProduct);
+      }
+    }
+
+    // 새로운 상품 상태 업데이트
+    broadcastProduct.status = BroadcastProductStatus.SELLING;
+    this.em.persist(broadcastProduct);
+
+    // 스트림 정보 업데이트
+    broadcast.stream.currentSellingProduct = broadcastProduct;
+    this.em.persist(broadcast.stream);
+
+    return broadcastProduct;
+  }
+
+  /**
+   * 특정 방송에서 판매 중인 상품을 중지합니다.
+   */
+  @Transactional()
+  async stopSellingProduct(broadcastId: string, sellerId: string): Promise<void> {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    // 방송 소유자 확인
+    if (broadcast.seller.id !== sellerId) {
+      throw new ForbiddenException('이 방송의 상품을 변경할 권한이 없습니다.');
+    }
+
+    if (!broadcast.isLive || !broadcast.stream) {
+      throw new BadRequestException('현재 라이브 중인 방송이 아닙니다.');
+    }
+
+    // 현재 판매 중인 상품이 없으면 에러
+    if (!broadcast.stream.currentSellingProduct) {
+      throw new BadRequestException('현재 판매 중인 상품이 없습니다.');
+    }
+
+    // 현재 판매 중인 상품 조회
+    const currentProduct = await this.em.findOne(BroadcastProduct, {
+      id: broadcast.stream.currentSellingProduct.id,
+    });
+
+    if (currentProduct) {
+      // 상품 상태 업데이트
+      currentProduct.status = BroadcastProductStatus.STOPPED;
+      this.em.persist(currentProduct);
+    }
+
+    // 스트림에서 현재 판매 상품 제거
+    broadcast.stream.currentSellingProduct = undefined;
+    this.em.persist(broadcast.stream);
   }
 }
 

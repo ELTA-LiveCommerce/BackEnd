@@ -7,3 +7,4 @@ import { BroadcastModule } from '@/module/broadcast/broadcast.module';
   controllers: [BroadcastController],
 })
 export class BroadcastControllerModule {}
+
