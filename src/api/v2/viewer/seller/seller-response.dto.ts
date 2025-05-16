@@ -30,6 +30,7 @@ export class SellerInfoDto {
   description?: string;
   followers: number;
   following: number;
+  isFollowing: boolean;
 }
 
 /**

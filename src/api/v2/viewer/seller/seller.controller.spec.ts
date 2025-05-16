@@ -101,10 +101,47 @@ describe('SellerController', () => {
   });
 
   describe('getSellerInfo', () => {
-    it('should return seller information', async () => {
+    const mockCurrentUser = {
+      id: 'test-user-id',
+      loginId: 'testUser',
+      name: 'Test User',
+    } as User;
+
+    const mockFollowers = [
+      {
+        id: 'follower-1',
+        name: 'Follower 1',
+        loginId: 'follower1',
+        profileImage: 'http://example.com/follower1.jpg',
+        isFollowing: false,
+      },
+      {
+        id: 'follower-2',
+        name: 'Follower 2',
+        loginId: 'follower2',
+        profileImage: 'http://example.com/follower2.jpg',
+        isFollowing: true,
+      },
+    ];
+
+    const mockFollowing = [
+      {
+        id: 'following-1',
+        name: 'Following 1',
+        loginId: 'following1',
+        profileImage: 'http://example.com/following1.jpg',
+      },
+    ];
+
+    it('should return seller information with follow status and follower count', async () => {
       const sellerId = 'test-seller-id';
       const query: SellerInfoRequestDto = {};
       userService.findOne.mockResolvedValue(mockSellerUser);
+      userFollowService.getFollowCounts.mockResolvedValue({
+        followersCount: mockFollowers.length,
+        followingCount: mockFollowing.length,
+      });
+      userFollowService.isFollowing.mockResolvedValue(true);
 
       const expectedSellerInfo: SellerInfoDto = {
         id: mockSellerUser.id,
@@ -112,17 +149,34 @@ describe('SellerController', () => {
         loginId: mockSellerUser.loginId,
         profileImage: mockSellerUser.profileImage,
         description: '셀러 소개입니다.',
-        followers: 0,
-        following: 0,
+        followers: mockFollowers.length,
+        following: mockFollowing.length,
+        isFollowing: true,
       };
       const expectedResponse = SellerInfoResponseDto.success(expectedSellerInfo);
 
-      const result = await controller.getSellerInfo(sellerId, query);
+      const result = await controller.getSellerInfo(sellerId, query, mockCurrentUser);
       expect(userService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(userFollowService.getFollowCounts).toHaveBeenCalledWith(sellerId);
+      expect(userFollowService.isFollowing).toHaveBeenCalledWith(mockCurrentUser.id, sellerId);
       expect(result).toMatchObject({
         ...expectedResponse,
         timestamp: expect.any(String),
       });
+    });
+
+    it('should return isFollowing as false when not following', async () => {
+      const sellerId = 'test-seller-id';
+      const query: SellerInfoRequestDto = {};
+      userService.findOne.mockResolvedValue(mockSellerUser);
+      userFollowService.getFollowCounts.mockResolvedValue({
+        followersCount: mockFollowers.length,
+        followingCount: mockFollowing.length,
+      });
+      userFollowService.isFollowing.mockResolvedValue(false);
+
+      const result = await controller.getSellerInfo(sellerId, query, mockCurrentUser);
+      expect(result.data.isFollowing).toBe(false);
     });
 
     it('should throw NotFoundException if seller not found', async () => {
@@ -130,7 +184,7 @@ describe('SellerController', () => {
       const query: SellerInfoRequestDto = {};
       userService.findOne.mockResolvedValue(null as any);
 
-      await expect(controller.getSellerInfo(sellerId, query)).rejects.toThrow(NotFoundException);
+      await expect(controller.getSellerInfo(sellerId, query, mockCurrentUser)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -243,3 +297,4 @@ describe('SellerController', () => {
     });
   });
 });
+

@@ -11,6 +11,7 @@ import { BroadcastListItemDto } from '@/module/broadcast/dto/broadcast-list-item
 import { User } from '@/module/user/entity/user.entity';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { UserFollowService } from '@/module/user/user-follow.service';
+import { GetUser } from '@/shared/common/decorators/get-user.decorator';
 
 import {
   SellerSearchRequestDto,
@@ -74,6 +75,7 @@ export class SellerController {
   async getSellerInfo(
     @Param('sellerId') sellerId: string,
     @Query() query: SellerInfoRequestDto,
+    @GetUser() currentUser: User,
   ): Promise<SellerInfoResponseDto> {
     // 사용자 정보 조회
     const seller = await this.userService.findOne(sellerId);
@@ -83,9 +85,14 @@ export class SellerController {
       throw new NotFoundException(`Seller with ID "${sellerId}" not found`);
     }
 
-    // 팔로워, 팔로잉 수 같은 추가 정보는 실제 구현 필요
-    const followersCount = 0; // 실제 구현 필요
-    const followingCount = 0; // 실제 구현 필요
+    // 팔로워 수와 팔로잉 수 조회 (최적화된 메서드 사용)
+    const { followersCount, followingCount } = await this.userFollowService.getFollowCounts(sellerId);
+
+    // 현재 사용자가 해당 판매자를 팔로우하고 있는지 확인
+    let isFollowing = false;
+    if (currentUser) {
+      isFollowing = await this.userFollowService.isFollowing(currentUser.id, sellerId);
+    }
 
     // 응답 데이터 변환
     const sellerInfo: SellerInfoDto = {
@@ -96,6 +103,7 @@ export class SellerController {
       description: '셀러 소개입니다.', // 실제 필드에 맞게 수정 필요
       followers: followersCount,
       following: followingCount,
+      isFollowing,
     };
 
     return SellerInfoResponseDto.success(sellerInfo);
@@ -151,3 +159,4 @@ export class SellerController {
     return BaseResponseV2.success(items, '판매자 상품 목록입니다.');
   }
 }
+

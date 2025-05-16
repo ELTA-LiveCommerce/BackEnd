@@ -151,4 +151,29 @@ export class UserFollowService {
 
     return !!follow;
   }
+
+  /**
+   * 특정 사용자의 팔로워 수와 팔로잉 수를 효율적으로 조회합니다.
+   * @param userId 사용자 ID
+   * @returns 팔로워 수와 팔로잉 수
+   */
+  async getFollowCounts(userId: string): Promise<{ followersCount: number; followingCount: number }> {
+    const user = await this.userRepository.findOne({ id: userId });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    // 단일 쿼리로 팔로워 수 조회
+    const followersCount = await this.followRepository.count({
+      following: { id: userId },
+    });
+
+    // 단일 쿼리로 팔로잉 수 조회
+    const followingCount = await this.followRepository.count({
+      follower: { id: userId },
+    });
+
+    return { followersCount, followingCount };
+  }
 }
+
