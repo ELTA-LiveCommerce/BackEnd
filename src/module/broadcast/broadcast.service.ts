@@ -57,9 +57,12 @@ export class BroadcastService {
           broadcastProduct.broadcast = broadcast;
           broadcastProduct.product = product;
           broadcastProduct.sortOrder = i;
+          broadcast.products.add(broadcastProduct);
           em.persist(broadcastProduct);
         }
       }
+
+      console.log('Broadcast created:', broadcast.products);
 
       const productInfos = broadcast.products.getItems().map((bp) => ({
         id: bp.product.id,
@@ -303,7 +306,6 @@ export class BroadcastService {
     });
   }
 
-  @Transactional()
   async delete(broadcastId: string, hostUserId: string) {
     const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
 
@@ -377,7 +379,6 @@ export class BroadcastService {
   /**
    * 방송에서 현재 판매 중인 상품을 변경합니다.
    */
-  @Transactional()
   async updateCurrentSellingProduct(
     broadcastId: string,
     productId: string,
@@ -442,7 +443,6 @@ export class BroadcastService {
   /**
    * 특정 방송에서 판매 중인 상품을 중지합니다.
    */
-  @Transactional()
   async stopSellingProduct(broadcastId: string, sellerId: string): Promise<void> {
     const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
 
