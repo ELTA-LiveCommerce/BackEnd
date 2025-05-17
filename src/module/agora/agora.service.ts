@@ -42,7 +42,7 @@ export class AgoraService {
 
   constructor(private readonly cfg: ConfigService) {
     this.appId = cfg.getOrThrow<string>('AGORA_APP_ID');
-    this.cert = cfg.getOrThrow<string>('AGORA_APP_CERT');
+    this.cert = cfg.getOrThrow<string>('AGORA_APP_CERTIFICATE');
 
     this.chatKey = cfg.getOrThrow<string>('AGORA_CHAT_APP_KEY');
     this.chatBase = cfg.getOrThrow<string>('AGORA_CHAT_DC_BASE');
