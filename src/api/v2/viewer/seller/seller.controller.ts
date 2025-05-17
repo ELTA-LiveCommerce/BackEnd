@@ -1,6 +1,6 @@
-import { Controller, Get, Param, Query, NotFoundException, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, NotFoundException, UseGuards, HttpStatus } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiOperation, ApiOkResponse, ApiTags, ApiParam, ApiNotFoundResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiOkResponse, ApiTags, ApiParam, ApiNotFoundResponse, ApiResponse } from '@nestjs/swagger';
 
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { ProductService } from '@/module/product/product.service';
@@ -24,6 +24,7 @@ import {
   SellerInfoResponseDto,
   SellerLiveResponseDto,
   SellerProductResponseDto,
+  SellerFollowResponseDto,
   SellerSearchItemDto,
   SellerInfoDto,
   SellerLiveItemDto,
@@ -163,6 +164,36 @@ export class SellerController {
     }
 
     return BaseResponseV2.success(items, '판매자 상품 목록입니다.');
+  }
+
+  /**
+   * 셀러를 팔로우합니다.
+   */
+  @Post(':sellerId/follow')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: '판매자 팔로우' })
+  @ApiParam({ name: 'sellerId', description: '팔로우할 판매자 ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: '팔로우 성공', type: SellerFollowResponseDto })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: '판매자를 찾을 수 없습니다.' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: '자기 자신은 팔로우할 수 없습니다.' })
+  @ApiResponse({ status: HttpStatus.CONFLICT, description: '이미 팔로우 중인 판매자입니다.' })
+  async followSeller(@Param('sellerId') sellerId: string, @GetUser() user: User): Promise<SellerFollowResponseDto> {
+    await this.userFollowService.followUser(user.id, sellerId);
+    return BaseResponseV2.success({ isFollowing: true }, '판매자 팔로우를 성공했습니다.');
+  }
+
+  /**
+   * 셀러 팔로우를 취소합니다.
+   */
+  @Delete(':sellerId/follow')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: '판매자 팔로우 취소' })
+  @ApiParam({ name: 'sellerId', description: '팔로우 취소할 판매자 ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: '팔로우 취소 성공', type: SellerFollowResponseDto })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: '팔로우 관계를 찾을 수 없습니다.' })
+  async unfollowSeller(@Param('sellerId') sellerId: string, @GetUser() user: User): Promise<SellerFollowResponseDto> {
+    await this.userFollowService.unfollowUser(user.id, sellerId);
+    return BaseResponseV2.success({ isFollowing: false }, '판매자 팔로우를 취소했습니다.');
   }
 }
 

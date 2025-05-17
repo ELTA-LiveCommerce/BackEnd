@@ -22,11 +22,12 @@ import {
   SellerProductPageDto,
   SellerLiveItemDto,
   SellerProductItemDto,
+  SellerFollowResponseDto,
 } from './seller-response.dto';
 import { BroadcastListItemDto } from '@/module/broadcast/dto/broadcast-list-item.dto';
 import { PagedResponseV2, PagedResponseData } from '@/api/v2/common/base-response.dto';
 import { UserRole } from '@/shared/enum/user-role.enum';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { AuthGuard } from '@nestjs/passport';
 import { UserFollowService } from '@/module/user/user-follow.service';
@@ -198,121 +199,166 @@ describe('SellerController', () => {
       const mockItems: BroadcastListItemDto[] = [
         new BroadcastListItemDto({
           id: 'b1',
-          title: 'Live 1',
-          thumbnailUrl: 'img1.jpg',
+          title: 'Test Broadcast 1',
+          thumbnailUrl: 'http://example.com/broadcast1.jpg',
+          status: 'LIVE',
           scheduledAt: new Date(),
           products: [],
         }),
         new BroadcastListItemDto({
           id: 'b2',
-          title: 'Live 2',
-          thumbnailUrl: 'img2.jpg',
-          scheduledAt: new Date(),
+          title: 'Test Broadcast 2',
+          thumbnailUrl: 'http://example.com/broadcast2.jpg',
+          status: 'SCHEDULED',
+          scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
           products: [],
         }),
       ];
 
-      const mockPagedResponse = new PagedResponseV2<BroadcastListItemDto>(
-        mockItems,
-        mockItems.length,
-        query.page,
-        query.limit,
-        '방송 목록 조회 성공',
-      );
+      const mockPagedResults = new PagedResponseV2(mockItems, 2, 1, 10);
 
-      userService.findOne.mockResolvedValueOnce(mockSeller);
-      broadcastService.findSellerBroadcastsPaged.mockResolvedValueOnce(mockPagedResponse);
+      userService.findOne.mockResolvedValue(mockSeller);
+      broadcastService.findSellerBroadcastsPaged.mockResolvedValue(mockPagedResults);
 
-      const result: PagedResponseV2<BroadcastListItemDto> = await controller.getSellerLives(sellerId, query);
+      const result = await controller.getSellerLives(sellerId, query);
 
       expect(userService.findOne).toHaveBeenCalledWith(sellerId);
       expect(broadcastService.findSellerBroadcastsPaged).toHaveBeenCalledWith(sellerId, query);
-      expect(result).toBeInstanceOf(PagedResponseV2);
-      expect(result.success).toBe(true);
-      expect((result.data as PagedResponseData<BroadcastListItemDto>).items).toEqual(mockItems);
-      expect((result.data as PagedResponseData<BroadcastListItemDto>).total).toBe(mockItems.length);
-      expect((result.data as PagedResponseData<BroadcastListItemDto>).page).toBe(query.page);
-      expect((result.data as PagedResponseData<BroadcastListItemDto>).limit).toBe(query.limit);
-      expect(result.timestamp).toEqual(expect.any(String));
+      expect(result).toEqual(mockPagedResults);
     });
 
-    it('should throw NotFoundException if seller does not exist', async () => {
-      const sellerId = 'non-existent-seller';
-      const query = { page: 1, limit: 10 };
-      userService.findOne.mockRejectedValueOnce(new NotFoundException());
+    it('should throw NotFoundException if seller not found', async () => {
+      const sellerId = 'non-existent-id';
+      const query: SellerLiveRequestDto = { page: 1, limit: 10 };
+      userService.findOne.mockRejectedValue(new NotFoundException(`Seller with ID "${sellerId}" not found`));
 
       await expect(controller.getSellerLives(sellerId, query)).rejects.toThrow(NotFoundException);
-      expect(userService.findOne).toHaveBeenCalledWith(sellerId);
-      expect(broadcastService.findSellerBroadcastsPaged).not.toHaveBeenCalled();
     });
   });
 
   describe('getSellerProducts', () => {
-    it('should return a list of seller products', async () => {
+    it('should return a list of products by the seller', async () => {
       const sellerId = 'test-seller-id';
-      const query: SellerProductRequestDto = {};
+      const query: SellerProductRequestDto = { page: 1, limit: 10 };
       const mockProducts = [
         {
-          id: 'p1',
+          id: 'test-product-1',
           name: 'Product 1',
-          price: 1000,
-          mainImage: 'prod1.jpg',
-          shortDescription: 'Desc 1',
-          stockQuantity: 10,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          seller: mockSellerUser,
+          price: 10000,
+          mainImage: 'http://example.com/product1.jpg',
+          shortDescription: 'Description 1',
+          stockQuantity: 100,
         },
         {
-          id: 'p2',
+          id: 'test-product-2',
           name: 'Product 2',
-          price: 2000,
-          mainImage: 'prod2.jpg',
-          shortDescription: 'Desc 2',
-          stockQuantity: 5,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          seller: mockSellerUser,
+          price: 20000,
+          mainImage: 'http://example.com/product2.jpg',
+          shortDescription: 'Description 2',
+          stockQuantity: 50,
         },
-      ] as unknown as Product[];
+      ] as Product[];
+
       productService.findProductsBySeller.mockResolvedValue(mockProducts);
+      productService.getProductSalesCount.mockResolvedValue(10);
 
-      // productService.getProductSalesCount를 mock 함수로 설정
-      jest.spyOn(productService, 'getProductSalesCount').mockResolvedValue(0);
-
-      // mock controller에서 반환되는 DTO 객체 생성
-      const expectedItems = mockProducts.map((p) => {
-        const dto = new SellerProductItemDto();
-        dto.id = p.id;
-        dto.name = p.name;
-        dto.price = p.price;
-        dto.thumbnailImage = p.mainImage;
-        dto.description = p.shortDescription;
-        dto.stock = p.stockQuantity;
-        dto.salesCount = 0;
-        return dto;
-      });
-
-      // SellerProductItemDto.fromEntity를 mock으로 설정
-      jest.spyOn(SellerProductItemDto, 'fromEntity').mockImplementation(async (product) => {
-        const dto = new SellerProductItemDto();
-        dto.id = product.id;
-        dto.name = product.name;
-        dto.price = product.price;
-        dto.thumbnailImage = product.mainImage;
-        dto.description = product.shortDescription;
-        dto.stock = product.stockQuantity;
-        dto.salesCount = 0;
-        return dto;
-      });
+      // 모의 응답 아이템 생성
+      const expectedItems = mockProducts.map((product) => ({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        thumbnailImage: product.mainImage,
+        description: product.shortDescription,
+        stock: product.stockQuantity,
+        salesCount: 10,
+      }));
+      const expectedResponseData = {
+        data: expectedItems,
+        message: '판매자 상품 목록입니다.',
+        statusCode: 200,
+        success: true,
+      };
 
       const result = await controller.getSellerProducts(sellerId, query);
-      expect(productService.findProductsBySeller).toHaveBeenCalledWith(sellerId);
-      expect(result.success).toBe(true);
-      expect(result.statusCode).toBe(200);
-      expect(result.message).toBe('판매자 상품 목록입니다.');
-      expect(result.data).toEqual(expectedItems);
+      expect(result).toMatchObject(expectedResponseData);
       expect(result.timestamp).toEqual(expect.any(String));
+    });
+  });
+
+  describe('followSeller', () => {
+    const mockCurrentUser = {
+      id: 'test-user-id',
+      loginId: 'testUser',
+      name: 'Test User',
+      role: UserRole.VIEWER,
+    } as User;
+
+    it('should follow a seller successfully', async () => {
+      const sellerId = 'test-seller-id';
+      const mockFollow = {
+        id: 'follow-id-1',
+        follower: mockCurrentUser,
+        following: mockSellerUser,
+        isNotified: false,
+      };
+
+      userFollowService.followUser.mockResolvedValue(mockFollow as any);
+
+      const result = await controller.followSeller(sellerId, mockCurrentUser);
+
+      expect(userFollowService.followUser).toHaveBeenCalledWith(mockCurrentUser.id, sellerId);
+      expect(result.success).toBe(true);
+      expect(result.data.isFollowing).toBe(true);
+      expect(result.message).toBe('판매자 팔로우를 성공했습니다.');
+    });
+
+    it('should throw NotFoundException if seller not found', async () => {
+      const sellerId = 'non-existent-id';
+      userFollowService.followUser.mockRejectedValue(new NotFoundException('팔로우하려는 사용자를 찾을 수 없습니다.'));
+
+      await expect(controller.followSeller(sellerId, mockCurrentUser)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException if trying to follow self', async () => {
+      const selfId = 'test-user-id';
+      userFollowService.followUser.mockRejectedValue(new BadRequestException('자기 자신을 팔로우할 수 없습니다.'));
+
+      await expect(controller.followSeller(selfId, mockCurrentUser)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw ConflictException if already following', async () => {
+      const sellerId = 'test-seller-id';
+      userFollowService.followUser.mockRejectedValue(new ConflictException('이미 팔로우하고 있는 사용자입니다.'));
+
+      await expect(controller.followSeller(sellerId, mockCurrentUser)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('unfollowSeller', () => {
+    const mockCurrentUser = {
+      id: 'test-user-id',
+      loginId: 'testUser',
+      name: 'Test User',
+      role: UserRole.VIEWER,
+    } as User;
+
+    it('should unfollow a seller successfully', async () => {
+      const sellerId = 'test-seller-id';
+      userFollowService.unfollowUser.mockResolvedValue(undefined);
+
+      const result = await controller.unfollowSeller(sellerId, mockCurrentUser);
+
+      expect(userFollowService.unfollowUser).toHaveBeenCalledWith(mockCurrentUser.id, sellerId);
+      expect(result.success).toBe(true);
+      expect(result.data.isFollowing).toBe(false);
+      expect(result.message).toBe('판매자 팔로우를 취소했습니다.');
+    });
+
+    it('should throw NotFoundException if follow relationship not found', async () => {
+      const sellerId = 'non-existent-id';
+      userFollowService.unfollowUser.mockRejectedValue(new NotFoundException('팔로우 관계를 찾을 수 없습니다.'));
+
+      await expect(controller.unfollowSeller(sellerId, mockCurrentUser)).rejects.toThrow(NotFoundException);
     });
   });
 });
