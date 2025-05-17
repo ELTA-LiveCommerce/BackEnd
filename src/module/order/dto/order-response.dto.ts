@@ -40,6 +40,7 @@ export class OrderSummaryDto {
   itemCount: number;
   createdAt: Date;
   updatedAt: Date;
+  shippingAddress?: string;
 }
 
 export class PaginatedOrdersResponseDto {
