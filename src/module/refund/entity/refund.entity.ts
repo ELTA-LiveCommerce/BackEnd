@@ -47,4 +47,11 @@ export class RefundEntity extends BaseEntity {
   // 관리자 메모 등 추가 필드 가능성
   @Property({ type: 'text', nullable: true })
   adminMemo?: string;
+
+  // 상태 변경 이력 메모
+  @Property({ type: 'text', nullable: true })
+  statusMemo?: string;
+
+  // 반품 상태 히스토리 (필요한 경우 별도 테이블로 분리 가능)
 }
+
