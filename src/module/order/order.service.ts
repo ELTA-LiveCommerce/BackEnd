@@ -192,7 +192,10 @@ export class OrderService {
     const skip = (page - 1) * limit;
 
     const qb = this.entityManager.createQueryBuilder(Order, 'o');
-    qb.where({ user: userIdFromAuth });
+    qb.select('*')
+      .where({ user: userIdFromAuth })
+      .leftJoinAndSelect('o.items', 'items')
+      .leftJoinAndSelect('items.product', 'product');
 
     if (status) {
       qb.andWhere({ status });
@@ -393,6 +396,7 @@ export class OrderService {
       itemCount: order.items.length,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
+      shippingAddress: order.shippingAddress
     };
   }
 
@@ -415,7 +419,7 @@ export class OrderService {
     const skip = (page - 1) * limit;
 
     const qb = this.entityManager.createQueryBuilder(Order, 'o');
-    qb.select('*')
+    qb.select('*')  
       .leftJoinAndSelect('o.user', 'u')
       .leftJoinAndSelect('o.items', 'i')
       .leftJoinAndSelect('i.product', 'p');
