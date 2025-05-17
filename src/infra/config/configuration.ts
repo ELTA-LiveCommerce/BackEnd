@@ -36,6 +36,14 @@ export default () => ({
     callbackUrl: process.env.APPLE_CALLBACK_URL,
     clientSecretExpiresIn: '60d',
   },
+  agora: {
+    appId: process.env.AGORA_APP_ID,
+    appCert: process.env.AGORA_APP_CERTIFICATE,
+    chat: {
+      appKey: process.env.AGORA_CHAT_APP_KEY,
+      dcBase: process.env.AGORA_CHAT_DC_BASE,
+    },
+  },
   // 필요에 따라 다른 설정 추가 가능
   // 예: aws, redis 등
 });

@@ -31,6 +31,12 @@ export const validationSchema = Joi.object({
   KAKAO_SENDER_ID: Joi.string().allow('').default(''),
   KAKAO_API_URL: Joi.string().uri().allow('').default('https://alimtalk-api.kakao.com/v2/sender'),
 
+  // Agora
+  AGORA_APP_ID: Joi.string().required(),
+  AGORA_APP_CERTIFICATE: Joi.string().required(),
+  AGORA_CHAT_APP_KEY: Joi.string().required(),
+  AGORA_CHAT_DC_BASE: Joi.string().uri().required(),
+
   // Sentry
   SENTRY_DSN: Joi.string().allow(''), // 비워둘 수 있도록 허용
 

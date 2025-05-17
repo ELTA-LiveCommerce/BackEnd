@@ -42,6 +42,13 @@ export class SellerInfoResponseDto extends BaseResponseV2<SellerInfoDto> {
 }
 
 /**
+ * 판매자 팔로우 응답 DTO
+ */
+export class SellerFollowResponseDto extends BaseResponseV2<{ isFollowing: boolean }> {
+  // success 메서드 제거
+}
+
+/**
  * 판매자 라이브 방송 항목 DTO
  */
 export class SellerLiveItemDto {

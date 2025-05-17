@@ -55,6 +55,9 @@ export class ViewerProductResponseBodyDto {
   @ApiProperty({ description: '짧은 설명', example: '정말 편하고 예뻐요!', required: false })
   shortDescription?: string;
 
+  @ApiProperty({ description: '상품 설명', example: '상품 설명 입니다.', required: false })
+  description?: string;
+
   @ApiProperty({ description: '재고 수량', example: 100 })
   stockQuantity: number;
 
@@ -77,6 +80,7 @@ export class ViewerProductResponseBodyDto {
       price: product.price,
       mainImage: product.mainImage,
       shortDescription: product.shortDescription,
+      description: product.description,
       stockQuantity: product.stockQuantity,
       seller: ViewerProductSellerDto.fromEntity(product.seller),
       images: product.images,
