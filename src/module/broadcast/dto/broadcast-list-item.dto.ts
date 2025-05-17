@@ -28,6 +28,8 @@ export class BroadcastListItemDto {
   @ApiProperty({ description: 'Associated Products', type: [ProductInfo] })
   products: ProductInfo[]; // Simplified product info for list
 
+  isLive: boolean;
+
   constructor(data: Partial<BroadcastListItemDto>) {
     Object.assign(this, data);
   }

@@ -150,6 +150,7 @@ export class BroadcastService {
             id: bp.product.id,
             name: bp.product.name,
           })),
+          isLive: b.isLive,
         }),
     );
 
