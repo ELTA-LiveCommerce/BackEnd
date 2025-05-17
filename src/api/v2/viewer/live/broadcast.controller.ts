@@ -52,6 +52,13 @@ export class BroadcastController {
     return this.broadcastService.renew(dto.broadcastId, dto.uid, dto.role);
   }
 
+  @Post('renew-chat')
+  @ApiOperation({ summary: '판매자 라이브 방송 채팅 토큰 재발급' })
+  @ApiOkResponse({ description: '채팅 토큰 재발급 응답' })
+  async renewChat(@Body() dto: RenewTokenDto) {
+    return this.broadcastService.renewChat(dto.uid);
+  }
+
   /**
    * 현재 방송에서 판매 중인 상품 조회
    */

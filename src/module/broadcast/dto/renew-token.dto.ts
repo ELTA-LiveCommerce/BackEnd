@@ -4,8 +4,8 @@ export class RenewTokenDto {
   @IsString()
   broadcastId!: string;
 
-  @IsNumber()
-  uid!: number;
+  @IsString()
+  uid!: string;
 
   @IsIn(['publisher', 'subscriber'])
   role!: 'publisher' | 'subscriber';

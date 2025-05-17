@@ -241,7 +241,7 @@ export class BroadcastService {
   }
 
   /** 토큰 재발급 ------------------------------------------------------------ */
-  async renew(broadcastId: string, uid: number, role: 'publisher' | 'subscriber') {
+  async renew(broadcastId: string, uid: string, role: 'publisher' | 'subscriber') {
     const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream'] });
 
     if (!broadcast) {
@@ -253,7 +253,12 @@ export class BroadcastService {
     }
 
     const channelId = broadcast.stream.id;
-    const token = this.agora.rtcTokenWithAccount(channelId, uid.toString(), role);
+    const token = this.agora.rtcTokenWithAccount(channelId, uid, role);
+    return { token, expireIn: 3600 };
+  }
+
+  renewChat(uid: string) {
+    const token = this.agora.chatUserToken(uid);
     return { token, expireIn: 3600 };
   }
 

@@ -80,6 +80,13 @@ export class BroadcastController {
     return this.broadcastService.renew(dto.broadcastId, dto.uid, dto.role);
   }
 
+  @Post('renew-chat')
+  @ApiOperation({ summary: '판매자 라이브 방송 채팅 토큰 재발급' })
+  @ApiOkResponse({ description: '채팅 토큰 재발급 응답' })
+  async renewChat(@Body() dto: RenewTokenDto) {
+    return this.broadcastService.renewChat(dto.uid);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: '판매자 라이브 방송 삭제' })
   @ApiParam({ name: 'id', description: '방송 ID' })
