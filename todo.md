@@ -1,91 +1,51 @@
-# ELTA 백엔드 개발 작업 목록
+# ELTA 백엔드 개발 TODO 목록
 
-## 1. 셀러 신청 API 개발
+## API 개발 목록
 
-- [ ] 셀러 신청 DTO 생성 (src/api/v2/viewer/sellers/dto/) // 현재는 별도 DTO 없이 @GetUser 사용
-- [x] 컨트롤러 엔드포인트 구현 (/v2/viewer/sellers/apply) // 실제 경로: /v2/viewer/profile/seller (POST)
-- [x] 뷰어 -> 셀러 변환 서비스 로직 구현 및 검증
-  - [x] 사용자 역할 변경 (VIEWER -> SELLER)
-  - [x] SellerInfo 엔티티 생성 및 연결
-- [ ] 셀러 신청 검증 로직 추가 (필수 정보 확인 등)
-- [ ] 셀러 신청 승인 프로세스 구현 (필요시 관리자 승인 단계 추가)
-- [ ] 테스트 케이스 작성
+### 셀러 관련 API
 
-## 2. 셀러 정보 조회 API 개선 (/v2/viewer/sellers/{id})
+- [ ] **셀러 배너 이미지 변경 API 추가**
+  - 웹의 셀러 프로필에서 이미지 클릭시 변경 기능 지원
+  - 파일 업로드 및 이미지 처리 로직 구현
+  - 참고: 일반 사용자용 배너 이미지 API는 `v2/viewer/profile/banner-image`에 구현되어 있음
 
-- [x] DTO에 팔로우 여부 필드 추가 // SellerInfoDto에 isFollowing 필드 존재
-- [x] DTO에 팔로잉 수 필드 추가 // SellerInfoDto에 followers, following 필드 존재
-- [x] UserFollowService 연동하여 팔로우 상태 조회 로직 구현
-- [x] 팔로잉 수 카운트 로직 구현
-  - [ ] 팔로잉 수 조회 쿼리 최적화 // getFollowCounts 내부 확인 필요
-- [x] 컨트롤러에서 현재 사용자 정보를 활용한 팔로우 상태 반영
-- [ ] 테스트 케이스 업데이트
+### 방송 관련 API
 
-## 3. 셀러 상품 목록 API 개선 (/v2/viewer/sellers/{id}/products)
+- [x] **방송 등록 API**
+  - 새로운 라이브 방송 생성 및 스케줄링
+  - 제목, 썸네일, 방송 시간 등 설정
+- [x] **방송 제거 API**
+  - 기존 방송 데이터 삭제 기능
+  - 관련 리소스 정리 로직 포함
 
-- [ ] DTO에 판매 상품 개수 필드 추가 // 현재는 목록 길이를 통해 알 수 있으나, 명시적인 개수 필드는 없음
-- [x] 판매 상품 개수 조회 로직 구현 // productService.findProductsBySeller를 통해 목록 조회는 구현됨
-  - [ ] 판매 상품 카운트 쿼리 최적화 // findProductsBySeller 내부 확인 필요
-- [ ] 페이지네이션 파라미터 개선 (필요시)
-- [ ] 테스트 케이스 업데이트
+### 회원 관련 API
 
-## 4. 셀러 프로필/배너 이미지 변경 API 추가
+- [ ] **회원 리스트 가져오기(/v2/seller/users) return값 확장**
 
-- [x] 프로필 이미지 변경 DTO 생성
-- [x] 배너 이미지 변경 DTO 생성
-- [x] 프로필 이미지 업로드/변경 엔드포인트 구현 (/v2/seller/profile/image) // 실제 경로는 /v2/viewer/profile/image
-  - [x] 이미지 업로드 서비스 연동
-  - [ ] 이미지 유효성 검증 (크기, 형식 등)
-- [ ] 배너 이미지 업로드/변경 엔드포인트 구현 (/v2/seller/profile/banner) // UserService에는 존재하나 Controller에는 없음
-  - [x] 이미지 업로드 서비스 연동
-  - [ ] 이미지 유효성 검증 (크기, 형식 등)
-- [ ] 이미지 저장 경로 및 URL 생성 로직 구현
-- [ ] 테스트 케이스 작성
+  - 다음 정보 추가 필요:
+    - 전화번호
+    - 주소
+    - 은행정보(은행종류, 계좌번호)
+    - 총 결제 금액
+    - 총 환불건수
 
-## 5. 상품 구매 API 수정
+- [ ] **특정 회원의 구매 상품 기록 가져오기 API**
+  - 다음 정보 포함:
+    - 상품의 대표 이미지
+    - 상품명
+    - 수량
+    - 송장번호
+    - 주소
+    - 은행정보(은행종류, 계좌번호)
+    - 사용자 성명
+    - 구매일자
+    - 상태
 
-- [ ] 구매 요청 DTO 단순화 (productId, quantity만 필요)
-- [x] 기존 구매 로직 수정
-  - [ ] 불필요한 파라미터 제거
-  - [x] 유효성 검증 강화 (재고 확인 등)
-- [x] 알림톡 전송 기능 구현
-  - [x] 알림톡 전송 서비스 연동
-  - [x] 알림톡 템플릿 설정
-  - [x] 구매 완료 후 알림톡 전송 로직 추가
-  - [x] 판매자에게 상품 판매 알림톡 전송 로직 추가
-  - [x] 알림톡 서비스 테스트 코드 작성
-- [x] 구매 완료 후 처리 로직 개선 (주문 상태 업데이트 등)
-- [ ] 테스트 케이스 업데이트
+### 주문/반품 관련 API
 
-## 6. 현재 방송 진행 상품 조회 API 개발
-
-- [x] 라이브 방송 상품 DTO 생성
-  - [x] 현재 판매 중인 상품 DTO (CurrentSellingProductDto) 구현
-  - [x] 방송 상품 목록 DTO (BroadcastProductsResponseDto) 구현
-  - [x] 상품 변경 요청 DTO (UpdateCurrentSellingProductDto) 구현
-- [x] 라이브 방송에서 진행 중인 상품 조회 엔드포인트 구현
-  - [x] 시청자용 현재 판매 상품 조회 API (/v2/viewer/lives/{id}/current-product)
-  - [x] 시청자용 방송 상품 목록 조회 API (/v2/viewer/lives/{id}/products)
-  - [x] 셀러용 현재 판매 상품 조회 API (/v2/seller/lives/{id}/current-product)
-  - [x] 셀러용 방송 상품 목록 조회 API (/v2/seller/lives/{id}/products)
-- [x] 셀러용 현재 판매 상품 관리 엔드포인트 구현
-  - [x] 판매 상품 변경 API (/v2/seller/lives/{id}/current-product) (PUT)
-  - [x] 판매 중지 API (/v2/seller/lives/{id}/current-product) (DELETE)
-- [x] 라이브 방송 상태 확인 로직 구현 (현재 방송 중인지 확인)
-- [x] 라이브 방송에 연결된 상품 조회 로직 구현
-  - [x] 상품 정보 조회 쿼리 최적화
-  - [x] 재고, 가격 등 최신 정보 포함
-- [x] 상품 순서 정렬 기능 추가 (판매자가 설정한 순서대로)
-- [x] 스트림 엔티티에 현재 판매 상품 필드 추가
-- [x] 테스트 케이스 작성
-  - [x] 시청자 판매 상품 조회 API 테스트
-  - [x] 셀러 판매 상품 관리 API 테스트
-  - [x] 서비스 계층 테스트
-
-## 공통 작업
-
-- [ ] API 문서 업데이트 (Swagger)
-- [ ] 에러 처리 및 예외 케이스 보강
-- [ ] 성능 최적화 (쿼리 개선, 캐싱 등 필요시)
-- [ ] 코드 리뷰 및 리팩토링
-
+- [ ] **반품 상태 변경 API**
+  - 다음 상태 전환 지원:
+    - 반품대기중
+    - 반품 회수중
+    - 반품완료
+  - 상태 변경 히스토리 관리 기능

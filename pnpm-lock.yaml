@@ -119,6 +119,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      solapi:
+        specifier: ^5.4.0
+        version: 5.4.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -2796,6 +2799,9 @@ packages:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
 
+  image-to-base64@2.2.0:
+    resolution: {integrity: sha512-Z+aMwm/91UOQqHhrz7Upre2ytKhWejZlWV/JxUTD1sT7GWWKFDJUEV5scVQKnkzSgPHFuQBUEWcanO+ma0PSVw==}
+
   import-fresh@3.3.1:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
     engines: {node: '>=6'}
@@ -4179,6 +4185,10 @@ packages:
   slash@3.0.0:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
+
+  solapi@5.4.0:
+    resolution: {integrity: sha512-n9Yhte0H0Q9e2Op0Q6Nq7znJH8+sQLi+o7xLTbyFerbuZ8Wrk5sZAaN4+l6logrZ1rwRdRYrz9xQ8YOLO5FxcA==}
+    engines: {node: '>=18', parcel: 2.x}
 
   sort-keys-length@1.0.1:
     resolution: {integrity: sha512-GRbEOUqCxemTAk/b32F2xa8wDTs+Z1QHOkbhJDQTvv/6G3ZkbJ+frYWsTcc7cBB3Fu4wy4XlLCuNtJuMn7Gsvw==}
@@ -7768,6 +7778,12 @@ snapshots:
 
   ignore@5.3.2: {}
 
+  image-to-base64@2.2.0:
+    dependencies:
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
+
   import-fresh@3.3.1:
     dependencies:
       parent-module: 1.0.1
@@ -9360,6 +9376,14 @@ snapshots:
   sisteransi@1.0.5: {}
 
   slash@3.0.0: {}
+
+  solapi@5.4.0:
+    dependencies:
+      date-fns: 4.1.0
+      image-to-base64: 2.2.0
+      qs: 6.14.0
+    transitivePeerDependencies:
+      - encoding
 
   sort-keys-length@1.0.1:
     dependencies:

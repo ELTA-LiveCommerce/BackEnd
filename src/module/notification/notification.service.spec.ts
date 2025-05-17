@@ -1,19 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { NotificationService } from './notification.service';
-import axios from 'axios';
+import { SolapiMessageService } from 'solapi';
 
-jest.mock('axios');
+// Solapi SDK 모킹
+jest.mock('solapi', () => {
+  return {
+    SolapiMessageService: jest.fn().mockImplementation(() => {
+      return {
+        send: jest.fn().mockResolvedValue({ result: 'success' }),
+      };
+    }),
+  };
+});
 
 describe('NotificationService', () => {
   let service: NotificationService;
   let configService: ConfigService;
+  let mockSolapiService: jest.Mocked<SolapiMessageService>;
 
   const mockConfigService = {
     get: jest.fn((key: string, defaultValue: string) => {
-      if (key === 'KAKAO_API_KEY') return 'test-api-key';
-      if (key === 'KAKAO_SENDER_ID') return 'test-sender-id';
-      if (key === 'KAKAO_API_URL') return 'https://test-api-url.com';
+      if (key === 'SOLAPI_API_KEY') return 'test-api-key';
+      if (key === 'SOLAPI_API_SECRET') return 'test-api-secret';
+      if (key === 'SOLAPI_PFID') return 'test-sender-id';
+      if (key === 'SOLAPI_SENDER_NUMBER') return '01099998888';
       if (key === 'NODE_ENV') return 'development';
       return defaultValue;
     }),
@@ -34,6 +45,9 @@ describe('NotificationService', () => {
 
     service = module.get<NotificationService>(NotificationService);
     configService = module.get<ConfigService>(ConfigService);
+
+    // 서비스 내부의 messageService에 접근하여 참조 저장
+    mockSolapiService = service['messageService'] as jest.Mocked<SolapiMessageService>;
   });
 
   it('should be defined', () => {
@@ -46,60 +60,62 @@ describe('NotificationService', () => {
       const logSpy = jest.spyOn(service['logger'], 'log');
 
       // Execute the method
-      await service.sendKakaoTalk('TEST_TEMPLATE', '01012345678', { key: 'value' });
+      await service.sendKakaoTalk('TEST_TEMPLATE', '010-1234-5678', { key: 'value' });
 
       // Verify Logger was called with expected messages
       expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Sending KakaoTalk to 01012345678 with template TEST_TEMPLATE'),
+        expect.stringContaining('Sending KakaoTalk to 010-1234-5678 with template TEST_TEMPLATE'),
       );
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('Development mode: Not sending actual KakaoTalk message'),
       );
 
       // Verify API was not called
-      expect(axios.post).not.toHaveBeenCalled();
+      expect(mockSolapiService.send).not.toHaveBeenCalled();
     });
 
-    it('should call Kakao API in production environment', async () => {
+    it('should call Solapi API in production environment', async () => {
       // 먼저 새로운 모킹된 ConfigService를 만들어 NODE_ENV가 production인 환경을 시뮬레이션
       const mockProdConfigService = {
         get: jest.fn((key: string) => {
           if (key === 'NODE_ENV') return 'production';
-          if (key === 'KAKAO_API_KEY') return 'test-api-key';
-          if (key === 'KAKAO_SENDER_ID') return 'test-sender-id';
-          if (key === 'KAKAO_API_URL') return 'https://test-api-url.com';
+          if (key === 'SOLAPI_API_KEY') return 'test-api-key';
+          if (key === 'SOLAPI_API_SECRET') return 'test-api-secret';
+          if (key === 'SOLAPI_PFID') return 'test-sender-id';
+          if (key === 'SOLAPI_SENDER_NUMBER') return '01099998888';
           return '';
         }),
       };
 
       // 새로운 서비스 인스턴스 생성
       const prodService = new NotificationService(mockProdConfigService as unknown as ConfigService);
+      const mockProdSolapiService = prodService['messageService'] as jest.Mocked<SolapiMessageService>;
 
-      // Mock axios.post success response
-      (axios.post as jest.Mock).mockResolvedValue({
-        data: { result: 'success' },
-      });
+      // Mock send success response
+      mockProdSolapiService.send = jest.fn().mockResolvedValue({ result: 'success' });
 
       // 새 서비스 인스턴스로 메서드 실행
-      await prodService.sendKakaoTalk('ORDER_COMPLETE_TEMPLATE', '01012345678', {
+      await prodService.sendKakaoTalk('ORDER_COMPLETE_TEMPLATE', '010-1234-5678', {
         orderNumber: 'ORD-123',
-        totalAmount: 50000,
+        totalAmount: '50,000',
+        orderDate: '2023-06-01 14:30:00',
       });
 
       // Verify API was called with correct parameters
-      expect(axios.post).toHaveBeenCalledWith(
-        'https://test-api-url.com/send',
+      expect(mockProdSolapiService.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          senderKey: 'test-sender-id',
-          recipientPhoneNumber: '01012345678',
-          templateCode: 'ORDER_COMPLETE_TEMPLATE',
-          message: expect.stringContaining('주문이 완료되었습니다'),
-        }),
-        expect.objectContaining({
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer test-api-key',
-          },
+          to: '01012345678', // 하이픈 제거됨
+          from: '01099998888',
+          kakaoOptions: expect.objectContaining({
+            pfId: 'test-sender-id',
+            templateId: 'ORDER_COMPLETE_TEMPLATE',
+            variables: expect.objectContaining({
+              '#{orderNumber}': 'ORD-123',
+              '#{totalAmount}': '50,000',
+              '#{orderDate}': '2023-06-01 14:30:00',
+            }),
+            disableSms: false,
+          }),
         }),
       );
     });
@@ -109,19 +125,21 @@ describe('NotificationService', () => {
       const mockProdConfigService = {
         get: jest.fn((key: string) => {
           if (key === 'NODE_ENV') return 'production';
-          if (key === 'KAKAO_API_KEY') return 'test-api-key';
-          if (key === 'KAKAO_SENDER_ID') return 'test-sender-id';
-          if (key === 'KAKAO_API_URL') return 'https://test-api-url.com';
+          if (key === 'SOLAPI_API_KEY') return 'test-api-key';
+          if (key === 'SOLAPI_API_SECRET') return 'test-api-secret';
+          if (key === 'SOLAPI_PFID') return 'test-sender-id';
+          if (key === 'SOLAPI_SENDER_NUMBER') return '01099998888';
           return '';
         }),
       };
 
       // 새로운 서비스 인스턴스 생성
       const prodService = new NotificationService(mockProdConfigService as unknown as ConfigService);
+      const mockProdSolapiService = prodService['messageService'] as jest.Mocked<SolapiMessageService>;
 
-      // Mock axios.post error
+      // Mock send error
       const error = new Error('API Error');
-      (axios.post as jest.Mock).mockRejectedValue(error);
+      mockProdSolapiService.send = jest.fn().mockRejectedValue(error);
 
       // Spy on logger.error - 새 서비스 인스턴스의 logger에 spy 설정
       const errorSpy = jest.spyOn(prodService['logger'], 'error');
@@ -137,45 +155,49 @@ describe('NotificationService', () => {
     });
   });
 
-  describe('buildMessageFromTemplate', () => {
-    it('should build ORDER_COMPLETE_TEMPLATE message correctly', () => {
+  describe('convertParamsToVariables', () => {
+    it('should convert params to variables with #{key} format', () => {
       const params = {
         orderNumber: 'ORD-123',
-        totalAmount: 50000,
-      };
-
-      const result = service['buildMessageFromTemplate']('ORDER_COMPLETE_TEMPLATE', params);
-
-      expect(result).toContain('주문이 완료되었습니다');
-      expect(result).toContain('주문번호: ORD-123');
-      expect(result).toContain('결제금액: 50,000원');
-    });
-
-    it('should build SELLER_ORDER_NOTIFICATION_TEMPLATE message correctly', () => {
-      const params = {
-        orderNumber: 'ORD-123',
-        buyerName: '홍길동',
-        productNames: '상품1 (2개), 상품2 (1개)',
         totalAmount: 50000,
         orderDate: '2023-06-01 14:30:00',
       };
 
-      const result = service['buildMessageFromTemplate']('SELLER_ORDER_NOTIFICATION_TEMPLATE', params);
+      const result = service['convertParamsToVariables'](params);
 
-      expect(result).toContain('새로운 주문이 접수되었습니다');
-      expect(result).toContain('주문번호: ORD-123');
-      expect(result).toContain('구매자: 홍길동');
-      expect(result).toContain('상품: 상품1 (2개), 상품2 (1개)');
-      expect(result).toContain('금액: 50,000원');
-      expect(result).toContain('주문일시: 2023-06-01 14:30:00');
+      expect(result).toEqual({
+        '#{orderNumber}': 'ORD-123',
+        '#{totalAmount}': '50000',
+        '#{orderDate}': '2023-06-01 14:30:00',
+      });
     });
 
-    it('should return default format for unknown template', () => {
-      const params = { key: 'value' };
+    it('should handle object values by converting them to JSON strings', () => {
+      const params = {
+        message: { key: 'value', nested: { data: true } },
+      };
 
-      const result = service['buildMessageFromTemplate']('UNKNOWN_TEMPLATE', params);
+      const result = service['convertParamsToVariables'](params);
 
-      expect(result).toContain('알림: {"key":"value"}');
+      expect(result).toEqual({
+        '#{message}': '{"key":"value","nested":{"data":true}}',
+      });
+    });
+
+    it('should convert non-string values to strings', () => {
+      const params = {
+        number: 123,
+        boolean: true,
+        nullValue: null,
+      };
+
+      const result = service['convertParamsToVariables'](params);
+
+      expect(result).toEqual({
+        '#{number}': '123',
+        '#{boolean}': 'true',
+        '#{nullValue}': 'null',
+      });
     });
   });
 

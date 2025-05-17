@@ -1,22 +1,32 @@
 import { Injectable, Logger } from '@nestjs/common';
-import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
+import { SolapiMessageService } from 'solapi';
 
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
-  private readonly kakaoApiKey: string;
-  private readonly kakaoSenderId: string;
-  private readonly kakaoApiUrl: string;
+  private readonly solapiApiKey: string;
+  private readonly solapiApiSecret: string;
+  private readonly solapiPfId: string; // 카카오톡 비즈니스 채널 발신 프로필 ID
   private readonly isProduction: boolean;
+  private readonly messageService: SolapiMessageService;
 
   constructor(private readonly configService: ConfigService) {
-    this.kakaoApiKey = this.configService.get<string>('KAKAO_API_KEY', '');
-    this.kakaoSenderId = this.configService.get<string>('KAKAO_SENDER_ID', '');
-    this.kakaoApiUrl = this.configService.get<string>('KAKAO_API_URL', 'https://alimtalk-api.kakao.com/v2/sender');
+    this.solapiApiKey = this.configService.get<string>('SOLAPI_API_KEY', '');
+    this.solapiApiSecret = this.configService.get<string>('SOLAPI_API_SECRET', '');
+    this.solapiPfId = this.configService.get<string>('SOLAPI_PFID', '');
     this.isProduction = this.configService.get<string>('NODE_ENV', 'development') === 'production';
+
+    // 솔라피 메시지 서비스 초기화
+    this.messageService = new SolapiMessageService(this.solapiApiKey, this.solapiApiSecret);
   }
 
+  /**
+   * 카카오 알림톡을 전송합니다.
+   * @param templateCode 알림톡 템플릿 코드
+   * @param recipientPhoneNumber 수신자 전화번호
+   * @param params 템플릿에 삽입할 파라미터
+   */
   async sendKakaoTalk(templateCode: string, recipientPhoneNumber: string, params: Record<string, any>): Promise<void> {
     this.logger.log(
       `Sending KakaoTalk to ${recipientPhoneNumber} with template ${templateCode} and params ${JSON.stringify(params)}`,
@@ -29,27 +39,20 @@ export class NotificationService {
     }
 
     try {
-      // 카카오 알림톡 템플릿에 따른 메시지 구성
-      const message = this.buildMessageFromTemplate(templateCode, params);
-
-      // 카카오 알림톡 API 호출
-      const response = await axios.post(
-        `${this.kakaoApiUrl}/send`,
-        {
-          senderKey: this.kakaoSenderId,
-          recipientPhoneNumber: this.formatPhoneNumber(recipientPhoneNumber),
-          templateCode,
-          message,
+      // Solapi SDK를 사용한 알림톡 발송
+      const message = {
+        to: this.formatPhoneNumber(recipientPhoneNumber),
+        from: this.configService.get<string>('SOLAPI_SENDER_NUMBER', ''),
+        kakaoOptions: {
+          pfId: this.solapiPfId,
+          templateId: templateCode,
+          variables: this.convertParamsToVariables(params),
+          disableSms: false, // 알림톡 실패 시 SMS로 대체 발송
         },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.kakaoApiKey}`,
-          },
-        },
-      );
+      };
 
-      this.logger.log(`KakaoTalk sent successfully: ${JSON.stringify(response.data)}`);
+      const result = await this.messageService.send(message);
+      this.logger.log(`KakaoTalk sent successfully: ${JSON.stringify(result)}`);
     } catch (error) {
       this.logger.error(`Error sending KakaoTalk: ${error.message}`, error.stack);
       // 에러를 던지지 않고 내부적으로 처리
@@ -57,27 +60,26 @@ export class NotificationService {
   }
 
   /**
-   * 템플릿 코드에 따라 메시지를 생성합니다.
+   * 템플릿 파라미터를 솔라피 variables 형식으로 변환합니다.
+   * 모든 값은 문자열로 변환되어야 합니다.
    */
-  private buildMessageFromTemplate(templateCode: string, params: Record<string, any>): string {
-    switch (templateCode) {
-      case 'ORDER_COMPLETE_TEMPLATE':
-        return `주문이 완료되었습니다.
-주문번호: ${params.orderNumber}
-결제금액: ${params.totalAmount.toLocaleString()}원
-주문일시: ${new Date().toLocaleString('ko-KR')}`;
+  private convertParamsToVariables(params: Record<string, any>): Record<string, string> {
+    const variables: Record<string, string> = {};
 
-      case 'SELLER_ORDER_NOTIFICATION_TEMPLATE':
-        return `새로운 주문이 접수되었습니다.
-주문번호: ${params.orderNumber}
-구매자: ${params.buyerName}
-상품: ${params.productNames}
-금액: ${params.totalAmount.toLocaleString()}원
-주문일시: ${params.orderDate}`;
+    for (const key in params) {
+      // 템플릿에서 사용하는 #{key} 형식의 변수명으로 변환
+      const variableName = `#{${key}}`;
 
-      default:
-        return `알림: ${JSON.stringify(params)}`;
+      // 값이 객체인 경우 JSON 문자열로 변환
+      if (typeof params[key] === 'object' && params[key] !== null) {
+        variables[variableName] = JSON.stringify(params[key]);
+      } else {
+        // 그 외 타입은 문자열로 변환
+        variables[variableName] = String(params[key]);
+      }
     }
+
+    return variables;
   }
 
   /**
