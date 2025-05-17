@@ -1,13 +1,13 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager, QueryBuilder } from '@mikro-orm/postgresql';
-import { Loaded } from '@mikro-orm/core';
+import { Collection, Loaded } from '@mikro-orm/core';
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 
 import { CreateBroadcastDto } from './dto/create-broadcast.dto';
 import { Broadcast } from './entity/broadcast.entity';
 import { Stream } from './entity/stream.entity';
-import { AgoraService } from '../agora/agora.service';
+import { AgoraService } from '@/module/agora/agora.service';
 import { BroadcastProduct, BroadcastProductStatus } from '../product/entity/broadcast-product.entity';
 import { Product } from '../product/entity/product.entity';
 import { User } from '../user/entity/user.entity';
@@ -51,6 +51,7 @@ export class BroadcastService {
           throw new BadRequestException(`Following product IDs not found: ${notFoundProductIds.join(', ')}`);
         }
 
+        broadcast.products = new Collection<BroadcastProduct>(broadcast);
         for (let i = 0; i < products.length; i++) {
           const product = products[i];
           const broadcastProduct = new BroadcastProduct();
@@ -486,3 +487,4 @@ export class BroadcastService {
     this.em.persist(broadcast.stream);
   }
 }
+

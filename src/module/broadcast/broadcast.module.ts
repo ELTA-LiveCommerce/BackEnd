@@ -6,7 +6,7 @@ import { BroadcastService } from './broadcast.service';
 // Import related entities needed for repository injection
 import { Product } from '@/module/product/entity/product.entity';
 import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
-import { AgoraModule } from '../agora/agora.module';
+import { AgoraModule } from '@/module/agora/agora.module';
 
 @Module({
   // Register Broadcast, Product, and BroadcastProduct entities
@@ -15,3 +15,4 @@ import { AgoraModule } from '../agora/agora.module';
   exports: [BroadcastService],
 })
 export class BroadcastModule {}
+
