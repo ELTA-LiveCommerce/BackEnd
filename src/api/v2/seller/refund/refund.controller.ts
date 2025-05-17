@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, ApiParam } from '@
 import { SellerRefundListRequestDto } from '@/module/refund/dto/seller-refund-list-request.dto';
 import { SellerRefundListItemDto } from '@/module/refund/dto/seller-refund-list-item.dto';
 import { SellerRefundStatusUpdateDto } from '@/module/refund/dto/seller-refund-status-update.dto';
+import { RefundStatusHistoryDto } from '@/module/refund/dto/refund-status-history.dto';
 import { RefundService } from '@/module/refund/refund.service';
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
@@ -52,6 +53,24 @@ export class RefundController {
   ): Promise<BaseResponseV2<RefundEntity>> {
     const updatedRefund = await this.refundService.updateRefundStatus(id, statusUpdateDto, seller);
     return BaseResponseV2.success(updatedRefund);
+  }
+
+  @Get(':id/history')
+  @ApiOperation({
+    summary: '반품 상태 변경 히스토리 조회',
+    description: '특정 반품 요청의 상태 변경 히스토리를 조회합니다.',
+  })
+  @ApiParam({ name: 'id', description: '반품 ID' })
+  @ApiOkResponse({
+    description: '반품 상태 변경 히스토리 조회 성공',
+    type: () => BaseResponseV2,
+  })
+  async getRefundStatusHistory(
+    @Param('id') id: string,
+    @UserDecorator() seller: User,
+  ): Promise<BaseResponseV2<RefundStatusHistoryDto[]>> {
+    const historyList = await this.refundService.getRefundStatusHistory(id, seller);
+    return BaseResponseV2.success(historyList);
   }
 }
 

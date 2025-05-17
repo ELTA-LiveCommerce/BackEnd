@@ -11,6 +11,9 @@ import { RefundStatus } from '@/shared/enum/refund-status.enum';
 import { User } from '@/module/user/entity/user.entity';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
+import { RefundStatusHistoryEntity } from './entity/refund-status-history.entity';
+import { RefundStatusHistoryRepository } from './repository/refund-status-history.repository';
+import { RefundStatusHistoryDto } from './dto/refund-status-history.dto';
 
 import { SellerRefundListItemDto } from './dto/seller-refund-list-item.dto';
 import { SellerRefundListRequestDto } from './dto/seller-refund-list-request.dto';
@@ -22,6 +25,8 @@ export class RefundService {
   constructor(
     @InjectRepository(RefundEntity)
     private readonly refundRepository: BaseRepository<RefundEntity>,
+    @InjectRepository(RefundStatusHistoryEntity)
+    private readonly refundStatusHistoryRepository: RefundStatusHistoryRepository,
     private readonly em: EntityManager,
   ) {}
 
@@ -159,6 +164,9 @@ export class RefundService {
       );
     }
 
+    // 이전 상태 저장
+    const previousStatus = refund.status;
+
     // 상태 변경
     refund.status = statusUpdateDto.status;
 
@@ -166,6 +174,17 @@ export class RefundService {
     if (statusUpdateDto.memo) {
       refund.statusMemo = statusUpdateDto.memo;
     }
+
+    // 상태 변경 히스토리 생성
+    const statusHistory = new RefundStatusHistoryEntity();
+    statusHistory.refund = { id: refund.id } as RefundEntity;
+    statusHistory.previousStatus = previousStatus;
+    statusHistory.newStatus = statusUpdateDto.status;
+    statusHistory.changedBy = { id: seller.id } as User;
+    statusHistory.memo = statusUpdateDto.memo;
+
+    // 히스토리 저장
+    this.refundStatusHistoryRepository.persist(statusHistory);
 
     // 상태별 추가 처리
     switch (statusUpdateDto.status) {
@@ -193,6 +212,40 @@ export class RefundService {
     await this.em.persistAndFlush(refund);
 
     return refund;
+  }
+
+  /**
+   * 특정 반품의 상태 변경 히스토리를 조회합니다.
+   * @param refundId 반품 ID
+   * @param seller 요청한 판매자
+   * @returns 상태 변경 히스토리 목록
+   */
+  async getRefundStatusHistory(refundId: string, seller: User): Promise<RefundStatusHistoryDto[]> {
+    // 반품 정보 조회 (권한 확인)
+    const refund = await this.refundRepository.findOne({
+      id: refundId,
+      seller: { id: seller.id },
+    });
+
+    if (!refund) {
+      throw new NotFoundException(`ID가 ${refundId}인 반품 요청을 찾을 수 없습니다.`);
+    }
+
+    // 히스토리 조회
+    const histories = await this.refundStatusHistoryRepository.findByRefundId(refundId);
+
+    // DTO로 변환
+    return histories.map((history) => {
+      const dto = new RefundStatusHistoryDto();
+      dto.id = history.id;
+      dto.previousStatus = history.previousStatus;
+      dto.newStatus = history.newStatus;
+      dto.changedById = history.changedBy.id;
+      dto.changedByName = history.changedBy.name;
+      dto.memo = history.memo;
+      dto.createdAt = history.createdAt;
+      return dto;
+    });
   }
 }
 
