@@ -15,6 +15,7 @@ import {
   SellerUserStatusUpdateResponseDto,
   SellerUserListItemDto,
   SellerUserDerivedStatus,
+  UserPurchaseHistoryResponseDto,
 } from './seller-user-response.dto';
 
 @ApiTags('v2/seller/users')
@@ -42,8 +43,17 @@ export class SellerUserController {
       dto.loginId = user.loginId;
       dto.name = user.name;
       dto.profileImage = user.profileImage;
-      dto.status = user.status === 'DELETED' ? SellerUserDerivedStatus.DELETED : SellerUserDerivedStatus.ACTIVE;
+      dto.status = user.deletedAt ? SellerUserDerivedStatus.DELETED : SellerUserDerivedStatus.ACTIVE;
       dto.createdAt = user.createdAt;
+
+      // 확장된 필드 추가
+      dto.phoneNumber = user.phoneNumber;
+      dto.address = user.address;
+      dto.bankName = user.bankName;
+      dto.accountNumber = user.accountNumber;
+      dto.totalPaymentAmount = user.totalPaymentAmount || 0;
+      dto.totalRefundCount = user.totalRefundCount || 0;
+
       return dto;
     });
 
@@ -54,6 +64,31 @@ export class SellerUserController {
       userResults.page,
       userResults.limit,
       '사용자 목록 조회 성공',
+      HttpStatus.OK,
+    );
+  }
+
+  @Get(':userId/purchase-history')
+  @ApiOperation({ summary: '특정 회원의 구매 상품 기록 조회' })
+  @ApiParam({ name: 'userId', description: '조회할 사용자 ID' })
+  @ApiOkResponse({ type: UserPurchaseHistoryResponseDto })
+  async getUserPurchaseHistory(
+    @CurrentUser() seller: User,
+    @Param('userId') userId: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+    @Query('sortBy') sortBy = 'createdAt',
+    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'desc',
+  ): Promise<UserPurchaseHistoryResponseDto> {
+    const options = { page, limit, sortBy, sortOrder };
+    const result = await this.userService.getUserPurchaseHistory(userId, seller.id, options);
+
+    return UserPurchaseHistoryResponseDto.create(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+      '구매 상품 기록 조회 성공',
       HttpStatus.OK,
     );
   }
@@ -80,3 +115,4 @@ export class SellerUserController {
     );
   }
 }
+

@@ -13,6 +13,9 @@ import { UserRole } from '@/shared/enum/user-role.enum';
 import { SellerUserBlock, BlockType } from '@/module/user/entity/seller-user-block.entity';
 import { SellerUserStatus, SellerUserStatusUpdateRequestDto } from '@/api/v2/seller/users/seller-user-request.dto';
 import { SellerInfo } from '@/module/user/entity/seller-info.entity';
+import { Order } from '@/module/order/entity/order.entity';
+import { OrderItem } from '@/module/order/entity/order-item.entity';
+import { OrderStatus } from '@/shared/enum/order-status.enum';
 
 import { UserService } from './user.service';
 
@@ -78,7 +81,16 @@ describe('UserService', () => {
 
     mockUserRepository = {
       removeAndFlush: jest.fn().mockResolvedValue(undefined),
-      findOne: jest.fn(),
+      findOne: jest.fn().mockImplementation((criteria) => {
+        if (criteria.id === 'user-id-1' || criteria.id === 'seller-id') {
+          return Promise.resolve(mockUsers[0]);
+        } else if (criteria.id === 'user-id-2') {
+          return Promise.resolve(mockUsers[1]);
+        } else if (criteria.id === 'user-id-3') {
+          return Promise.resolve(mockUsers[2]);
+        }
+        return Promise.resolve(null);
+      }),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
       persistAndFlush: jest.fn(),
     };
@@ -87,10 +99,102 @@ describe('UserService', () => {
       isFollowing: jest.fn().mockResolvedValue(false),
     };
 
+    // 주문 및 쿼리 결과를 위한 모킹 데이터
+    const mockOrders = [
+      { id: 'order-1', totalAmount: 100000, status: OrderStatus.PAID, user: { id: 'user-id-3' } },
+      { id: 'order-2', totalAmount: 250000, status: OrderStatus.DELIVERED, user: { id: 'user-id-3' } },
+    ];
+
+    // 주문 항목에 대한 모킹 데이터
+    const mockOrderItems = [
+      {
+        order: {
+          id: 'order-1',
+          orderNumber: 'ORD202301',
+          status: OrderStatus.DELIVERED,
+          shippingCode: '123456789',
+          shippingAddress: '서울시 강남구 테헤란로 123',
+          createdAt: new Date('2023-01-10'),
+          paidAt: new Date('2023-01-10T09:00:00'),
+          shippedAt: new Date('2023-01-11T09:00:00'),
+          deliveredAt: new Date('2023-01-13T14:00:00'),
+          user: { id: 'user-id-3' },
+        },
+        product: {
+          id: 'product-1',
+          name: '테스트 상품 1',
+          mainImage: 'http://example.com/product1.jpg',
+          images: ['http://example.com/product1.jpg', 'http://example.com/product1_2.jpg'],
+        },
+        quantity: 2,
+        price: 50000,
+        totalPrice: 100000,
+      },
+      {
+        order: {
+          id: 'order-2',
+          orderNumber: 'ORD202302',
+          status: OrderStatus.SHIPPED,
+          shippingCode: '987654321',
+          shippingAddress: '서울시 강남구 테헤란로 123',
+          createdAt: new Date('2023-02-15'),
+          paidAt: new Date('2023-02-15T10:30:00'),
+          shippedAt: new Date('2023-02-16T11:00:00'),
+          deliveredAt: null,
+          user: { id: 'user-id-3' },
+        },
+        product: {
+          id: 'product-2',
+          name: '테스트 상품 2',
+          mainImage: 'http://example.com/product2.jpg',
+          images: ['http://example.com/product2.jpg'],
+        },
+        quantity: 1,
+        price: 150000,
+        totalPrice: 150000,
+      },
+    ];
+
     mockEntityManager = {
       persistAndFlush: jest.fn(),
       flush: jest.fn(),
       persist: jest.fn(),
+      remove: jest.fn(),
+      removeAndFlush: jest.fn(),
+      // createQueryBuilder 메소드 구현
+      createQueryBuilder: jest.fn().mockImplementation((entity, alias) => {
+        return {
+          select: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
+          offset: jest.fn().mockReturnThis(),
+          leftJoinAndSelect: jest.fn().mockReturnThis(),
+          clone: jest.fn().mockReturnThis(),
+          count: jest.fn().mockResolvedValue(2),
+          getResult: jest.fn().mockResolvedValue(mockOrders),
+          execute: jest.fn().mockResolvedValue({ 'SUM(o.totalAmount)': 350000, 'COUNT(o.id)': 1 }),
+        };
+      }),
+      // find 메소드 구현
+      find: jest.fn().mockImplementation((entityClass, criteria, options) => {
+        if (entityClass === Order) {
+          return Promise.resolve(mockOrders);
+        } else if (entityClass === OrderItem) {
+          return Promise.resolve(mockOrderItems);
+        }
+        return Promise.resolve([]);
+      }),
+      // count 메소드 구현
+      count: jest.fn().mockImplementation((entityClass, criteria) => {
+        if (entityClass === Order && criteria.status === OrderStatus.REFUNDED) {
+          return Promise.resolve(1);
+        }
+        return Promise.resolve(0);
+      }),
+      // execute 메소드 구현
+      execute: jest.fn().mockResolvedValue([{ totalAmount: 350000, refundCount: 1 }]),
     };
 
     mockSellerUserBlockRepository = {
@@ -436,8 +540,7 @@ describe('UserService', () => {
       const queryParams = {
         page: 1,
         limit: 10,
-        searchField: 'name',
-        searchKeyword: '최사용자',
+        name: '최사용자', // 직접 name 속성 사용
       };
       const specificQueryBuilderMock = {
         where: jest.fn().mockReturnThis(),
@@ -625,6 +728,128 @@ describe('UserService', () => {
       await expect(service.mockUpgradeToSeller('non-existent-id')).rejects.toThrow(NotFoundException);
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: 'non-existent-id' });
       expect(mockEntityManager.persist).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findUsersForSeller', () => {
+    it('판매자가 관리할 수 있는 사용자 목록을 조회한다', async () => {
+      // 판매자 유저 모킹
+      const mockSeller = {
+        id: 'seller-id',
+        role: UserRole.SELLER,
+      };
+      mockUserRepository.findOne.mockResolvedValueOnce(mockSeller);
+
+      // 쿼리 빌더로 조회한 사용자들 결과 모킹
+      mockUserRepository.createQueryBuilder.mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        offset: jest.fn().mockReturnThis(),
+        clone: jest.fn().mockReturnThis(),
+        count: jest.fn().mockResolvedValue(2),
+        getResult: jest.fn().mockResolvedValue([
+          {
+            id: 'user-1',
+            loginId: 'user1',
+            name: '사용자1',
+            profileImage: 'profile1.jpg',
+            phoneNumber: '010-1234-5678',
+            address: '서울시 강남구',
+            bankName: '신한은행',
+            accountNumber: '123-456-789',
+            deletedAt: null,
+          },
+          {
+            id: 'user-2',
+            loginId: 'user2',
+            name: '사용자2',
+            profileImage: 'profile2.jpg',
+            phoneNumber: '010-8765-4321',
+            address: '서울시 서초구',
+            bankName: '국민은행',
+            accountNumber: '987-654-321',
+            deletedAt: new Date(),
+          },
+        ]),
+      });
+
+      // 차단 여부 확인 모킹
+      mockSellerUserBlockRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.findUsersForSeller('seller-id', { page: 1, limit: 10 });
+
+      expect(result.items.length).toBe(2);
+      expect(result.total).toBe(2);
+      expect(result.items[0].id).toBe('user-1');
+      expect(result.items[0].totalPaymentAmount).toBeDefined();
+      expect(result.items[0].totalRefundCount).toBeDefined();
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: 'seller-id', role: UserRole.SELLER });
+    });
+
+    it('판매자가 아닌 사용자가 호출하면 NotFoundException이 발생한다', async () => {
+      mockUserRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.findUsersForSeller('not-seller-id', { page: 1, limit: 10 })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('calculateUserTotalPaymentAmount', () => {
+    it('사용자의 총 결제 금액을 계산한다', async () => {
+      const result = await service['calculateUserTotalPaymentAmount']('user-id');
+
+      expect(result).toBe(350000);
+      expect(mockEntityManager.find).toHaveBeenCalled();
+    });
+  });
+
+  describe('calculateUserRefundCount', () => {
+    it('사용자의 총 환불 건수를 계산한다', async () => {
+      const result = await service['calculateUserRefundCount']('user-id');
+
+      expect(result).toBe(1);
+      expect(mockEntityManager.count).toHaveBeenCalled();
+    });
+  });
+
+  describe('getUserPurchaseHistory', () => {
+    it('특정 회원의 구매 상품 기록을 조회한다', async () => {
+      // 판매자와 사용자 존재 여부 확인 모킹
+      mockUserRepository.findOne
+        .mockResolvedValueOnce({ id: 'seller-id', role: UserRole.SELLER }) // 판매자 확인
+        .mockResolvedValueOnce({ id: 'user-id', name: '사용자', bankName: '신한은행', accountNumber: '123-456-789' }); // 사용자 확인
+
+      const result = await service.getUserPurchaseHistory('user-id', 'seller-id', { page: 1, limit: 10 });
+
+      expect(result.items.length).toBe(2);
+      // find 메서드로 변경 후에는 total이 항상 items.length와 같음
+      expect(result.total).toBe(result.items.length);
+      expect(result.items[0].orderId).toBe('order-1');
+      expect(result.items[0].productName).toBe('테스트 상품 1');
+      expect(result.items[0].quantity).toBe(2);
+      expect(result.items[0].status).toBe(OrderStatus.DELIVERED);
+      expect(mockUserRepository.findOne).toHaveBeenCalledTimes(2);
+      // 코드 변경으로 인해 createQueryBuilder 대신 find를 사용
+      expect(mockEntityManager.find).toHaveBeenCalled();
+    });
+
+    it('판매자가 아닌 사용자가 호출하면 NotFoundException이 발생한다', async () => {
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // 판매자 확인 실패
+
+      await expect(service.getUserPurchaseHistory('user-id', 'not-seller-id', {})).rejects.toThrow(NotFoundException);
+    });
+
+    it('존재하지 않는 사용자의 구매 기록을 조회하면 NotFoundException이 발생한다', async () => {
+      mockUserRepository.findOne
+        .mockResolvedValueOnce({ id: 'seller-id', role: UserRole.SELLER }) // 판매자 확인 성공
+        .mockResolvedValueOnce(null); // 사용자 확인 실패
+
+      await expect(service.getUserPurchaseHistory('non-existent-user', 'seller-id', {})).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

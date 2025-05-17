@@ -5,3 +5,4 @@ export enum RefundStatus {
   REJECTED = 'rejected', // 거부됨
   COMPLETED = 'completed', // 완료됨 (환불 처리 완료)
 }
+

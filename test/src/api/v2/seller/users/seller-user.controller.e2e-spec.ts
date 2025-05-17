@@ -11,6 +11,7 @@ import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { SellerUserStatus } from '@/api/v2/seller/users/seller-user-request.dto';
 import { SellerUserDerivedStatus } from '@/api/v2/seller/users/seller-user-response.dto';
+import { OrderStatus } from '@/shared/enum/order-status.enum';
 
 // 모의 사용자 데이터
 const mockSeller: Partial<User> = {
@@ -26,18 +27,71 @@ const mockUsers = [
     loginId: 'test-user1',
     name: '테스트 사용자1',
     profileImage: 'http://example.com/profile1.jpg',
-    status: 'ACTIVE',
     deletedAt: null,
     createdAt: new Date('2023-01-01'),
+    phoneNumber: '010-1234-5678',
+    address: '서울시 강남구 테헤란로 123',
+    bankName: '신한은행',
+    accountNumber: '110-123-456789',
+    totalPaymentAmount: 250000,
+    totalRefundCount: 1,
   },
   {
     id: 'user-2',
     loginId: 'test-user2',
     name: '테스트 사용자2',
     profileImage: 'http://example.com/profile2.jpg',
-    status: 'DELETED',
     deletedAt: new Date(),
     createdAt: new Date('2023-01-02'),
+    phoneNumber: '010-8765-4321',
+    address: '서울시 서초구 반포대로 456',
+    bankName: '국민은행',
+    accountNumber: '110-987-654321',
+    totalPaymentAmount: 500000,
+    totalRefundCount: 0,
+  },
+];
+
+const mockPurchaseHistory = [
+  {
+    orderId: 'order-1',
+    orderNumber: 'ORD202301',
+    productId: 'product-1',
+    productName: '테스트 상품 1',
+    productImageUrl: 'http://example.com/product1.jpg',
+    quantity: 2,
+    price: 50000,
+    totalPrice: 100000,
+    trackingNumber: '123456789',
+    shippingAddress: '서울시 강남구 테헤란로 123',
+    bankName: '신한은행',
+    accountNumber: '110-123-456789',
+    userName: '테스트 사용자1',
+    purchaseDate: new Date('2023-01-10'),
+    status: OrderStatus.DELIVERED,
+    paidAt: new Date('2023-01-10T09:00:00'),
+    shippedAt: new Date('2023-01-11T09:00:00'),
+    deliveredAt: new Date('2023-01-13T14:00:00'),
+  },
+  {
+    orderId: 'order-2',
+    orderNumber: 'ORD202302',
+    productId: 'product-2',
+    productName: '테스트 상품 2',
+    productImageUrl: 'http://example.com/product2.jpg',
+    quantity: 1,
+    price: 150000,
+    totalPrice: 150000,
+    trackingNumber: '987654321',
+    shippingAddress: '서울시 강남구 테헤란로 123',
+    bankName: '신한은행',
+    accountNumber: '110-123-456789',
+    userName: '테스트 사용자1',
+    purchaseDate: new Date('2023-02-15'),
+    status: OrderStatus.SHIPPED,
+    paidAt: new Date('2023-02-15T10:30:00'),
+    shippedAt: new Date('2023-02-16T11:00:00'),
+    deliveredAt: null,
   },
 ];
 
@@ -94,6 +148,18 @@ describe('SellerUserController (e2e)', () => {
           status: statusDto.status,
         });
       }),
+      getUserPurchaseHistory: jest.fn().mockImplementation((userId, sellerId, options) => {
+        const page = options.page || 1;
+        const limit = options.limit || 10;
+
+        return Promise.resolve({
+          items: mockPurchaseHistory,
+          total: mockPurchaseHistory.length,
+          page,
+          limit,
+          totalPages: Math.ceil(mockPurchaseHistory.length / limit),
+        });
+      }),
     };
 
     // 테스트 모듈 설정
@@ -145,11 +211,19 @@ describe('SellerUserController (e2e)', () => {
       expect(response.body.data.items[0].status).toBe(SellerUserDerivedStatus.ACTIVE);
       expect(response.body.data.items[1].status).toBe(SellerUserDerivedStatus.DELETED);
       expect(response.body.data.total).toBe(2);
+
+      // 확장된 필드 테스트
+      expect(response.body.data.items[0].phoneNumber).toBe('010-1234-5678');
+      expect(response.body.data.items[0].address).toBe('서울시 강남구 테헤란로 123');
+      expect(response.body.data.items[0].bankName).toBe('신한은행');
+      expect(response.body.data.items[0].accountNumber).toBe('110-123-456789');
+      expect(response.body.data.items[0].totalPaymentAmount).toBe(250000);
+      expect(response.body.data.items[0].totalRefundCount).toBe(1);
     });
 
     it('검색 조건을 적용하여 사용자 목록을 필터링할 수 있다', async () => {
       const response = await request(app.getHttpServer())
-        .get('/v2/seller/users?searchField=name&searchKeyword=사용자1')
+        .get('/v2/seller/users?name=사용자1')
         .set('Authorization', `Bearer ${sellerToken}`)
         .expect(200);
 
@@ -157,8 +231,7 @@ describe('SellerUserController (e2e)', () => {
       expect(userService.findUsersForSeller).toHaveBeenCalledWith(
         mockSeller.id,
         expect.objectContaining({
-          searchField: 'name',
-          searchKeyword: '사용자1',
+          name: '사용자1',
         }),
       );
     });
@@ -175,6 +248,55 @@ describe('SellerUserController (e2e)', () => {
         expect.objectContaining({
           page: '2', // 주의: 쿼리 파라미터는 문자열로 전달됨
           limit: '5',
+        }),
+      );
+    });
+  });
+
+  describe('GET /v2/seller/users/:userId/purchase-history', () => {
+    it('특정 회원의 구매 상품 기록을 조회할 수 있다', async () => {
+      const userId = 'user-1';
+
+      const response = await request(app.getHttpServer())
+        .get(`/v2/seller/users/${userId}/purchase-history`)
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.items).toBeInstanceOf(Array);
+      expect(response.body.data.items.length).toBe(2);
+      expect(response.body.data.items[0].productName).toBe('테스트 상품 1');
+      expect(response.body.data.items[1].productName).toBe('테스트 상품 2');
+      expect(response.body.data.total).toBe(2);
+
+      // 구매 상품 기록의 세부 필드 확인
+      expect(response.body.data.items[0].quantity).toBe(2);
+      expect(response.body.data.items[0].trackingNumber).toBe('123456789');
+      expect(response.body.data.items[0].shippingAddress).toBe('서울시 강남구 테헤란로 123');
+      expect(response.body.data.items[0].bankName).toBe('신한은행');
+      expect(response.body.data.items[0].accountNumber).toBe('110-123-456789');
+      expect(response.body.data.items[0].userName).toBe('테스트 사용자1');
+      expect(new Date(response.body.data.items[0].purchaseDate)).toEqual(expect.any(Date));
+      expect(response.body.data.items[0].status).toBe(OrderStatus.DELIVERED);
+    });
+
+    it('구매 상품 기록 조회시 정렬 및 페이지네이션을 적용할 수 있다', async () => {
+      const userId = 'user-1';
+
+      const response = await request(app.getHttpServer())
+        .get(`/v2/seller/users/${userId}/purchase-history?page=1&limit=10&sortBy=createdAt&sortOrder=desc`)
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(userService.getUserPurchaseHistory).toHaveBeenCalledWith(
+        userId,
+        mockSeller.id,
+        expect.objectContaining({
+          page: 1,
+          limit: 10,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
         }),
       );
     });
@@ -212,3 +334,4 @@ describe('SellerUserController (e2e)', () => {
     });
   });
 });
+
