@@ -136,6 +136,7 @@ export class BroadcastService {
     qb.orderBy({ scheduledAt: 'DESC' }).offset(offset).limit(limit);
 
     const broadcasts = await qb.getResultList();
+    await this.em.populate(broadcasts, ['products.product']);
     const total = await countQb.getCount();
 
     const items = broadcasts.map(
@@ -145,7 +146,10 @@ export class BroadcastService {
           title: b.title,
           thumbnailUrl: b.thumbnailUrl,
           scheduledAt: b.scheduledAt,
-          products: [],
+          products: b.products.getItems().map((bp) => ({
+            id: bp.product.id,
+            name: bp.product.name,
+          })),
         }),
     );
 
@@ -318,6 +322,7 @@ export class BroadcastService {
     }
 
     this.em.remove(broadcast);
+    await this.em.flush();
 
     return { success: true, message: '방송이 성공적으로 삭제되었습니다.' };
   }
