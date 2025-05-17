@@ -93,6 +93,8 @@ const createMikroOrmConfig = (configService?: ConfigService): any => {
     });
   }
 
+  console.log(config);
+
   return config;
 };
 
