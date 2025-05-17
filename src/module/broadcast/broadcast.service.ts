@@ -189,9 +189,11 @@ export class BroadcastService {
 
       em.persist(stream);
 
+      await this.agora.createGroup(channelId, hostUserId);
+
       // Agora 토큰 생성
       const rtcToken = this.agora.rtcTokenWithAccount(channelId, hostUserId, 'publisher');
-      const chatToken = this.agora.chatToken(hostUserId);
+      const chatToken = this.agora.chatUserToken(hostUserId);
 
       return {
         broadcastId: broadcast.id,
@@ -223,7 +225,9 @@ export class BroadcastService {
 
     const channelId = broadcast.stream.id;
     const rtcToken = this.agora.rtcTokenWithAccount(channelId, userId, 'subscriber');
-    const chatToken = this.agora.chatToken(userId);
+    const chatToken = this.agora.chatUserToken(userId);
+
+    await this.agora.addUser(channelId, userId);
 
     return {
       broadcastId: broadcast.id,
@@ -276,6 +280,8 @@ export class BroadcastService {
       if (!broadcast.stream) {
         throw new BadRequestException('활성화된 스트림이 없습니다.');
       }
+
+      await this.agora.deleteGroup(broadcast.stream.id);
 
       // 방송 상태 업데이트
       broadcast.endLive();
@@ -469,4 +475,3 @@ export class BroadcastService {
     this.em.persist(broadcast.stream);
   }
 }
-
