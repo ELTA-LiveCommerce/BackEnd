@@ -197,18 +197,18 @@ export class BroadcastService {
 
       em.persist(stream);
 
-      await this.agora.createGroup(channelId, hostUserId);
+      // await this.agora.createGroup(channelId, hostUserId);
 
       // Agora 토큰 생성
       const rtcToken = this.agora.rtcTokenWithAccount(channelId, hostUserId, 'publisher');
-      const chatToken = this.agora.chatUserToken(hostUserId);
+      // const chatToken = this.agora.chatUserToken(hostUserId);
 
       return {
         broadcastId: broadcast.id,
         channelId,
         uid: hostUserId,
         rtcToken,
-        chatToken,
+        chatToken: '',
         appId: process.env.AGORA_APP_ID,
         expireIn: 3600,
       };
@@ -233,16 +233,16 @@ export class BroadcastService {
 
     const channelId = broadcast.stream.id;
     const rtcToken = this.agora.rtcTokenWithAccount(channelId, userId, 'subscriber');
-    const chatToken = this.agora.chatUserToken(userId);
+    // const chatToken = this.agora.chatUserToken(userId);
 
-    await this.agora.addUser(channelId, userId);
+    // await this.agora.addUser(channelId, userId);
 
     return {
       broadcastId: broadcast.id,
       channelId,
       uid: userId,
       rtcToken,
-      chatToken,
+      chatToken: '',
       appId: process.env.AGORA_APP_ID,
       expireIn: 3600,
     };

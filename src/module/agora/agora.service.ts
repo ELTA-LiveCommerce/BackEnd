@@ -1,56 +1,52 @@
 /*───────────────────────────────────────────────────────────────
   src/agora/agora.service.ts
-  --------------------------------------------------------------
-  NestJS Provider that wraps Agora-Token v2.x + Chat REST
-
-  ▸ RTC 토큰 (UID · UserAccount)
-  ▸ Chat User-Token
-  ▸ Chat App-Token 자동 갱신(7 d 캐시)  ➜ 모든 Chat-REST 호출에 사용
-  ▸ 채팅 그룹 생성 / 멤버 초대·강퇴 / 그룹 삭제 / 시스템 메시지
-
-  .env 예시
-  ───────────────────────────────────────────────────────────────
-    AGORA_APP_ID=8dbc0a146d9a455f8f116f2caa5ca25b
-    AGORA_APP_CERT=73c0b4a8e6b84e2698b2d48bd8938c2d
-
-    AGORA_CHAT_APP_KEY=611335853#1539479      # org#app
-    AGORA_CHAT_DC_BASE=https://a61.chat.agora.io
 ────────────────────────────────────────────────────────────────*/
-
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import axios, { AxiosInstance } from 'axios';
 import { RtcTokenBuilder, ChatTokenBuilder, RtcRole } from 'agora-token';
-import axios from 'axios';
-import type { AxiosInstance } from 'axios';
-
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AgoraService {
-  /* ─── constructor 에서 안전하게 주입 값 할당 ─── */
+  /* ───── .env 로부터 읽어온 값 ───── */
   private readonly appId: string;
   private readonly cert: string;
 
-  private readonly chatKey: string;
-  private readonly chatBase: string;
+  private readonly chatKey: string;        // org#app
+  private readonly chatBase: string;       // https://a61.chat.agora.io
+  private readonly chatOrg: string;
+  private readonly chatApp: string;
 
-  /* 채팅 App-Token 캐시 */
+  /* ───── 캐시 ───── */
   private rest!: AxiosInstance;
   private appToken = '';
   private appTokenExp = 0;
 
   private readonly log = new Logger(AgoraService.name);
 
-  constructor(private readonly cfg: ConfigService) {
-    this.appId = cfg.getOrThrow<string>('AGORA_APP_ID');
-    this.cert = cfg.getOrThrow<string>('AGORA_APP_CERTIFICATE');
+  constructor(cfg: ConfigService) {
+    this.appId    = cfg.getOrThrow('AGORA_APP_ID');
+    this.cert     = cfg.getOrThrow('AGORA_APP_CERTIFICATE');
+    this.chatKey  = cfg.getOrThrow('AGORA_CHAT_APP_KEY');
+    this.chatBase = cfg.getOrThrow('AGORA_CHAT_DC_BASE');
 
-    this.chatKey = cfg.getOrThrow<string>('AGORA_CHAT_APP_KEY');
-    this.chatBase = cfg.getOrThrow<string>('AGORA_CHAT_DC_BASE');
+    const [org, app] = this.chatKey.split('#');
+    this.chatOrg = org;
+    this.chatApp = app;
+
+    this.log.log(
+      `[Init] Chat org=${this.chatOrg} app=${this.chatApp} ` +
+      `AppID=${this.appId.slice(0, 6)}… Cert=${this.cert.slice(0, 6)}…`,
+    );
   }
 
-  /* ─────────────── RTC TOKEN ─────────────── */
+  /* ───── RTC TOKEN ───── */
 
-  rtcToken(channel: string, uid: number, role: 'publisher' | 'subscriber', ttl = 3600): string {
+  rtcToken(channel: string, uid: number, role: 'publisher' | 'subscriber', ttl = 3600) {
     const exp = this.now() + ttl;
     return RtcTokenBuilder.buildTokenWithUid(
       this.appId,
@@ -63,7 +59,7 @@ export class AgoraService {
     );
   }
 
-  rtcTokenWithAccount(channel: string, account: string, role: 'publisher' | 'subscriber', ttl = 3600): string {
+  rtcTokenWithAccount(channel: string, account: string, role: 'publisher' | 'subscriber', ttl = 3600) {
     const exp = this.now() + ttl;
     return RtcTokenBuilder.buildTokenWithUserAccount(
       this.appId,
@@ -76,55 +72,77 @@ export class AgoraService {
     );
   }
 
-  /* ─────────────── CHAT USER TOKEN ─────────────── */
+  /* ───── CHAT USER TOKEN ───── */
 
-  chatUserToken(uid: string, ttl = 3600): string {
+  chatUserToken(uid: string, ttl = 3600) {
     const exp = this.now() + ttl;
     return ChatTokenBuilder.buildUserToken(this.appId, this.cert, uid, exp);
   }
 
-  /* ─────────────── APP TOKEN (관리자) 자동 갱신 ─────────────── */
+  /* ───── Chat **App-Token** (OAuth) ───── */
 
-  private async appTokenHeader(): Promise<{ Authorization: string }> {
+  private async appTokenHeader() {
     if (Date.now() < this.appTokenExp - 10 * 60 * 1000 && this.appToken) {
       return { Authorization: `Bearer ${this.appToken}` };
     }
 
-    const ttl = 7 * 24 * 60 * 60; // 7일
+    const ttl  = 7 * 24 * 60 * 60;            // 7 days
     const expS = this.now() + ttl;
-
-    try {
-      this.appToken = ChatTokenBuilder.buildAppToken(this.appId, this.cert, expS);
-    } catch (e) {
-      throw new InternalServerErrorException('Chat App-Token 생성 실패', { cause: e });
-    }
+    this.appToken = ChatTokenBuilder.buildAppToken(this.appId, this.cert, expS);
     this.appTokenExp = Date.now() + ttl * 1000;
 
-    /* Axios 인스턴스 재생성 */
     this.rest = axios.create({
-      baseURL: `${this.chatBase}/edu/apps/${this.chatKey}`,
+      baseURL: `${this.chatBase}/edu/apps/${this.chatOrg}/${this.chatApp}`,
       headers: { Authorization: `Bearer ${this.appToken}` },
     });
-    this.log.log('Chat App-Token refreshed');
+
+    this.log.log('[Token] new App-Token generated');
+    this.log.log(`[Token] App-Token: ${this.appToken}`);
     return { Authorization: `Bearer ${this.appToken}` };
   }
 
-  /* ─────────────── CHAT REST HELPER ─────────────── */
+  /* ───── 내부 util: 필요한 경우 Chat-User 자동 생성 ───── */
 
-  async createGroup(groupId: string, ownerUid: string) {
+  private async ensureChatUser(uid: string) {
     await this.appTokenHeader();
-    return this.rest.post('/chatgroups', {
-      groupid: groupId,
-      groupname: `live_${groupId}`,
-      desc: '라이브 채팅',
-      public: false,
-      approval: true,
-      maxusers: 5000,
-      owner: ownerUid,
+
+    try {
+      await this.rest.get(`/users/${uid}`);      // 이미 있으면 200
+      return;
+    } catch (e: any) {
+      if (e?.response?.status !== 404) throw e;  // 다른 오류면 그대로 던짐
+    }
+
+    /* 404 → 새로 생성 */
+    this.log.log(`[REST] create Chat-User ${uid}`);
+    await this.rest.post('/users', {
+      username: uid,
+      password: 'nopass',       // 필수 필드, 아무 값이나
     });
   }
 
+  /* ───── CHAT REST Helper ───── */
+
+  /** 방송 시작: 방(owner) 생성 */
+  async createGroup(groupId: string, ownerUid: string) {
+    await this.ensureChatUser(ownerUid);
+
+    await this.appTokenHeader();
+    return this.rest.post('/chatgroups', {
+      groupid   : groupId,
+      groupname : `live_${groupId}`,
+      desc      : '라이브 채팅',
+      public    : false,
+      approval  : true,
+      maxusers  : 5000,
+      owner     : ownerUid,
+    });
+  }
+
+  /** 시청자 입장 */
   async addUser(groupId: string, uid: string) {
+    await this.ensureChatUser(uid);
+
     await this.appTokenHeader();
     return this.rest.post(`/chatgroups/${groupId}/users/${uid}`);
   }
@@ -135,24 +153,18 @@ export class AgoraService {
   }
 
   async deleteGroup(groupId: string) {
-    try {
-      await this.appTokenHeader();
-      await this.rest.delete(`/chatgroups/${groupId}`);
-    } catch (e) {
-      this.log.warn(`deleteGroup ${groupId} 실패(무시): ${e}`);
-    }
+    await this.appTokenHeader();
+    return this.rest.delete(`/chatgroups/${groupId}`);
   }
 
   async sendSystemMessage(groupId: string, text: string) {
     await this.appTokenHeader();
     return this.rest.post(`/chatgroups/${groupId}/messages`, {
       type: 'txt',
-      msg: text,
+      msg : text,
     });
   }
 
-  /* ─────────────── utils ─────────────── */
-  private now() {
-    return Math.floor(Date.now() / 1000);
-  }
+  /* util */
+  private now() { return Math.floor(Date.now() / 1000); }
 }
