@@ -20,15 +20,15 @@ export class AdminDepositController {
   @Get()
   async getDepositList(@Query() query: AdminDepositListRequest): Promise<AdminDepositListResponse> {
     const { deposits, total } = await this.depositService.findAllBySeller({
-      page: query.page,
-      limit: query.limit,
+      page: query.page ?? 1,
+      limit: query.limit ?? 10,
       sellerId: query.sellerId,
       search: query.search,
       sortBy: query.sortBy,
       sortOrder: query.sortOrder,
     });
 
-    return AdminDepositListResponse.fromResult(deposits, total, query.page, query.limit);
+    return AdminDepositListResponse.fromResult(deposits, total, query.page ?? 1, query.limit ?? 10);
   }
 
   @ApiOperation({ summary: '입금 상세 조회' })

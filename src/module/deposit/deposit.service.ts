@@ -159,56 +159,216 @@ export class DepositService {
     }
   }
 
-  async findAllBySeller(options: { page: number; limit: number; sellerId: string; search?: string }) {
-    // TODO: 실제 데이터베이스에서 조회하는 로직으로 구현 필요
-    const mockDeposits = Array.from({ length: options.limit }, (_, i) => ({
-      id: `deposit-${i + 1}`,
-      quantity: Math.floor(Math.random() * 5) + 1,
-      amount: Math.floor(Math.random() * 100000) + 10000,
-      depositedAt: new Date(),
-      status: DepositStatus.PENDING,
-      product: {
-        id: `product-${i + 1}`,
-        name: `상품 ${i + 1}`,
-        imageUrl: `https://example.com/image-${i + 1}.jpg`,
-      },
-      seller: {
-        id: options.sellerId,
-        name: '판매자',
-      },
-    }));
+  async findAllBySeller(options: {
+    page: number;
+    limit: number;
+    sellerId: string;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) {
+    const { page, limit, sellerId, search, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+    const offset = (page - 1) * limit;
+
+    const depositCompletedStatuses = [
+      OrderStatus.PAID,
+      OrderStatus.PROCESSING,
+      OrderStatus.SHIPPED,
+      OrderStatus.DELIVERED,
+    ];
+
+    const qb: QueryBuilder<Order> = this.orderRepository
+      .createQueryBuilder('order')
+      .select(['order.*, user.*, oi.*, product.*', 'seller.*'])
+      .leftJoin('order.user', 'user')
+      .leftJoin('order.items', 'oi')
+      .leftJoin('oi.product', 'product')
+      .leftJoin('product.seller', 'seller')
+      .where({ status: { $in: depositCompletedStatuses } })
+      .andWhere({ 'seller.id': sellerId });
+
+    // 검색 기능 구현
+    if (search) {
+      const keyword = `%${search}%`;
+      qb.andWhere({ 'product.name': { $like: keyword } });
+    }
+
+    const total = await qb.clone().count('order.id', true);
+
+    // 정렬 기능 구현
+    if (sortBy && sortOrder) {
+      switch (sortBy) {
+        case 'productName':
+          qb.orderBy({ 'product.name': sortOrder.toUpperCase() as 'ASC' | 'DESC' });
+          break;
+        case 'quantity':
+          qb.orderBy({ 'oi.quantity': sortOrder.toUpperCase() as 'ASC' | 'DESC' });
+          break;
+        case 'amount':
+          qb.orderBy({ 'oi.totalPrice': sortOrder.toUpperCase() as 'ASC' | 'DESC' });
+          break;
+        case 'depositDate':
+          qb.orderBy({ 'order.paidAt': sortOrder.toUpperCase() as 'ASC' | 'DESC' });
+          break;
+        default:
+          qb.orderBy({ 'order.createdAt': sortOrder.toUpperCase() as 'ASC' | 'DESC' });
+          break;
+      }
+    } else {
+      qb.orderBy({ 'order.createdAt': 'DESC' });
+    }
+
+    qb.offset(offset).limit(limit);
+
+    const orders = await qb.getResultList();
+
+    const deposits = orders.flatMap((order) =>
+      order.items.getItems().map((orderItem) => {
+        return {
+          id: order.id,
+          quantity: orderItem.quantity,
+          amount: orderItem.totalPrice,
+          depositedAt: order.paidAt || order.createdAt,
+          status: order.status === OrderStatus.PAID ? DepositStatus.PENDING : DepositStatus.PROCESSING,
+          product: {
+            id: orderItem.product?.id || '',
+            name: orderItem.product?.name || '상품명 없음',
+            imageUrl: orderItem.product?.mainImage || '',
+          },
+          seller: {
+            id: sellerId,
+            name: orderItem.product?.seller?.name || '판매자 이름 없음',
+          },
+        };
+      }),
+    );
 
     return {
-      deposits: mockDeposits,
-      total: 100, // 예시 데이터
+      deposits,
+      total,
     };
   }
 
   async findOne(id: string) {
-    // TODO: 실제 데이터베이스에서 조회하는 로직으로 구현 필요
+    const order = await this.orderRepository.findOne(
+      { id },
+      {
+        populate: ['user', 'items', 'items.product', 'items.product.seller'],
+      },
+    );
+
+    if (!order) {
+      throw new NotFoundException(`주문 ID ${id}를 찾을 수 없습니다.`);
+    }
+
+    const orderItem = order.items.getItems()[0]; // 첫 번째 아이템만 사용 (개선 가능)
+
+    if (!orderItem) {
+      throw new NotFoundException(`주문 ID ${id}에 해당하는 상품이 없습니다.`);
+    }
+
     return {
-      id,
-      quantity: Math.floor(Math.random() * 5) + 1,
-      amount: Math.floor(Math.random() * 100000) + 10000,
-      depositedAt: new Date(),
-      status: DepositStatus.PENDING,
+      id: order.id,
+      quantity: orderItem.quantity,
+      amount: orderItem.totalPrice,
+      depositedAt: order.paidAt || order.createdAt,
+      status: this.mapOrderStatusToDepositStatus(order.status),
       product: {
-        id: 'product-1',
-        name: '상품 1',
-        imageUrl: 'https://example.com/image-1.jpg',
+        id: orderItem.product?.id || '',
+        name: orderItem.product?.name || '상품명 없음',
+        imageUrl: orderItem.product?.mainImage || '',
       },
       seller: {
-        id: 'seller-1',
-        name: '판매자',
+        id: orderItem.product?.seller?.id || '',
+        name: orderItem.product?.seller?.name || '판매자 이름 없음',
       },
     };
   }
 
+  @Transactional()
   async updateStatus(id: string, status: DepositStatus) {
-    // TODO: 실제 데이터베이스에서 상태 변경하는 로직으로 구현 필요
-    const deposit = await this.findOne(id);
-    deposit.status = status;
-    return deposit;
+    const order = await this.orderRepository.findOne(
+      { id },
+      {
+        populate: ['user', 'items', 'items.product', 'items.product.seller'],
+      },
+    );
+
+    if (!order) {
+      throw new NotFoundException(`주문 ID ${id}를 찾을 수 없습니다.`);
+    }
+
+    const orderStatus = this.mapDepositStatusToOrderStatus(status, order.status);
+    order.status = orderStatus;
+
+    // 상태에 따른 추가 정보 업데이트
+    if (status === DepositStatus.COMPLETED && !order.paidAt) {
+      order.paidAt = new Date();
+    }
+
+    await this.orderRepository.flush();
+
+    const orderItem = order.items.getItems()[0]; // 첫 번째 아이템만 사용 (개선 가능)
+
+    return {
+      id: order.id,
+      quantity: orderItem.quantity,
+      amount: orderItem.totalPrice,
+      depositedAt: order.paidAt || order.createdAt,
+      status,
+      product: {
+        id: orderItem.product?.id || '',
+        name: orderItem.product?.name || '상품명 없음',
+        imageUrl: orderItem.product?.mainImage || '',
+      },
+      seller: {
+        id: orderItem.product?.seller?.id || '',
+        name: orderItem.product?.seller?.name || '판매자 이름 없음',
+      },
+    };
+  }
+
+  // 헬퍼 메소드: OrderStatus를 DepositStatus로 변환
+  private mapOrderStatusToDepositStatus(orderStatus: OrderStatus): DepositStatus {
+    switch (orderStatus) {
+      case OrderStatus.PENDING:
+        return DepositStatus.PENDING;
+      case OrderStatus.PAID:
+        return DepositStatus.PENDING; // 입금은 완료되었지만 아직 처리 전
+      case OrderStatus.PROCESSING:
+        return DepositStatus.PROCESSING;
+      case OrderStatus.SHIPPED:
+      case OrderStatus.DELIVERED:
+        return DepositStatus.COMPLETED;
+      case OrderStatus.CANCELLED:
+        return DepositStatus.REJECTED;
+      case OrderStatus.REFUNDED:
+        return DepositStatus.FAILED;
+      default:
+        return DepositStatus.PENDING;
+    }
+  }
+
+  // 헬퍼 메소드: DepositStatus를 OrderStatus로 변환
+  private mapDepositStatusToOrderStatus(depositStatus: DepositStatus, currentOrderStatus: OrderStatus): OrderStatus {
+    switch (depositStatus) {
+      case DepositStatus.PENDING:
+        return OrderStatus.PAID;
+      case DepositStatus.PROCESSING:
+        return OrderStatus.PROCESSING;
+      case DepositStatus.COMPLETED:
+        // 이미 배송 중이나 배송 완료 상태라면 그대로 유지
+        if (currentOrderStatus === OrderStatus.SHIPPED || currentOrderStatus === OrderStatus.DELIVERED) {
+          return currentOrderStatus;
+        }
+        return OrderStatus.PROCESSING;
+      case DepositStatus.REJECTED:
+        return OrderStatus.CANCELLED;
+      case DepositStatus.FAILED:
+        return OrderStatus.REFUNDED;
+      default:
+        return currentOrderStatus;
+    }
   }
 }
 
