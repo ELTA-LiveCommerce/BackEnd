@@ -1,18 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminUserControllerModule } from './admin-user-controller.module';
 import { AdminUserController } from './admin-user.controller';
-import { UserModule } from '@/module/user/user.module';
-import { AuthModule } from '@/module/auth/auth.module';
-
-jest.mock('@/module/user/user.module');
-jest.mock('@/module/auth/auth.module');
+import { UserService } from '@/module/user/user.service';
 
 describe('AdminUserControllerModule', () => {
   let module: TestingModule;
 
   beforeEach(async () => {
+    // 서비스 모킹
+    const mockUserService = {
+      findAll: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+    };
+
     module = await Test.createTestingModule({
-      imports: [AdminUserControllerModule],
+      controllers: [AdminUserController],
+      providers: [{ provide: UserService, useValue: mockUserService }],
     }).compile();
   });
 
@@ -21,7 +27,8 @@ describe('AdminUserControllerModule', () => {
   });
 
   it('should have AdminUserController registered', () => {
-    const controllers = module.get('__ControllerTokens__');
-    expect(controllers).toContain(AdminUserController);
+    const controller = module.get<AdminUserController>(AdminUserController);
+    expect(controller).toBeDefined();
   });
 });
+

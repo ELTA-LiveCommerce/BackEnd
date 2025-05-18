@@ -503,8 +503,10 @@ export class OrderService {
     sellerId?: string;
     userId?: string;
     search?: string;
+    startDate?: Date;
+    endDate?: Date;
   }): Promise<{ items: Order[]; total: number }> {
-    const { page = 1, limit = 10, status, sellerId, userId, search } = options;
+    const { page = 1, limit = 10, status, sellerId, userId, search, startDate, endDate } = options;
     const skip = (page - 1) * limit;
 
     let qb = this.entityManager.createQueryBuilder(Order, 'o');
@@ -536,6 +538,16 @@ export class OrderService {
           { 'u.name': { $like: `%${search}%` } },
           { 'p.name': { $like: `%${search}%` } },
         ],
+      });
+    }
+
+    // 시작일과 종료일 필터링
+    if (startDate && endDate) {
+      qb = qb.andWhere({
+        'o.createdAt': {
+          $gte: startDate,
+          $lte: endDate,
+        },
       });
     }
 
