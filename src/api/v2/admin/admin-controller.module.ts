@@ -7,6 +7,7 @@ import { AdminDepositControllerModule } from './deposit/admin-deposit-controller
 import { AdminOrderControllerModule } from './order/admin-order-controller.module';
 import { AdminBroadcastControllerModule } from './broadcast/admin-broadcast-controller.module';
 import { AdminFeeControllerModule } from './settings/admin-fee-controller.module';
+import { AdminLogControllerModule } from './logs/admin-log-controller.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AdminFeeControllerModule } from './settings/admin-fee-controller.module
     AdminOrderControllerModule,
     AdminBroadcastControllerModule,
     AdminFeeControllerModule,
+    AdminLogControllerModule,
   ],
 })
 export class AdminControllerModule {}
