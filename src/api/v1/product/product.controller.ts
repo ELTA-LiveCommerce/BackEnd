@@ -50,8 +50,8 @@ export class ProductController {
    * 모든 상품 목록을 조회합니다.
    */
   @Get()
-  findAll(): Promise<Product[]> {
-    return this.productService.findAll();
+  findAll(): Promise<{ items: Product[]; total: number }> {
+    return this.productService.findAll({ page: 1, limit: 10 });
   }
 
   /**
@@ -177,3 +177,4 @@ export class ProductController {
     return this.productService.removeProductDiscount(id, req.user);
   }
 }
+

@@ -71,7 +71,7 @@ describe('ProductController', () => {
 
   describe('findAll', () => {
     it('should return an array of products', async () => {
-      const result: Product[] = [
+      const products = [
         {
           id: '1',
           name: 'Test Product',
@@ -83,9 +83,14 @@ describe('ProductController', () => {
           updatedAt: new Date(),
         } as unknown as Product,
       ];
+
+      // 페이징된 결과를 반환하도록 mock 설정
+      const result = { items: products, total: products.length };
       jest.spyOn(service, 'findAll').mockResolvedValue(result);
-      expect(await controller.findAll()).toBe(result);
-      expect(() => service.findAll()).not.toThrow();
+
+      const response = await controller.findAll();
+      expect(response).toBe(result);
+      expect(service.findAll).toHaveBeenCalledWith({ page: 1, limit: 10 });
     });
   });
 
@@ -255,3 +260,4 @@ describe('ProductController', () => {
     });
   });
 });
+

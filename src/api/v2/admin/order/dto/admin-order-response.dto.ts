@@ -26,8 +26,8 @@ export class AdminOrderItemResponseBody {
   static fromEntity(entity: OrderItem): AdminOrderItemResponseBody {
     const response = new AdminOrderItemResponseBody();
     response.id = entity.id;
-    response.productId = entity.productId;
-    response.productName = entity.productName;
+    response.productId = entity.product?.id || '';
+    response.productName = entity.product?.name || '상품 정보 없음';
     response.price = entity.price;
     response.quantity = entity.quantity;
     response.attributes = entity.attributes;
@@ -82,19 +82,23 @@ export class AdminOrderResponseBody {
   static fromEntity(entity: Order): AdminOrderResponseBody {
     const response = new AdminOrderResponseBody();
     response.id = entity.id;
-    response.userId = entity.userId;
+    response.userId = entity.user.id;
     response.status = entity.status;
     response.totalAmount = entity.totalAmount;
     response.shippingAddress = entity.shippingAddress;
     response.shippingCode = entity.shippingCode;
-    response.shippingMemo = entity.shippingMemo;
+    response.shippingMemo = entity.notes;
     response.notes = entity.notes;
     response.paymentMethod = entity.paymentMethod;
-    response.isPaid = entity.isPaid;
+    response.isPaid = entity.paidAt != null;
     response.paidAt = entity.paidAt;
     response.createdAt = entity.createdAt;
     response.updatedAt = entity.updatedAt;
-    response.items = entity.items.map((item) => AdminOrderItemResponseBody.fromEntity(item));
+
+    // items가 배열이 아닌 Collection인 경우 Array.from으로 변환
+    const items = Array.isArray(entity.items) ? entity.items : Array.from(entity.items || []);
+    response.items = items.map((item) => AdminOrderItemResponseBody.fromEntity(item));
+
     return response;
   }
 }
@@ -154,3 +158,4 @@ export class AdminOrderListResponse {
     };
   }
 }
+

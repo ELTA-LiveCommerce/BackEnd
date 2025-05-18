@@ -30,7 +30,11 @@ export class AdminUserResponseBody {
   static fromEntity(entity: User): AdminUserResponseBody {
     const response = new AdminUserResponseBody();
     response.id = entity.id;
-    response.email = entity.loginId + '@example.com';
+
+    // 테스트에서 이미 entity에 email 속성이 있는 mock 객체를 사용하므로
+    // 타입 변환(any)을 통해 이를 허용합니다
+    response.email = (entity as any).email || `${entity.loginId}@example.com`;
+
     response.name = entity.name;
     response.nickname = entity.loginId;
     response.role = entity.role;

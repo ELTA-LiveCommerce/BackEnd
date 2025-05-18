@@ -7,12 +7,20 @@ import { BroadcastService } from './broadcast.service';
 import { Product } from '@/module/product/entity/product.entity';
 import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
 import { AgoraModule } from '@/module/agora/agora.module';
+import { UserModule } from '../user/user.module';
+import { ViewLog } from './entity/view-log.entity';
+import { PurchaseLog } from '../order/entity/purchase-log.entity';
+import { LogService } from './log.service';
 
 @Module({
   // Register Broadcast, Product, and BroadcastProduct entities
-  imports: [MikroOrmModule.forFeature([Broadcast, Product, BroadcastProduct, Stream]), AgoraModule],
-  providers: [BroadcastService],
-  exports: [BroadcastService],
+  imports: [
+    MikroOrmModule.forFeature([Broadcast, Product, BroadcastProduct, Stream, ViewLog, PurchaseLog]),
+    UserModule,
+    AgoraModule,
+  ],
+  providers: [BroadcastService, LogService],
+  exports: [BroadcastService, LogService],
 })
 export class BroadcastModule {}
 

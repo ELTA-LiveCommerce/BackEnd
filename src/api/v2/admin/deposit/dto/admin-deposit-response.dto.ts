@@ -43,8 +43,8 @@ export class AdminDepositResponseBody {
     response.amount = deposit.amount;
     response.depositedAt = deposit.depositedAt;
     response.status = deposit.status;
-    response.sellerId = deposit.seller.id;
-    response.sellerName = deposit.seller.name;
+    response.sellerId = deposit.seller?.id || '';
+    response.sellerName = deposit.seller?.name || '';
     return response;
   }
 }
@@ -69,3 +69,4 @@ export class AdminDepositListResponse extends BaseOffsetPageResponse<AdminDeposi
     return new AdminDepositListResponse(body);
   }
 }
+

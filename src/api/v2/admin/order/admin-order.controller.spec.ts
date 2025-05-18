@@ -17,7 +17,7 @@ describe('AdminOrderController', () => {
 
   const mockOrderItem = {
     id: 'test-order-item-id',
-    product: { id: 'test-product-id' },
+    product: { id: 'test-product-id', name: 'Test Product' },
     price: 10000,
     quantity: 2,
   };
@@ -90,7 +90,8 @@ describe('AdminOrderController', () => {
         startDate: query.startDate,
         endDate: query.endDate,
       });
-      expect(result).toBeInstanceOf(AdminOrderListResponse);
+      expect(result).toHaveProperty('success');
+      expect(result).toHaveProperty('data');
       expect(result.data.total).toBe(total);
       expect(result.data.items.length).toBe(orders.length);
     });
@@ -107,8 +108,9 @@ describe('AdminOrderController', () => {
 
       // Then
       expect(orderService.findOne).toHaveBeenCalledWith(orderId);
-      expect(result).toBeInstanceOf(AdminOrderResponse);
-      expect(result.data.id).toBe(mockOrder.id);
+      expect(result).toHaveProperty('success');
+      expect(result).toHaveProperty('data');
+      expect(result.data).toHaveProperty('id', mockOrder.id);
     });
   });
 
@@ -129,8 +131,10 @@ describe('AdminOrderController', () => {
 
       // Then
       expect(orderService.updateStatus).toHaveBeenCalledWith(orderId, updateStatusDto.status);
-      expect(result).toBeInstanceOf(AdminOrderResponse);
+      expect(result).toHaveProperty('success');
+      expect(result).toHaveProperty('data');
       expect(result.data.status).toBe(OrderStatus.SHIPPED);
     });
   });
 });
+

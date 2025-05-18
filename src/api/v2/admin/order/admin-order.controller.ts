@@ -29,7 +29,7 @@ export class AdminOrderController {
       endDate: query.endDate,
     });
 
-    return AdminOrderListResponse.fromResult(result.items, result.total, query.page, query.limit);
+    return AdminOrderListResponse.fromResult(result.items, result.total, query.page || 1, query.limit || 10);
   }
 
   @ApiOperation({ summary: '주문 상세 조회' })
@@ -51,3 +51,4 @@ export class AdminOrderController {
     return AdminOrderResponse.fromEntity(order);
   }
 }
+
