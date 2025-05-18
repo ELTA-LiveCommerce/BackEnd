@@ -4,6 +4,7 @@ import { AdminProductControllerModule } from './product/admin-product-controller
 import { AdminOrderControllerModule } from './order/admin-order-controller.module';
 import { AdminDepositControllerModule } from './deposit/admin-deposit-controller.module';
 import { AdminStatisticsControllerModule } from './statistics/admin-statistics-controller.module';
+import { AdminDeliveryControllerModule } from './delivery/admin-delivery-controller.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { AdminStatisticsControllerModule } from './statistics/admin-statistics-c
     AdminOrderControllerModule,
     AdminDepositControllerModule,
     AdminStatisticsControllerModule,
+    AdminDeliveryControllerModule,
   ],
 })
 export class AdminControllerModule {}
