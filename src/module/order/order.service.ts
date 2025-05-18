@@ -492,6 +492,93 @@ export class OrderService {
   }
 
   /**
+   * 주문 목록을 페이지네이션 형식으로 조회합니다.
+   * @param options 페이지네이션 및 필터링 옵션
+   * @returns 페이지네이션이 적용된 주문 목록과 총 개수
+   */
+  async findAll(options: {
+    page?: number;
+    limit?: number;
+    status?: OrderStatus;
+    sellerId?: string;
+    userId?: string;
+    search?: string;
+  }): Promise<{ items: Order[]; total: number }> {
+    const { page = 1, limit = 10, status, sellerId, userId, search } = options;
+    const skip = (page - 1) * limit;
+
+    let qb = this.entityManager.createQueryBuilder(Order, 'o');
+    qb.leftJoinAndSelect('o.user', 'u')
+      .leftJoinAndSelect('o.items', 'i')
+      .leftJoinAndSelect('i.product', 'p')
+      .leftJoinAndSelect('p.seller', 's');
+
+    // 상태 필터링
+    if (status) {
+      qb = qb.andWhere({ 'o.status': status });
+    }
+
+    // 유저 ID 필터링
+    if (userId) {
+      qb = qb.andWhere({ 'u.id': userId });
+    }
+
+    // 셀러 ID 필터링
+    if (sellerId) {
+      qb = qb.andWhere({ 's.id': sellerId });
+    }
+
+    // 검색어 필터링
+    if (search) {
+      qb = qb.andWhere({
+        $or: [
+          { 'o.orderNumber': { $like: `%${search}%` } },
+          { 'u.name': { $like: `%${search}%` } },
+          { 'p.name': { $like: `%${search}%` } },
+        ],
+      });
+    }
+
+    // 총 개수 조회
+    const total = await qb.clone().getCount();
+
+    // 페이지네이션 적용
+    const items = await qb.orderBy({ 'o.createdAt': 'DESC' }).limit(limit).offset(skip).getResultList();
+
+    return { items, total };
+  }
+
+  /**
+   * 특정 주문을 ID로 조회합니다.
+   * @param id 주문 ID
+   * @returns 주문 정보
+   */
+  async findOne(id: string): Promise<Order> {
+    const order = await this.orderRepository.findOne(
+      { id },
+      { populate: ['items', 'items.product', 'items.product.seller', 'user'] },
+    );
+
+    if (!order) {
+      throw new NotFoundException(`주문 ID ${id}를 찾을 수 없습니다.`);
+    }
+
+    return order;
+  }
+
+  /**
+   * 주문 상태를 업데이트합니다.
+   * @param id 주문 ID
+   * @param status 새로운 주문 상태
+   * @returns 업데이트된 주문 정보
+   */
+  async updateStatus(id: string, status: OrderStatus): Promise<Order> {
+    const order = await this.findOne(id);
+    await this._updateStatus(order, status);
+    return order;
+  }
+
+  /**
    * (내부용) 주문 ID로 주문 엔티티를 조회합니다.
    * @param orderId 주문 ID
    * @internal

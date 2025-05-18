@@ -6,9 +6,11 @@ import { ViewerControllerModule } from './viewer/viewer-controller.module';
 import { AnnouncementControllerModule } from './announcement/announcement-controller.module';
 import { SellerControllerModule } from './seller/seller-controller.module';
 import { UserControllerModule } from './user/user-controller.module';
+import { AdminControllerModule } from './admin/admin-controller.module';
 
 @Module({
   imports: [
+    AdminControllerModule,
     AnnouncementControllerModule,
     AuthControllerModule,
     HealthControllerModule,
@@ -19,3 +21,4 @@ import { UserControllerModule } from './user/user-controller.module';
   ],
 })
 export class V2ApiModule {}
+

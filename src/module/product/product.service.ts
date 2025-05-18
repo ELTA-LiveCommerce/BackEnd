@@ -161,12 +161,73 @@ export class ProductService {
 
   /**
    * 모든 상품 목록을 조회합니다.
-   * @returns 상품 목록
+   * @param options 페이지네이션 및 검색 옵션(선택적)
+   * @returns 상품 목록 또는 페이지네이션이 적용된 상품 목록과 총 개수
    */
-  async findAll(): Promise<Product[]> {
-    return await this.productRepository.findAll({
-      populate: ['seller'],
-    });
+  async findAll(): Promise<Product[]>;
+  async findAll(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sellerId?: string;
+    category?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<{ items: Product[]; total: number }>;
+  async findAll(options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sellerId?: string;
+    category?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<Product[] | { items: Product[]; total: number }> {
+    // 옵션이 제공되지 않은 경우 전체 목록 반환
+    if (!options) {
+      return await this.productRepository.findAll({
+        populate: ['seller'],
+      });
+    }
+
+    const { page = 1, limit = 10, search, sellerId, category, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+    const skip = (page - 1) * limit;
+
+    let qb = this.em.createQueryBuilder(Product, 'p');
+    qb.leftJoinAndSelect('p.seller', 's');
+
+    // 검색어 필터링
+    if (search) {
+      qb = qb.andWhere({
+        $or: [{ name: { $like: `%${search}%` } }, { description: { $like: `%${search}%` } }],
+      });
+    }
+
+    // 셀러 ID 필터링
+    if (sellerId) {
+      qb = qb.andWhere({ 's.id': sellerId });
+    }
+
+    // 카테고리 필터링
+    if (category) {
+      qb = qb.andWhere({ category });
+    }
+
+    // 총 개수 조회
+    const total = await qb.clone().count();
+
+    // 정렬 적용
+    const order = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const orderByField = sortBy || 'createdAt';
+
+    // 페이지네이션 적용
+    const items = await qb
+      .orderBy({ [orderByField]: order })
+      .limit(limit)
+      .offset(skip)
+      .getResultList();
+
+    return { items, total };
   }
 
   /**

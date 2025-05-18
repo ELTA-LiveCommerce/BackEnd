@@ -16,6 +16,7 @@ import { SellerDepositSearchField } from '@/api/v2/seller/deposit/deposit-search
 import { SellerDepositDateField } from '@/api/v2/seller/deposit/deposit-date-field.enum';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { OrderService } from '../order/order.service';
+import { DepositStatus } from '@/shared/enum/deposit-status.enum';
 
 @Injectable()
 export class DepositService {
@@ -157,4 +158,57 @@ export class DepositService {
       );
     }
   }
+
+  async findAllBySeller(options: { page: number; limit: number; sellerId: string; search?: string }) {
+    // TODO: 실제 데이터베이스에서 조회하는 로직으로 구현 필요
+    const mockDeposits = Array.from({ length: options.limit }, (_, i) => ({
+      id: `deposit-${i + 1}`,
+      quantity: Math.floor(Math.random() * 5) + 1,
+      amount: Math.floor(Math.random() * 100000) + 10000,
+      depositedAt: new Date(),
+      status: DepositStatus.PENDING,
+      product: {
+        id: `product-${i + 1}`,
+        name: `상품 ${i + 1}`,
+        imageUrl: `https://example.com/image-${i + 1}.jpg`,
+      },
+      seller: {
+        id: options.sellerId,
+        name: '판매자',
+      },
+    }));
+
+    return {
+      deposits: mockDeposits,
+      total: 100, // 예시 데이터
+    };
+  }
+
+  async findOne(id: string) {
+    // TODO: 실제 데이터베이스에서 조회하는 로직으로 구현 필요
+    return {
+      id,
+      quantity: Math.floor(Math.random() * 5) + 1,
+      amount: Math.floor(Math.random() * 100000) + 10000,
+      depositedAt: new Date(),
+      status: DepositStatus.PENDING,
+      product: {
+        id: 'product-1',
+        name: '상품 1',
+        imageUrl: 'https://example.com/image-1.jpg',
+      },
+      seller: {
+        id: 'seller-1',
+        name: '판매자',
+      },
+    };
+  }
+
+  async updateStatus(id: string, status: DepositStatus) {
+    // TODO: 실제 데이터베이스에서 상태 변경하는 로직으로 구현 필요
+    const deposit = await this.findOne(id);
+    deposit.status = status;
+    return deposit;
+  }
 }
+
