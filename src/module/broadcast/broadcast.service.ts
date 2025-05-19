@@ -294,7 +294,7 @@ export class BroadcastService {
         throw new BadRequestException('활성화된 스트림이 없습니다.');
       }
 
-      await this.agora.deleteGroup(broadcast.stream.id);
+      // await this.agora.deleteGroup(broadcast.stream.id);
 
       // 방송 상태 업데이트
       broadcast.endLive();
