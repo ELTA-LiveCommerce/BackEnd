@@ -37,6 +37,9 @@ export class Broadcast extends BaseEntity {
   @Property({ type: 'boolean', default: false })
   isLive: boolean = false;
 
+  @Property({ type: 'number', default: 0 })
+  maxViewers: number = 0;
+
   @OneToOne(() => Stream, (stream) => stream.broadcast, {
     orphanRemoval: true,
     nullable: true,
@@ -65,6 +68,13 @@ export class Broadcast extends BaseEntity {
 
   endLive() {
     this.isLive = false;
+    return this;
+  }
+
+  updateMaxViewers(currentViewers: number) {
+    if (currentViewers > this.maxViewers) {
+      this.maxViewers = currentViewers;
+    }
     return this;
   }
 }

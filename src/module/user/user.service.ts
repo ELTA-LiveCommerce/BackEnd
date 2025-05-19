@@ -52,8 +52,69 @@ export class UserService {
     return user;
   }
 
-  async findAll(): Promise<User[]> {
-    return await this.userRepository.findAll();
+  /**
+   * 모든 사용자를 조회합니다.
+   * @param options 페이지네이션 및 필터링 옵션(선택적)
+   * @returns 사용자 목록 또는 페이지네이션이 적용된 사용자 목록과 총 개수
+   */
+  async findAll(): Promise<User[]>;
+  async findAll(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: UserRole;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<{ users: User[]; total: number }>;
+  async findAll(options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: UserRole;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<User[] | { users: User[]; total: number }> {
+    // 옵션이 제공되지 않은 경우 전체 목록 반환
+    if (!options) {
+      return await this.userRepository.findAll();
+    }
+
+    const { page = 1, limit = 10, search, role, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+    const skip = (page - 1) * limit;
+
+    let qb = this.userRepository.createQueryBuilder('u');
+
+    // 검색어 필터링
+    if (search) {
+      qb = qb.where({
+        $or: [
+          { name: { $like: `%${search}%` } },
+          { loginId: { $like: `%${search}%` } },
+          { phoneNumber: { $like: `%${search}%` } },
+        ],
+      });
+    }
+
+    // 역할 필터링
+    if (role) {
+      qb = qb.andWhere({ role });
+    }
+
+    // 총 개수 조회
+    const total = await qb.clone().count();
+
+    // 정렬 적용
+    const order = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const orderByField = sortBy || 'createdAt';
+
+    // 페이지네이션 적용
+    const users = await qb
+      .orderBy({ [orderByField]: order })
+      .limit(limit)
+      .offset(skip)
+      .getResult();
+
+    return { users, total };
   }
 
   async findOne(id: string): Promise<User> {
@@ -66,6 +127,51 @@ export class UserService {
 
   async findByLoginId(loginId: string): Promise<User | null> {
     return await this.userRepository.findOne({ loginId });
+  }
+
+  /**
+   * 사용자 정보를 업데이트합니다.
+   * @param id 사용자 ID
+   * @param updateUserDto 업데이트할 사용자 정보
+   * @returns 업데이트된 사용자 정보
+   */
+  async update(id: string, updateUserDto: any): Promise<User> {
+    const user = await this.findOne(id);
+
+    // 업데이트할 필드들을 적용
+    if (updateUserDto.name) user.name = updateUserDto.name;
+    if (updateUserDto.phoneNumber) user.phoneNumber = updateUserDto.phoneNumber;
+    if (updateUserDto.role) user.role = updateUserDto.role;
+    if (updateUserDto.profileImage) user.profileImage = updateUserDto.profileImage;
+    if (updateUserDto.bannerImage) user.bannerImage = updateUserDto.bannerImage;
+    if (updateUserDto.bankName) user.bankName = updateUserDto.bankName;
+    if (updateUserDto.accountNumber) user.accountNumber = updateUserDto.accountNumber;
+    if (updateUserDto.address) user.address = updateUserDto.address;
+    if (updateUserDto.isVerified !== undefined) user.isVerified = updateUserDto.isVerified;
+
+    // 비밀번호 변경은 별도 처리
+    if (updateUserDto.password) {
+      const hashedPassword = await bcrypt.hash(updateUserDto.password, 10);
+      user.password = hashedPassword;
+    }
+
+    await this.em.persistAndFlush(user);
+    return user;
+  }
+
+  /**
+   * 사용자를 삭제합니다.
+   * @param id 사용자 ID
+   * @returns 삭제 성공 여부
+   */
+  async remove(id: string): Promise<boolean> {
+    const user = await this.findOne(id);
+
+    // 여기서 삭제 전 관련 데이터 확인 또는 정리 작업을 수행할 수 있음
+    // 예: 관련 주문, 상품 등의 처리
+
+    await this.em.removeAndFlush(user);
+    return true;
   }
 
   async updateRole(id: string, role: UserRole): Promise<User> {

@@ -48,6 +48,12 @@ export class User extends BaseEntity {
   @Property({ nullable: true, type: 'string' })
   bankName?: string;
 
+  @Property({ nullable: true, type: 'string' })
+  bankAccount?: string;
+
+  @Property({ nullable: true, type: 'number', default: 0.1 })
+  feePercentage?: number = 0.1; // 기본 수수료 10%
+
   @Enum({ items: () => UserRole, default: UserRole.VIEWER, type: 'string' })
   role: UserRole;
 
