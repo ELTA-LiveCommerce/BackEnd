@@ -117,8 +117,6 @@ export class BroadcastService {
     const qb: QueryBuilder<Broadcast> = this.broadcastRepository.createQueryBuilder('b');
 
     qb.where({ seller: sellerId });
-    qb.andWhere({ isLive: false });
-    qb.andWhere({ stream: null });
 
     if (keyword) {
       qb.andWhere({ title: { $like: `%${keyword}%` } });
