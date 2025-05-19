@@ -53,7 +53,7 @@ export class DepositService {
 
     const qb: QueryBuilder<Order> = this.orderRepository
       .createQueryBuilder('order')
-      .select(['order.*, user.*, oi.*, product.*', 'seller.*'])
+      .select(['order.*', 'user.*', 'oi.*', 'product.*', 'seller.*'])
       .leftJoin('order.user', 'user')
       .leftJoin('order.items', 'oi')
       .leftJoin('oi.product', 'product')
