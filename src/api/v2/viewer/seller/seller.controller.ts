@@ -35,7 +35,6 @@ import { RolesGuard } from '@/module/auth/guards/roles.guard';
 
 @ApiTags('v2/viewer/sellers')
 @Controller('v2/viewer/sellers')
-@UseGuards(AuthGuard('jwt'))
 export class SellerController {
   constructor(
     private readonly userService: UserService,
@@ -76,7 +75,7 @@ export class SellerController {
   async getSellerInfo(
     @Param('sellerId') sellerId: string,
     @Query() query: SellerInfoRequestDto,
-    @GetUser() currentUser: User,
+    @GetUser() currentUser?: User,
   ): Promise<SellerInfoResponseDto> {
     // 사용자 정보 조회
     const seller = await this.userService.findOne(sellerId);

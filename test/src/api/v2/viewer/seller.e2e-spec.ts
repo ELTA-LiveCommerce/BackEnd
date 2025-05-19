@@ -24,7 +24,7 @@ import {
   mockProductService,
   mockBroadcastService,
 } from '@test/helpers/e2e-test-utils';
-import { SellerLivePageDto } from '@/api/v2/viewer/seller/seller.dto';
+import { SellerLivePageDto } from '@/api/v2/viewer/seller/seller-response.dto';
 
 jest.useRealTimers(); // 실제 시간 사용 강제
 
@@ -131,6 +131,14 @@ describe('Seller Controller (e2e)', () => {
       expect(response.body.data.items[0].name).toBe(mockSeller.name);
     });
 
+    it('인증 없이도 판매자 검색을 할 수 있다', async () => {
+      const response = await request(app.getHttpServer()).get('/v2/viewer/sellers/search?keyword=Test').expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.items).toBeInstanceOf(Array);
+      expect(response.body.data.items[0].name).toBe(mockSeller.name);
+    });
+
     it('인증되지 않은 사용자는 판매자 검색을 할 수 없다 (401 Unauthorized)', async () => {
       await request(app.getHttpServer())
         .get('/v2/viewer/sellers/search?keyword=Test')
@@ -148,6 +156,14 @@ describe('Seller Controller (e2e)', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.name).toBe(mockSeller.name);
+    });
+
+    it('인증 없이도 판매자 정보를 조회할 수 있다', async () => {
+      const response = await request(app.getHttpServer()).get('/v2/viewer/sellers/seller-id').expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.name).toBe(mockSeller.name);
+      expect(response.body.data.isFollowing).toBe(false);
     });
 
     it('존재하지 않는 판매자 ID로 요청하면 404 에러를 반환한다', async () => {
@@ -199,3 +215,4 @@ describe('Seller Controller (e2e)', () => {
     });
   });
 });
+

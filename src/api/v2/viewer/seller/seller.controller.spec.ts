@@ -188,6 +188,23 @@ describe('SellerController', () => {
 
       await expect(controller.getSellerInfo(sellerId, query, mockCurrentUser)).rejects.toThrow(NotFoundException);
     });
+
+    it('should handle non-authenticated users and set isFollowing to false', async () => {
+      const sellerId = 'test-seller-id';
+      const query: SellerInfoRequestDto = {};
+      userService.findOne.mockResolvedValue(mockSellerUser);
+      userFollowService.getFollowCounts.mockResolvedValue({
+        followersCount: mockFollowers.length,
+        followingCount: mockFollowing.length,
+      });
+
+      const result = await controller.getSellerInfo(sellerId, query, undefined);
+
+      expect(userService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(userFollowService.getFollowCounts).toHaveBeenCalledWith(sellerId);
+      expect(userFollowService.isFollowing).not.toHaveBeenCalled();
+      expect(result.data.isFollowing).toBe(false);
+    });
   });
 
   describe('getSellerLives', () => {
