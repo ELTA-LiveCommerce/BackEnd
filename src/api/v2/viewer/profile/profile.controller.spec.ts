@@ -71,6 +71,7 @@ describe('ProfileController', () => {
         shippingAddress: mockUser.address || '',
         profileImage: mockUser.profileImage,
         bannerImage: mockUser.bannerImage,
+        role: mockUser.role,
       };
 
       userService.findOne.mockResolvedValue(mockUser);
@@ -133,6 +134,7 @@ describe('ProfileController', () => {
         shippingAddress: refreshedUser.address || '',
         profileImage: refreshedUser.profileImage,
         bannerImage: refreshedUser.bannerImage,
+        role: refreshedUser.role,
       };
 
       expect(userService.updateProfile).toHaveBeenCalledWith(mockUser.id, {
@@ -191,6 +193,7 @@ describe('ProfileController', () => {
         shippingAddress: refreshedUser.address || '',
         profileImage: refreshedUser.profileImage,
         bannerImage: refreshedUser.bannerImage,
+        role: refreshedUser.role,
       };
 
       expect(userService.updateProfile).toHaveBeenCalledWith(mockUser.id, {
@@ -288,6 +291,7 @@ describe('ProfileController', () => {
         shippingAddress: updatedUser.address || '',
         profileImage: updatedUser.profileImage,
         bannerImage: updatedUser.bannerImage,
+        role: updatedUser.role,
       });
       expect(result.timestamp).toEqual(expect.any(String));
     });
