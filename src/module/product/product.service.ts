@@ -447,7 +447,6 @@ export class ProductService {
   /**
    * V2 API: 판매자 상품 수정
    */
-  @Transactional()
   async updateSellerProduct(
     sellerId: string,
     productId: string,
@@ -467,31 +466,19 @@ export class ProductService {
     if (updateDto.mainImage !== undefined) product.mainImage = updateDto.mainImage;
     if (updateDto.images !== undefined) product.images = updateDto.images;
 
-    await this.productRepository.flush();
+    await this.productRepository.persistAndFlush(product);
     return product;
   }
 
   /**
    * V2 API: 판매자 상품 목록 조회 (페이지네이션 및 필터링)
    */
-  @Transactional()
   async findSellerProductsPaged(
     userId: string,
     query: SellerProductListRequestDto,
   ): Promise<PagedResponseV2<SellerProductListItemDto>> {
     const qb: QueryBuilder<Product> = this.em
       .createQueryBuilder(Product, 'p')
-      .select([
-        'p.id',
-        'p.name',
-        'p.price',
-        'p.discountPrice',
-        'p.stockQuantity',
-        'p.mainImage',
-        'p.createdAt',
-        'p.updatedAt',
-        'p.deletedAt',
-      ])
       .where({ seller: { id: userId } });
 
     if (query.searchKeyword) {
@@ -523,11 +510,15 @@ export class ProductService {
 
     qb.orderBy({ [dateField]: QueryOrder.DESC });
 
-    const countQb = qb.clone().count('p.id', true);
-    qb.limit(limit).offset(offset);
+    const totalPromise = qb.clone().getCount();
 
-    const [productMaps, totalResult] = await Promise.all([qb.getResult(), countQb.execute('get')]);
-    const total = totalResult.count;
+    const listPromise = qb
+      .orderBy({ [dateField]: QueryOrder.DESC })
+      .limit(limit)
+      .offset(offset)
+      .getResultList();
+
+    const [productMaps, total] = await Promise.all([listPromise, totalPromise]);
 
     const items = productMaps.map((map: any) => {
       return SellerProductListItemDto.fromEntity(map as Product);
