@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CACHE_MANAGER } from '@nestjs/common';
 import { CartController } from './cart.controller';
 import { CartService } from '@/module/cart/cart.service';
 import { AddToCartRequestDto, UpdateCartItemRequestDto } from './dto/cart-request.dto';
@@ -8,7 +7,6 @@ import { CartResponseDto } from './dto/cart-response.dto';
 describe('CartController', () => {
   let controller: CartController;
   let cartServiceMock: any;
-  let cacheManagerMock: any;
 
   const mockUser = { id: 'user-id-1', email: 'test@example.com' };
 
@@ -57,22 +55,12 @@ describe('CartController', () => {
       clearCart: jest.fn(),
     };
 
-    cacheManagerMock = {
-      get: jest.fn(),
-      set: jest.fn(),
-      del: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CartController],
       providers: [
         {
           provide: CartService,
           useValue: cartServiceMock,
-        },
-        {
-          provide: CACHE_MANAGER,
-          useValue: cacheManagerMock,
         },
       ],
     }).compile();

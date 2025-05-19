@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, CACHE_MANAGER } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import supertest from 'supertest';
 import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
@@ -24,7 +24,6 @@ describe('CartController (e2e)', () => {
   let cartItemRepositoryMock: any;
   let productRepositoryMock: any;
   let entityManagerMock: any;
-  let cacheManagerMock: any;
 
   const mockUser = {
     id: 'user-id-1',
@@ -111,12 +110,6 @@ describe('CartController (e2e)', () => {
       removeAndFlush: jest.fn(),
     };
 
-    cacheManagerMock = {
-      get: jest.fn(),
-      set: jest.fn(),
-      del: jest.fn(),
-    };
-
     // 테스트 모듈 설정
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CartController],
@@ -147,10 +140,6 @@ describe('CartController (e2e)', () => {
             sign: jest.fn(),
             verify: jest.fn(),
           },
-        },
-        {
-          provide: CACHE_MANAGER,
-          useValue: cacheManagerMock,
         },
       ],
     }).compile();

@@ -1,7 +1,6 @@
-import { Injectable, NotFoundException, CACHE_MANAGER, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager, EntityRepository, Loaded } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { Cache } from 'cache-manager';
 
 import { Cart } from './entity/cart.entity';
 import { CartItem } from './entity/cart-item.entity';
@@ -18,20 +17,12 @@ export class CartService {
     @InjectRepository(Product)
     private readonly productRepository: EntityRepository<Product>,
     private readonly em: EntityManager,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   /**
    * 사용자의 장바구니를 조회합니다.
    */
   async getCart(userId: string): Promise<Cart> {
-    // 캐시에서 장바구니 조회 시도
-    const cacheKey = `cart:${userId}`;
-    const cachedCart = await this.cacheManager.get<Cart>(cacheKey);
-    if (cachedCart) {
-      return cachedCart;
-    }
-
     let cart = await this.cartRepository.findOne({ user: { id: userId } }, { populate: ['items', 'items.product'] });
 
     if (!cart) {
@@ -46,9 +37,6 @@ export class CartService {
         throw new NotFoundException(`장바구니를 찾을 수 없습니다.`);
       }
     }
-
-    // 캐시에 장바구니 저장
-    await this.cacheManager.set(cacheKey, cart, 300); // 5분간 캐시
 
     return cart;
   }
@@ -92,9 +80,6 @@ export class CartService {
 
     await this.em.flush();
 
-    // 캐시 무효화
-    await this.invalidateCartCache(userId);
-
     // 최신 장바구니 정보 조회
     return this.getCart(userId);
   }
@@ -127,9 +112,6 @@ export class CartService {
     cartItem.quantity = quantity;
     await this.em.flush();
 
-    // 캐시 무효화
-    await this.invalidateCartCache(userId);
-
     return this.getCart(userId);
   }
 
@@ -150,9 +132,6 @@ export class CartService {
 
     await this.em.removeAndFlush(cartItem);
 
-    // 캐시 무효화
-    await this.invalidateCartCache(userId);
-
     return this.getCart(userId);
   }
 
@@ -166,18 +145,7 @@ export class CartService {
     cart.items.removeAll();
     await this.em.flush();
 
-    // 캐시 무효화
-    await this.invalidateCartCache(userId);
-
     return cart;
-  }
-
-  /**
-   * 장바구니 캐시를 무효화합니다.
-   */
-  private async invalidateCartCache(userId: string): Promise<void> {
-    const cacheKey = `cart:${userId}`;
-    await this.cacheManager.del(cacheKey);
   }
 }
 
