@@ -46,7 +46,7 @@ export class RefundService {
         'r.returnAddress',
         'r.createdAt', // For requestedAt field in DTO
         'p.name as productName', // Alias for product name
-        'p.mainImage as productImage', // Alias for product image
+        'p.main_image as productImage', // Alias for product image
         'b.id as buyerId', // Alias for buyer ID
       ])
       .leftJoin('r.product', 'p') // Join with Product
@@ -91,14 +91,14 @@ export class RefundService {
     qb.orderBy({ [dateField]: QueryOrder.DESC });
 
     // Clone for count query before applying limit/offset
-    const countQb = qb.clone().count('r.id', true);
     qb.limit(limit).offset(offset);
 
-    const [refundMaps, totalResult] = await Promise.all([
-      qb.getResult(), // Use getResult() for maps
-      countQb.execute('get'),
-    ]);
-    const total = totalResult.count;
+    const refundMaps = await qb.clone()
+      .orderBy({ [dateField]: QueryOrder.DESC })
+      .limit(limit)
+      .offset(offset)
+      .getResult();
+    const total = await qb.clone().getCount();
 
     // Map raw results to DTOs (manual mapping due to aliases)
     const items = refundMaps.map((map: any) => {
