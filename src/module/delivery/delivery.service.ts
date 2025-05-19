@@ -410,11 +410,7 @@ export class DeliveryService {
 
     // Execute queries lecithin and count separately
     const deliveries = await qb.getResultList();
-    const total = await qb
-      .clone()
-      .count()
-      .execute('get')
-      .then((res) => res.count); // Clone for count query
+    const total = await qb.getCount();
 
     // Map results. Relations are already loaded due to leftJoinAndSelect.
     const itemsWithDetails = deliveries.map((delivery) => {
