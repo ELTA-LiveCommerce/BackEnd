@@ -456,7 +456,9 @@ export class UserService {
       .orderBy({ createdAt: 'DESC' })
       .limit(limit);
 
-    return qb.getResult();
+    const res = await qb.getResult();
+    console.log('findByUsernameContaining', res);
+    return res;
   }
   /**
    * 회원 탈퇴 처리
@@ -766,4 +768,3 @@ export class UserService {
     return user;
   }
 }
-

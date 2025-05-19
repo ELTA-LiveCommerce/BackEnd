@@ -91,6 +91,7 @@ export class DeliveryAddressDto {
 export class ProfileInfoDto {
   id: string;
   name: string;
+  role: string;
   loginId: string;
   phoneNumber: string;
   bankAccount: string;

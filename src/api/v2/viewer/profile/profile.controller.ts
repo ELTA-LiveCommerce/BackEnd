@@ -36,6 +36,7 @@ export class ProfileController {
     const profileInfo: ProfileInfoDto = {
       id: userInfo.id,
       name: userInfo.name,
+      role: userInfo.role,
       loginId: userInfo.loginId,
       phoneNumber: userInfo.phoneNumber || '',
       bankAccount: userInfo.accountNumber || '',
@@ -79,6 +80,7 @@ export class ProfileController {
     const profileInfo: ProfileInfoDto = {
       id: refreshedUserInfo.id,
       name: refreshedUserInfo.name,
+      role: refreshedUserInfo.role,
       loginId: refreshedUserInfo.loginId,
       phoneNumber: refreshedUserInfo.phoneNumber || '',
       bankAccount: refreshedUserInfo.accountNumber || '',
@@ -131,6 +133,7 @@ export class ProfileController {
     const profileInfo: ProfileInfoDto = {
       id: updatedUser.id,
       name: updatedUser.name,
+      role: updatedUser.role,
       loginId: updatedUser.loginId,
       phoneNumber: updatedUser.phoneNumber || '',
       bankAccount: updatedUser.accountNumber || '',
