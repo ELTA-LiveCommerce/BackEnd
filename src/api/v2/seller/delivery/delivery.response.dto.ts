@@ -41,6 +41,9 @@ export class SellerDeliveryListItemDto {
   @ApiProperty({ description: '배송 ID', example: 'delivery-uuid-789' })
   deliveryId: string;
 
+  @ApiProperty({ description: '생성일시' })
+  createdAt: Date;
+
   static fromEntities(delivery: Delivery, orderItem: OrderItem, order: Order): SellerDeliveryListItemDto {
     const dto = new SellerDeliveryListItemDto();
     dto.productMainImage = orderItem.product?.mainImage;
@@ -53,6 +56,7 @@ export class SellerDeliveryListItemDto {
     dto.recipientPhoneNumber = delivery.recipientPhoneNumber;
     dto.address = delivery.address;
     dto.deliveryStatus = delivery.status;
+    dto.createdAt = delivery.createdAt;
 
     dto.orderId = order.id;
     dto.orderItemId = orderItem.id;

@@ -86,7 +86,7 @@ export class AgoraService {
       return { Authorization: `Bearer ${this.appToken}` };
     }
 
-    const ttl  = 7 * 24 * 60 * 60;            // 7 days
+    const ttl = 7 * 24 * 60 * 60; // 7 days
     const expS = this.now() + ttl;
     this.appToken = ChatTokenBuilder.buildAppToken(this.appId, this.cert, expS);
     this.appTokenExp = Date.now() + ttl * 1000;
@@ -117,7 +117,7 @@ export class AgoraService {
     this.log.log(`[REST] create Chat-User ${uid}`);
     await this.rest.post('/users', {
       username: uid,
-      password: 'nopass',       // 필수 필드, 아무 값이나
+      password: 'nopass', // 필수 필드, 아무 값이나
     });
   }
 
@@ -166,5 +166,7 @@ export class AgoraService {
   }
 
   /* util */
-  private now() { return Math.floor(Date.now() / 1000); }
+  private now() {
+    return Math.floor(Date.now() / 1000);
+  }
 }
