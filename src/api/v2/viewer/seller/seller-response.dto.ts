@@ -1,6 +1,6 @@
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
-import { Product } from '@/module/product/entity/product.entity';
+import { Product, ProductStatus } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
 
 /**
@@ -102,6 +102,7 @@ export class SellerProductItemDto {
   description?: string;
   stock: number;
   salesCount: number;
+  status: ProductStatus;
 
   static async fromEntity(product: Product, salesCount: number): Promise<SellerProductItemDto> {
     const dto = new SellerProductItemDto();
@@ -111,6 +112,7 @@ export class SellerProductItemDto {
     dto.thumbnailImage = product.mainImage;
     dto.description = product.shortDescription;
     dto.stock = product.stockQuantity;
+    dto.status = product.status;
 
     // 판매량 구현
     dto.salesCount = salesCount;

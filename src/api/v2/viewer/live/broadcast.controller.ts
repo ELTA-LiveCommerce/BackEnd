@@ -22,7 +22,7 @@ import { ApiResponse } from '@/api/v2/common/api-response.dto';
 @ApiTags('v2/viewer/lives')
 @Controller('v2/viewer/lives')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.VIEWER)
+@Roles(UserRole.VIEWER, UserRole.SELLER)
 export class BroadcastController {
   constructor(private readonly broadcastService: BroadcastService) {}
 
