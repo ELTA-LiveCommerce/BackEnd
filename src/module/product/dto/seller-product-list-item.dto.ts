@@ -37,7 +37,7 @@ export class SellerProductListItemDto {
     dto.mainImage = product.mainImage;
     // dto.category = product.category.name; // Assuming category is an object with a name property
     dto.price = product.price;
-    // dto.status = product.status; // Assuming status is a string
+    dto.status = product.status; // Assuming status is a string
     dto.stockQuantity = product.stockQuantity;
     dto.createdAt = product.createdAt;
     dto.updatedAt = product.updatedAt;
