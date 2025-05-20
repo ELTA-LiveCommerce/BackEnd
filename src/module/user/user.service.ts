@@ -457,7 +457,6 @@ export class UserService {
       .limit(limit);
 
     const res = await qb.getResult();
-    console.log('findByUsernameContaining', res);
     return res;
   }
   /**
@@ -538,14 +537,13 @@ export class UserService {
         const isBlocked = await this.sellerUserBlockRepository.findOne({
           seller: { id: sellerId },
           blockedUser: { id: user.id },
-          type: BlockType.FULL_BLOCK,
         });
 
         return {
           ...user,
           totalPaymentAmount,
           totalRefundCount,
-          isBlocked: !!isBlocked,
+          isBlocked: isBlocked?.type,
         };
       }),
     );
@@ -742,16 +740,30 @@ export class UserService {
     }
 
     // 3. 사용자 상태 업데이트
-    if (statusUpdateDto.status === SellerUserStatus.INACTIVE) {
+    if (statusUpdateDto.status === SellerUserStatus.CAUTION) {
       // 차단 처리
-      const block = new SellerUserBlock(
+      const existingBlock = await this.sellerUserBlockRepository.findOne({
         seller,
-        user,
-        BlockType.FULL_BLOCK,
-        statusUpdateDto.reason || '판매자에 의한 차단',
-      );
+        blockedUser: user,
+      });
+      if (existingBlock) {
+        // update
+        existingBlock.type = BlockType.CAUTION;
+        existingBlock.reason = statusUpdateDto.reason || '판매자에 의한 경고';
+        await this.sellerUserBlockRepository.persistAndFlush(existingBlock);
+        await this.sellerUserBlockRepository.getEntityManager().clear();
+      } else {
+        // create
+        const block = new SellerUserBlock(
+          seller,
+          user,
+          BlockType.CAUTION,
+          statusUpdateDto.reason || '판매자에 의한 경고',
+        );
+        await this.sellerUserBlockRepository.persistAndFlush(block);
+        await this.sellerUserBlockRepository.getEntityManager().clear();
 
-      await this.sellerUserBlockRepository.persistAndFlush(block);
+      }
     } else if (statusUpdateDto.status === SellerUserStatus.ACTIVE) {
       // 차단 해제
       const block = await this.sellerUserBlockRepository.findOne({
@@ -761,6 +773,31 @@ export class UserService {
 
       if (block) {
         await this.sellerUserBlockRepository.removeAndFlush(block);
+        await this.sellerUserBlockRepository.getEntityManager().clear();
+        
+      }
+    } else if (statusUpdateDto.status === SellerUserStatus.BLOCKED) {
+      // 차단 처리
+      const existingBlock = await this.sellerUserBlockRepository.findOne({
+        seller,
+        blockedUser: user,
+      });
+      if (existingBlock) {
+        // update
+        existingBlock.type = BlockType.BLOCKED;
+        existingBlock.reason = statusUpdateDto.reason || '판매자에 의한 차단';
+        await this.sellerUserBlockRepository.persistAndFlush(existingBlock);
+        await this.sellerUserBlockRepository.getEntityManager().clear();
+      } else {
+        // create
+        const block = new SellerUserBlock(
+          seller,
+          user,
+          BlockType.BLOCKED,
+          statusUpdateDto.reason || '판매자에 의한 차단',
+        );
+        await this.sellerUserBlockRepository.persistAndFlush(block);
+        await this.sellerUserBlockRepository.getEntityManager().clear();
       }
     }
 

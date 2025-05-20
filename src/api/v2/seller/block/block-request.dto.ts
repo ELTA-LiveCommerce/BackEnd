@@ -15,5 +15,5 @@ export class SellerBlockUserRequestDto {
 
   @IsOptional()
   @IsEnum(BlockType)
-  blockType?: BlockType = BlockType.FULL_BLOCK;
+  blockType?: BlockType = BlockType.BLOCKED;
 }

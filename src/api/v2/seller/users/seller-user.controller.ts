@@ -35,7 +35,6 @@ export class SellerUserController {
   ): Promise<SellerUserListResponseDto> {
     // 판매자(seller.id)가 관리할 수 있는 사용자 목록 조회
     const userResults = await this.userService.findUsersForSeller(seller.id, query);
-
     // 엔티티를 DTO로 변환
     const items = userResults.items.map((user) => {
       const dto = new SellerUserListItemDto();
@@ -44,9 +43,9 @@ export class SellerUserController {
       dto.role = user.role;
       dto.name = user.name;
       dto.profileImage = user.profileImage;
-      dto.status = user.deletedAt ? SellerUserDerivedStatus.DELETED : SellerUserDerivedStatus.ACTIVE;
-      dto.createdAt = user.createdAt;
+      dto.status = user.isBlocked ? user.isBlocked : SellerUserDerivedStatus.ACTIVE;
       dto.lastLoginAt = user.lastLoginAt;
+      dto.createdAt = user.createdAt;
 
       // 확장된 필드 추가
       dto.phoneNumber = user.phoneNumber;

@@ -3,8 +3,9 @@ import { BaseEntity } from '@/shared/entity/base.entity';
 import { User } from './user.entity';
 
 export enum BlockType {
-  FULL_BLOCK = 'FULL_BLOCK', // 완전 차단
-  WARNING_ONLY = 'WARNING_ONLY', // 경고만 표시
+  ACTIVE = 'ACTIVE',
+  CAUTION = 'CAUTION',
+  BLOCKED = 'BLOCKED',
 }
 
 @Entity({ tableName: 'seller_user_block' })
@@ -18,13 +19,13 @@ export class SellerUserBlock extends BaseEntity {
   @Property({ default: true })
   isBlocked: boolean = true;
 
-  @Enum({ items: () => BlockType, default: BlockType.FULL_BLOCK, type: 'string' })
-  type: BlockType = BlockType.FULL_BLOCK;
+  @Enum({ items: () => BlockType, default: BlockType.BLOCKED, type: 'string' })
+  type: BlockType = BlockType.BLOCKED;
 
   @Property({ type: 'text', nullable: true })
   reason?: string;
 
-  constructor(seller: User, blockedUser: User, type: BlockType = BlockType.FULL_BLOCK, reason?: string) {
+  constructor(seller: User, blockedUser: User, type: BlockType = BlockType.BLOCKED, reason?: string) {
     super();
     this.seller = seller;
     this.blockedUser = blockedUser;

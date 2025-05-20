@@ -13,7 +13,7 @@ export class SellerBlockedUserResponseBody {
   @ApiProperty({ description: '차단된 사용자 ID', example: 'blocked-user-uuid' })
   userId: string;
 
-  @ApiProperty({ description: '차단 유형', enum: BlockType, example: BlockType.FULL_BLOCK })
+  @ApiProperty({ description: '차단 유형', enum: BlockType, example: BlockType.BLOCKED })
   blockType: BlockType;
 
   @ApiProperty({ description: '차단 사유', example: '부적절한 메시지', required: false })

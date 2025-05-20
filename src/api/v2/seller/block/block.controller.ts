@@ -27,7 +27,7 @@ export class SellerBlockController {
     const blockEntity = await this.userBlockService.blockUser(
       seller.id,
       blockUserDto.userIdToBlock,
-      blockUserDto.blockType ?? BlockType.FULL_BLOCK,
+      blockUserDto.blockType ?? BlockType.BLOCKED,
       blockUserDto.reason,
     );
     const responseBody = SellerBlockedUserResponseBody.fromEntity(blockEntity);

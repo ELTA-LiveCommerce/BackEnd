@@ -16,8 +16,8 @@ export enum SellerUserDateField {
 
 export enum SellerUserStatus {
   ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  // 추가 상태 정의 가능
+  CAUTION = 'CAUTION',
+  BLOCKED = 'BLOCKED',
 }
 
 export class SellerUserListRequestDto extends PaginationRequestDto {
