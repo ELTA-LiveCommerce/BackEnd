@@ -395,12 +395,11 @@ export class ProductService {
         break;
     }
 
-    const totalQuery = qb.clone().count('p.id', true);
     const itemsQuery = qb.limit(limit).offset(offset);
 
-    const [totalResult, items] = await Promise.all([totalQuery.execute('get'), itemsQuery.getResultList()]);
+    const [items] = await Promise.all([itemsQuery.getResultList()]);
 
-    const total = (totalResult as any).count;
+    const total = await qb.clone().count();
 
     return { items, total, page, limit };
   }
