@@ -204,67 +204,51 @@ export class OrderService {
    * @param userId 사용자 ID
    * @param getOrdersDto 주문 조회 DTO
    */
-  async getOrdersByUser(userIdFromAuth: string, getOrdersDto: GetOrdersDto): Promise<PaginatedOrdersResponseDto> {
-    const { page = 1, limit = 10, status, search, sortBy = 'createdAt', order = 'DESC', after } = getOrdersDto;
+  async getOrdersByUser(userIdFromAuth: string, dto: GetOrdersDto): Promise<PaginatedOrdersResponseDto> {
+    const { page = 1, limit = 10, status, search, sortBy = 'createdAt', order = 'DESC', after } = dto;
+
     const skip = (page - 1) * limit;
+    const qb = this.entityManager
+      .createQueryBuilder(Order, 'o')
+      .leftJoinAndSelect('o.items', 'i')               // 필요한 연관 로드
+      .leftJoinAndSelect('i.product', 'p')
+      .where({ user: userIdFromAuth });               // 본인 주문만
 
-    // 모킹된 구성을 유지하면서 테스트 통과를 위한 코드 구성
-    const mockQb = this.entityManager.createQueryBuilder(Order, 'o');
+    // 상태 필터
+    if (status) qb.andWhere({ status });
 
-    // 실제 쿼리는 사용하지 않고 mock된 테스트를 통과시키기 위한 호출
-    mockQb.where({ user: userIdFromAuth });
-
-    // 실제 주문 조회 방식: Repository를 사용
-    const where: any = { user: { id: userIdFromAuth } };
-
-    if (status) {
-      where.status = status;
-      mockQb.andWhere({ status }); // 테스트 통과용
+    // 검색어(주문번호·상품명)
+    if (search) {
+      qb.andWhere({
+        $or: [{ orderNumber: { $like: `%${search}%` } }, { 'p.name': { $like: `%${search}%` } }],
+      });
     }
 
+    // 커서 기반 페이지네이션 (after 값이 있을 때)
     if (after) {
       const afterOrder = await this.orderRepository.findOne({ id: after });
       if (afterOrder) {
         const cursorField = sortBy as keyof Order;
-        const cursorCondition =
-          order === 'ASC'
-            ? { [cursorField]: { $gt: (afterOrder as any)[cursorField] } }
-            : { [cursorField]: { $lt: (afterOrder as any)[cursorField] } };
-
-        Object.assign(where, cursorCondition);
-        mockQb.andWhere(cursorCondition); // 테스트 통과용
+        qb.andWhere({
+          [cursorField]:
+            order.toUpperCase() === 'ASC'
+              ? { $gt: (afterOrder as any)[cursorField] }
+              : { $lt: (afterOrder as any)[cursorField] },
+        });
       }
     }
 
-    // 테스트를 통과시키기 위한 mock 함수들 호출
-    mockQb.clone();
-    mockQb.orderBy({ [sortBy]: order.toUpperCase() as 'ASC' | 'DESC' });
-    mockQb.limit(limit);
-    mockQb.offset(skip);
+    // 총 개수와 리스트 병렬 조회
+    const [total, orders] = await Promise.all([
+      qb.clone().getCount(),
+      qb
+        .orderBy({ [sortBy]: order.toUpperCase() as 'ASC' | 'DESC' })
+        .limit(limit)
+        .offset(skip)
+        .getResultList(),
+    ]);
 
-    // 가짜 주문 객체 생성
-    const mockOrderObj = {
-      id: 'order-id',
-      orderNumber: 'ORD123456',
-      status: OrderStatus.PENDING,
-      totalAmount: 100,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      items: new MockOrderCollection([
-        {
-          id: 'order-item-id',
-          productId: 'product-id',
-          productName: 'Test Product',
-          quantity: 1,
-          price: 100,
-        },
-      ]),
-    } as unknown as Order;
-
-    // 테스트를 위한 mockQb 활용
-    const [total, orders] = [1, [mockOrderObj]]; // 테스트 통과를 위한 임의 값
-
-    // mapToOrderSummaryDto 사용
+    // DTO 매핑
     const items = orders.map((o) => this.mapToOrderSummaryDto(o));
 
     return {
