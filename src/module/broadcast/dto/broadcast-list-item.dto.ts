@@ -16,6 +16,9 @@ export class BroadcastListItemDto {
   @ApiProperty({ description: 'Broadcast Title' })
   title: string;
 
+  @ApiProperty({ description: 'Description' })
+  description?: string;
+
   @ApiProperty({ description: 'Broadcast Status', example: 'SCHEDULED' })
   status: string;
 

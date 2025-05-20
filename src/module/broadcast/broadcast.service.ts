@@ -145,6 +145,7 @@ export class BroadcastService {
         new BroadcastListItemDto({
           id: b.id,
           title: b.title,
+          description: b.description,
           thumbnailUrl: b.thumbnailUrl,
           scheduledAt: b.scheduledAt,
           products: b.products.getItems().map((bp) => ({

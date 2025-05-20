@@ -19,6 +19,9 @@ export class SellerUserListItemDto {
   @ApiProperty({ description: '사용자 이름' })
   name: string;
 
+  @ApiProperty({ description: '사용자 역할 (SELLER/VIEWER)', enum: ['SELLER', 'VIEWER'] })
+  role: string;
+
   @ApiProperty({ description: '프로필 이미지 URL', required: false })
   profileImage?: string;
 
@@ -45,6 +48,9 @@ export class SellerUserListItemDto {
 
   @ApiProperty({ description: '총 환불 건수', default: 0 })
   totalRefundCount: number;
+
+  @ApiProperty({ description: '마지막 로그인' })
+  lastLoginAt?: Date;
 
   // 필요에 따라 DTO 변환 로직 추가
   static fromEntity(user: User, totalPaymentAmount = 0, totalRefundCount = 0): SellerUserListItemDto {

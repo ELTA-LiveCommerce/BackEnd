@@ -46,13 +46,13 @@ export class Product extends BaseEntity {
    * 재고 수량
    */
   @Property({ default: 0, type: 'number' })
-  stockQuantity: number = 0;
+  stockQuantity: number = 0;s
 
   /**
    * 대표 이미지 URL
    */
   @Property({ nullable: true, type: 'string' })
-  mainImage?: string;
+  mainImage: string;
 
   /**
    * 추가 이미지 URL 목록

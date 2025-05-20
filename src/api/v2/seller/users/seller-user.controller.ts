@@ -41,10 +41,12 @@ export class SellerUserController {
       const dto = new SellerUserListItemDto();
       dto.id = user.id;
       dto.loginId = user.loginId;
+      dto.role = user.role;
       dto.name = user.name;
       dto.profileImage = user.profileImage;
       dto.status = user.deletedAt ? SellerUserDerivedStatus.DELETED : SellerUserDerivedStatus.ACTIVE;
       dto.createdAt = user.createdAt;
+      dto.lastLoginAt = user.lastLoginAt;
 
       // 확장된 필드 추가
       dto.phoneNumber = user.phoneNumber;
