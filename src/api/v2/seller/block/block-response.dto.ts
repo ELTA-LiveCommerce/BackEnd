@@ -13,6 +13,9 @@ export class SellerBlockedUserResponseBody {
   @ApiProperty({ description: '차단된 사용자 ID', example: 'blocked-user-uuid' })
   userId: string;
 
+  @ApiProperty({ description: '차단된 사용자 이름', example: '차단된 사용자' })
+  userName: string;
+
   @ApiProperty({ description: '차단 유형', enum: BlockType, example: BlockType.BLOCKED })
   blockType: BlockType;
 
@@ -28,6 +31,7 @@ export class SellerBlockedUserResponseBody {
 
     responseBody.blockId = entity.id;
     responseBody.userId = blockedUser.id;
+    responseBody.userName = blockedUser.name;
     responseBody.blockType = entity.type;
     responseBody.reason = entity.reason;
     responseBody.blockedAt = entity.createdAt;
