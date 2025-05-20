@@ -523,7 +523,7 @@ export class UserService {
 
     // 결과 조회 (페이지네이션 적용)
     const users = await queryBuilder.select('*').limit(limit).offset(skip).getResult();
-
+    await this.em.populate(users, ['logins']);
     // 각 사용자에 대한 추가 정보 조회
     const usersWithAdditionalInfo = await Promise.all(
       users.map(async (user) => {
