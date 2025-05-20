@@ -751,7 +751,7 @@ export class UserService {
         existingBlock.type = BlockType.CAUTION;
         existingBlock.reason = statusUpdateDto.reason || '판매자에 의한 경고';
         await this.sellerUserBlockRepository.persistAndFlush(existingBlock);
-        await this.sellerUserBlockRepository.getEntityManager().clear();
+        
       } else {
         // create
         const block = new SellerUserBlock(
@@ -761,7 +761,7 @@ export class UserService {
           statusUpdateDto.reason || '판매자에 의한 경고',
         );
         await this.sellerUserBlockRepository.persistAndFlush(block);
-        await this.sellerUserBlockRepository.getEntityManager().clear();
+        
 
       }
     } else if (statusUpdateDto.status === SellerUserStatus.ACTIVE) {
@@ -773,7 +773,7 @@ export class UserService {
 
       if (block) {
         await this.sellerUserBlockRepository.removeAndFlush(block);
-        await this.sellerUserBlockRepository.getEntityManager().clear();
+        
         
       }
     } else if (statusUpdateDto.status === SellerUserStatus.BLOCKED) {
@@ -787,7 +787,7 @@ export class UserService {
         existingBlock.type = BlockType.BLOCKED;
         existingBlock.reason = statusUpdateDto.reason || '판매자에 의한 차단';
         await this.sellerUserBlockRepository.persistAndFlush(existingBlock);
-        await this.sellerUserBlockRepository.getEntityManager().clear();
+        
       } else {
         // create
         const block = new SellerUserBlock(
@@ -797,7 +797,7 @@ export class UserService {
           statusUpdateDto.reason || '판매자에 의한 차단',
         );
         await this.sellerUserBlockRepository.persistAndFlush(block);
-        await this.sellerUserBlockRepository.getEntityManager().clear();
+        
       }
     }
 

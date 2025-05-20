@@ -1,8 +1,15 @@
-import { ArrayType, Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
+import { ArrayType, Entity, Enum, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { User } from '@/module/user/entity/user.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
+
+export enum ProductStatus {
+  DEFAULT = 'DEFAULT',
+  SOLDOUT = 'SOLDTOUT',
+  SALESEND = 'SALESEND',
+  ONSALE = 'ONSALE',
+}
 
 /**
  * 상품 엔티티
@@ -47,6 +54,12 @@ export class Product extends BaseEntity {
    */
   @Property({ default: 0, type: 'number' })
   stockQuantity: number = 0;s
+
+  /**
+   * 상품 상태
+   */
+  @Enum({ items: () => ProductStatus, type: 'string', default: ProductStatus.DEFAULT })
+  status: ProductStatus = ProductStatus.DEFAULT;
 
   /**
    * 대표 이미지 URL

@@ -14,6 +14,7 @@ import { Type } from 'class-transformer';
 import { IsDateString, IsInt } from 'class-validator';
 import { SellerProductSearchField } from './search-field.enum';
 import { SellerProductDateField } from './date-field.enum';
+import { ProductStatus } from '../../../../module/product/entity/product.entity';
 
 export class SellerProductCreateRequestDto {
   @ApiProperty({ description: '상품명', example: '새로운 멋진 상품' })
@@ -75,6 +76,11 @@ export class SellerProductUpdateRequestDto {
   @Min(0)
   @IsOptional()
   stockQuantity?: number;
+
+  @ApiProperty({ description: '상품 상태', required: false })
+  @IsEnum(ProductStatus)
+  @IsOptional()
+  status?: ProductStatus;
 
   @ApiProperty({ description: '상품 간략설명', example: '수정된 간략 설명!', required: false })
   @IsString()

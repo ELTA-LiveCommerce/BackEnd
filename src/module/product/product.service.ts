@@ -465,6 +465,7 @@ export class ProductService {
     if (updateDto.description !== undefined) product.description = updateDto.description;
     if (updateDto.mainImage !== undefined) product.mainImage = updateDto.mainImage;
     if (updateDto.images !== undefined) product.images = updateDto.images;
+    if (updateDto.status !== undefined) product.status = updateDto.status;
 
     await this.productRepository.persistAndFlush(product);
     return product;
