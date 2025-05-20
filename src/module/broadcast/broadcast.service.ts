@@ -39,7 +39,13 @@ export class BroadcastService {
         throw new NotFoundException(`Seller with ID ${sellerId} not found.`);
       }
 
-      const broadcast = new Broadcast(seller, dto.title, new Date(dto.scheduledAt), dto.thumbnailImageUrl);
+      const broadcast = new Broadcast(
+        seller,
+        dto.title,
+        dto.description,
+        new Date(dto.scheduledAt),
+        dto.thumbnailImageUrl,
+      );
 
       em.persist(broadcast);
 

@@ -11,6 +11,14 @@ export class BroadcastCreateRequestDto {
   title: string;
 
   @ApiProperty({
+    description: '방송 설명',
+    example: '이번 방송에서는 특별 할인 상품을 소개합니다.',
+  })
+  @IsNotEmpty()
+  @IsString()
+  description: string;
+
+  @ApiProperty({
     description: '방송 예정 날짜 (ISO 8601 형식)',
     example: '2024-08-15T14:00:00.000Z',
   })

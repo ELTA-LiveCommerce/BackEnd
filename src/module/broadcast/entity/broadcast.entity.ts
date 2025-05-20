@@ -53,10 +53,11 @@ export class Broadcast extends BaseEntity {
   })
   products = new Collection<BroadcastProduct>(this);
 
-  constructor(seller: User, title: string, scheduledAt: Date, thumbnailUrl?: string) {
+  constructor(seller: User, title: string, description: string, scheduledAt: Date, thumbnailUrl?: string) {
     super();
     this.seller = seller;
     this.title = title;
+    this.description = description;
     this.scheduledAt = scheduledAt;
     this.thumbnailUrl = thumbnailUrl;
   }
