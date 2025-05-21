@@ -16,6 +16,9 @@ export class Stream {
   @OneToOne(() => Broadcast, (broadcast) => broadcast.stream, { owner: true })
   broadcast: Broadcast;
 
+  @Property({ type: 'string', nullable: true })
+  chatGroupId?: string;
+
   @Property({ onCreate: () => new Date() })
   startedAt: Date;
 

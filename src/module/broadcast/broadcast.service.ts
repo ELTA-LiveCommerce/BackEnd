@@ -169,53 +169,44 @@ export class BroadcastService {
   // TODO: 방송 시작/종료, 상품 연동 등의 메서드 추가
   async start(hostUserId: string, broadcastId: string) {
     return this.em.transactional(async (em) => {
-      // 방송 정보 조회
+
+      /* ── 1. 방송·권한 체크 (변동 없음) ─────────────── */
       const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
+      if (!broadcast) throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+      if (broadcast.seller.id !== hostUserId) throw new ForbiddenException('이 방송을 시작할 권한이 없습니다.');
+      if (broadcast.isLive) throw new BadRequestException('이미 라이브 중인 방송입니다.');
+      if (broadcast.stream) throw new BadRequestException('이미 스트림이 생성되어 있는 방송입니다.');
 
-      if (!broadcast) {
-        throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
-      }
-
-      // 방송 소유자 확인
-      if (broadcast.seller.id !== hostUserId) {
-        throw new ForbiddenException('이 방송을 시작할 권한이 없습니다.');
-      }
-
-      // 이미 라이브 중인지 확인
-      if (broadcast.isLive) {
-        throw new BadRequestException('이미 라이브 중인 방송입니다.');
-      }
-
-      // 이미 생성된 스트림이 있는지 확인
-      if (broadcast.stream) {
-        throw new BadRequestException('이미 스트림이 생성되어 있는 방송입니다.');
-      }
-
-      // 방송 상태 업데이트
+      /* ── 2. 방송 상태 → LIVE ──────────────────────── */
       broadcast.startLive();
       em.persist(broadcast);
 
-      // 스트림 생성
-      const channelId = uuid();
-      const sellerRef = em.getReference(User, hostUserId);
-      const stream = new Stream();
-      stream.seller = sellerRef;
-      stream.broadcast = broadcast;
-      stream.id = channelId;
+      /* ── 3. 기본 값 준비 ─────────────────────────── */
+      const rtcChannelId = uuid(); // RTC 채널(아무 문자열 OK)
+      const uidChat = hostUserId.replace(/-/g, '_'); // 채팅용 UID
 
+      /* ── 4. 스트림 row 생성 ──────────────────────── */
+      const stream = new Stream();
+      stream.id = rtcChannelId; // RTC 채널 ID
+      stream.seller = em.getReference(User, hostUserId);
+      stream.broadcast = broadcast;
       em.persist(stream);
 
-      await this.agora.createGroup(channelId, hostUserId);
+      /* ── 5. 채팅 그룹 생성 → groupId 반환 ────────── */
+      const chatGroupId = await this.agora.createGroup(uidChat, `live_${rtcChannelId}`);
+      stream.chatGroupId = chatGroupId; // DB 저장
+      em.persist(stream); // flush later by txn
 
-      // Agora 토큰 생성
-      const uidChat = hostUserId.replace(/-/g, '_');
-      const rtcToken = this.agora.rtcTokenWithAccount(channelId, uidChat, 'publisher');
-      const chatToken = this.agora.chatUserToken(hostUserId);
+      /* ── 6. 토큰 발급 ───────────────────────────── */
+      const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'publisher');
+      const chatToken = this.agora.chatUserToken(hostUserId); // 내부에서 uidChat 로 변환
 
+      /* ── 7. 응답 ─────────────────────────────────── */
       return {
         broadcastId: broadcast.id,
-        channelId,
-        uid: hostUserId.replace(/-/g, '_'),
+        channelId: rtcChannelId,
+        chatGroupId: chatGroupId, // ← 프런트가 addUser 때 필요
+        uid: uidChat,
         rtcToken,
         chatToken,
         appId: process.env.AGORA_APP_ID,
@@ -240,16 +231,17 @@ export class BroadcastService {
       throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
     }
 
-    const channelId = broadcast.stream.id;
+    const { id: channelId, chatGroupId } = broadcast.stream;
     const uidChat = userId.replace(/-/g, '_');
     const rtcToken = this.agora.rtcTokenWithAccount(channelId, uidChat, 'subscriber');
     const chatToken = this.agora.chatUserToken(userId);
 
-    await this.agora.addUser(channelId, userId);
+    await this.agora.addUser(chatGroupId!, userId);
 
     return {
       broadcastId: broadcast.id,
       channelId,
+      chatGroupId,
       uid: userId.replace(/-/g, '_'),
       rtcToken,
       chatToken,
@@ -304,7 +296,7 @@ export class BroadcastService {
         throw new BadRequestException('활성화된 스트림이 없습니다.');
       }
 
-      await this.agora.deleteGroup(broadcast.stream.id);
+      await this.agora.deleteGroup(broadcast.stream.chatGroupId!);
 
       // 방송 상태 업데이트
       broadcast.endLive();

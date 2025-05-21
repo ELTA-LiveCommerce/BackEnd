@@ -37,11 +37,6 @@ export class AgoraService {
     const [org, app] = this.chatKey.split('#');
     this.chatOrg = org;
     this.chatApp = app;
-
-    this.log.log(
-      `[Init] Chat org=${this.chatOrg} app=${this.chatApp} ` +
-      `AppID=${this.appId.slice(0, 6)}… Cert=${this.cert.slice(0, 6)}…`,
-    );
   }
 
   /* ───── RTC TOKEN ───── */
@@ -97,8 +92,6 @@ export class AgoraService {
       headers: { Authorization: `Bearer ${this.appToken}` },
     });
 
-    this.log.debug(`[REST] ${this.chatBase}/${this.chatOrg}/${this.chatApp}`);
-    this.log.log(`[Token] App-Token: ${this.appToken}`);
     return { Authorization: `Bearer ${this.appToken}` };
   }
 
@@ -127,19 +120,21 @@ export class AgoraService {
   /* ───── CHAT REST Helper ───── */
 
   /** 방송 시작: 방(owner) 생성 */
-  async createGroup(groupId: string, ownerUid: string) {
+  async createGroup(ownerUid: string, groupName: string) {
     await this.ensureChatUser(ownerUid);
-
     await this.appTokenHeader();
-    return this.rest.post('/chatgroups', {
-      groupid   : groupId,
-      groupname : `live_${groupId}`,
-      desc      : '라이브 채팅',
-      public    : false,
-      approval  : true,
-      maxusers  : 5000,
-      owner     : ownerUid.replace(/-/g, '_'),
+
+    const res = await this.rest.post('/chatgroups', {
+      groupname: groupName, // id 는 넣지 않는다
+      desc: '라이브 채팅',
+      public: false,
+      approval: true,
+      maxusers: 5000,
+      owner: ownerUid,
     });
+
+    // 👉 생성된 그룹 ID (문자열) 반환
+    return res.data.data.groupid as string;
   }
 
   /** 시청자 입장 */
