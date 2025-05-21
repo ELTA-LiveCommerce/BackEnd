@@ -60,6 +60,24 @@ export class BroadcastController {
   }
 
   /**
+   * 방송 상세 조회
+   */
+  @Get(':id')
+  @ApiOperation({ summary: '방송 상세 조회' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({
+    description: '방송 상세 정보',
+    type: ApiResponse.withData(BroadcastListItemDto),
+  })
+  async getBroadcast(@Param('id') broadcastId: string): Promise<ApiResponse<BroadcastListItemDto | null>> {
+    const broadcast = await this.broadcastService.findOne(broadcastId);
+    if (!broadcast) {
+      return ApiResponse.success(null, '방송을 찾을 수 없습니다.');
+    }
+    return ApiResponse.success(BroadcastListItemDto.fromEntity(broadcast), '방송 상세 조회 성공');
+  }
+
+  /**
    * 현재 방송에서 판매 중인 상품 조회
    */
   @Get(':id/current-product')

@@ -1,3 +1,4 @@
+import { Collection } from '@mikro-orm/core';
 import { ApiProperty } from '@nestjs/swagger';
 
 // TODO: Define ProductListItemDto or use a simplified version
@@ -35,5 +36,30 @@ export class BroadcastListItemDto {
 
   constructor(data: Partial<BroadcastListItemDto>) {
     Object.assign(this, data);
+  }
+
+  static fromEntity(entity: any): BroadcastListItemDto {
+    /* Collection → 배열 (v5, v6 공통) */
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const items =
+      entity.products instanceof Collection
+        ? entity.products.getItems() /* 또는 .toArray() */
+        : Array.isArray(entity.products)
+          ? entity.products
+          : [];
+
+    return new BroadcastListItemDto({
+      id: entity.id,
+      title: entity.title,
+      description: entity.description,
+      status: entity.status,
+      thumbnailUrl: entity.thumbnailUrl,
+      scheduledAt: entity.scheduledAt,
+      isLive: entity.isLive,
+      products: items.map((bp: any) => ({
+        id: bp.product?.id ?? bp.id, // BroadcastProduct → Product
+        name: bp.product?.name ?? bp.name,
+      })),
+    });
   }
 }
