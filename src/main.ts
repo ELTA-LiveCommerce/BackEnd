@@ -32,7 +32,7 @@ async function bootstrap() {
   });
 
   // CORS 설정 수정: undefined 제거
-  const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL].filter(Boolean) as string[];
+  const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL, process.env.ADMIN_URL].filter(Boolean) as string[];
   app.enableCors({
     // origin: ['http://localhost:3000', process.env.FRONTEND_URL],
     origin: allowedOrigins,
