@@ -684,7 +684,6 @@ export class UserService {
    * @param userId 업그레이드할 사용자의 ID
    * @returns 업그레이드된 User 객체
    */
-  @Transactional()
   async upgradeToSeller(userId: string): Promise<User> {
     // 사용자 조회
     const user = await this.userRepository.findOne({ id: userId });
@@ -708,11 +707,8 @@ export class UserService {
     // SellerInfo 엔티티 생성 및 연결
     const sellerInfo = new SellerInfo({ user });
     user.sellerInfo = sellerInfo;
-
-    // 변경사항 저장
-    this.em.persist(user);
-    this.em.persist(sellerInfo);
-
+    await this.sellerInfoRepository.persistAndFlush(sellerInfo);
+    await this.userRepository.persistAndFlush(user);
     return user;
   }
 
