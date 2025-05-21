@@ -100,6 +100,7 @@ export class SellerController {
       name: seller.name,
       loginId: seller.loginId,
       profileImage: seller.profileImage,
+      bannerImage: seller.bannerImage,
       description: '셀러 소개입니다.', // 실제 필드에 맞게 수정 필요
       followers: followersCount,
       following: followingCount,

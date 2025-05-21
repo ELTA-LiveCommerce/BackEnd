@@ -28,6 +28,7 @@ export class SellerInfoDto {
   name: string;
   loginId: string;
   profileImage?: string;
+  bannerImage?: string;
   description?: string;
   followers: number;
   following: number;
