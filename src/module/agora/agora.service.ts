@@ -75,8 +75,9 @@ export class AgoraService {
   /* ───── CHAT USER TOKEN ───── */
 
   chatUserToken(uid: string, ttl = 3600) {
+    const uidChat = uid.replace(/-/g, '_');
     const exp = this.now() + ttl;
-    return ChatTokenBuilder.buildUserToken(this.appId, this.cert, uid, exp);
+    return ChatTokenBuilder.buildUserToken(this.appId, this.cert, uidChat, exp);
   }
 
   /* ───── Chat **App-Token** (OAuth) ───── */
@@ -92,11 +93,11 @@ export class AgoraService {
     this.appTokenExp = Date.now() + ttl * 1000;
 
     this.rest = axios.create({
-      baseURL: `${this.chatBase}/edu/apps/${this.chatOrg}/${this.chatApp}`,
+      baseURL: `${this.chatBase}/${this.chatOrg}/${this.chatApp}`,
       headers: { Authorization: `Bearer ${this.appToken}` },
     });
 
-    this.log.log('[Token] new App-Token generated');
+    this.log.debug(`[REST] ${this.chatBase}/${this.chatOrg}/${this.chatApp}`);
     this.log.log(`[Token] App-Token: ${this.appToken}`);
     return { Authorization: `Bearer ${this.appToken}` };
   }
@@ -106,8 +107,10 @@ export class AgoraService {
   private async ensureChatUser(uid: string) {
     await this.appTokenHeader();
 
+    const uidChat = uid.replace(/-/g, '_');
+
     try {
-      await this.rest.get(`/users/${uid}`);      // 이미 있으면 200
+      await this.rest.get(`/users/${uidChat}`);      // 이미 있으면 200
       return;
     } catch (e: any) {
       if (e?.response?.status !== 404) throw e;  // 다른 오류면 그대로 던짐
@@ -116,7 +119,7 @@ export class AgoraService {
     /* 404 → 새로 생성 */
     this.log.log(`[REST] create Chat-User ${uid}`);
     await this.rest.post('/users', {
-      username: uid,
+      username: uidChat,
       password: 'nopass', // 필수 필드, 아무 값이나
     });
   }
@@ -135,7 +138,7 @@ export class AgoraService {
       public    : false,
       approval  : true,
       maxusers  : 5000,
-      owner     : ownerUid,
+      owner     : ownerUid.replace(/-/g, '_'),
     });
   }
 
@@ -144,12 +147,12 @@ export class AgoraService {
     await this.ensureChatUser(uid);
 
     await this.appTokenHeader();
-    return this.rest.post(`/chatgroups/${groupId}/users/${uid}`);
+    return this.rest.post(`/chatgroups/${groupId}/users/${uid.replace(/-/g, '_')}`);
   }
 
   async removeUser(groupId: string, uid: string) {
     await this.appTokenHeader();
-    return this.rest.delete(`/chatgroups/${groupId}/users/${uid}`);
+    return this.rest.delete(`/chatgroups/${groupId}/users/${uid.replace(/-/g, '_')}`);
   }
 
   async deleteGroup(groupId: string) {

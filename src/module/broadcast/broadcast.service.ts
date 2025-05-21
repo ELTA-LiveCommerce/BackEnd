@@ -205,18 +205,19 @@ export class BroadcastService {
 
       em.persist(stream);
 
-      // await this.agora.createGroup(channelId, hostUserId);
+      await this.agora.createGroup(channelId, hostUserId);
 
       // Agora 토큰 생성
-      const rtcToken = this.agora.rtcTokenWithAccount(channelId, hostUserId, 'publisher');
-      // const chatToken = this.agora.chatUserToken(hostUserId);
+      const uidChat = hostUserId.replace(/-/g, '_');
+      const rtcToken = this.agora.rtcTokenWithAccount(channelId, uidChat, 'publisher');
+      const chatToken = this.agora.chatUserToken(hostUserId);
 
       return {
         broadcastId: broadcast.id,
         channelId,
-        uid: hostUserId,
+        uid: hostUserId.replace(/-/g, '_'),
         rtcToken,
-        chatToken: '',
+        chatToken,
         appId: process.env.AGORA_APP_ID,
         expireIn: 3600,
       };
@@ -240,17 +241,18 @@ export class BroadcastService {
     }
 
     const channelId = broadcast.stream.id;
-    const rtcToken = this.agora.rtcTokenWithAccount(channelId, userId, 'subscriber');
-    // const chatToken = this.agora.chatUserToken(userId);
+    const uidChat = userId.replace(/-/g, '_');
+    const rtcToken = this.agora.rtcTokenWithAccount(channelId, uidChat, 'subscriber');
+    const chatToken = this.agora.chatUserToken(userId);
 
-    // await this.agora.addUser(channelId, userId);
+    await this.agora.addUser(channelId, userId);
 
     return {
       broadcastId: broadcast.id,
       channelId,
-      uid: userId,
+      uid: userId.replace(/-/g, '_'),
       rtcToken,
-      chatToken: '',
+      chatToken,
       appId: process.env.AGORA_APP_ID,
       expireIn: 3600,
     };
@@ -302,7 +304,7 @@ export class BroadcastService {
         throw new BadRequestException('활성화된 스트림이 없습니다.');
       }
 
-      // await this.agora.deleteGroup(broadcast.stream.id);
+      await this.agora.deleteGroup(broadcast.stream.id);
 
       // 방송 상태 업데이트
       broadcast.endLive();
