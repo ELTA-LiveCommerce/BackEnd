@@ -19,6 +19,7 @@ import { Transactional } from '@nestjs-cls/transactional';
 import { Order } from '@/module/order/entity/order.entity';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
+import { Follow } from './entity/follow.entity';
 
 @Injectable()
 export class UserService {
@@ -465,18 +466,20 @@ export class UserService {
    */
   async withdrawUser(userId: string): Promise<void> {
     const user = await this.userRepository.findOne({ id: userId });
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found.`);
-    }
+    if (!user) throw new NotFoundException(`User ${userId} not found`);
 
-    // 사용자 삭제 (MikroORM에서는 soft-delete가 기본적으로 활성화되어 있을 수 있음)
-    // 엔티티에 @UseSoftDelete() 데코레이터가 있거나 글로벌 필터로 설정된 경우 removeAndFlush가 soft delete 수행
-    await this.userRepository.removeAndFlush(user);
+    /* 팔로우·상품 등 선행 정리(필요 시) */
+    await this.em.nativeDelete(Follow, {
+      $or: [{ follower: userId }, { following: userId }],
+    });
 
-    // TODO: 관련된 다른 데이터 정리 로직 추가 (예: 게시글, 댓글 등)
-    // 예를 들어, 사용자가 작성한 게시글 처리, 팔로우 관계 해제 등
-    // this.postService.handleUserWithdrawal(userId);
-    // this.followService.handleUserWithdrawal(userId);
+    // 👉 Soft-delete
+    user.deletedAt = new Date();            // 방법 ①
+    // await this.userRepository.softRemoveAndFlush(user);  // 방법 ②
+
+    await this.em.persistAndFlush(user);    // (① 방식일 때)
+
+    // 여전히 데이터가 남아 있으므로 FK 충돌 없음
   }
 
   /**

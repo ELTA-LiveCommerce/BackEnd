@@ -9,6 +9,7 @@ import {
   Cascade,
   ManyToMany,
   Unique,
+  Filter,
 } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
@@ -20,6 +21,7 @@ import { SellerUserBlock } from './seller-user-block.entity';
 import { SellerInfo } from './seller-info.entity'; // 주석 해제
 
 @Entity({ tableName: 'users' })
+@Filter({ name: 'softDelete', cond: { deletedAt: null }, args: false, default: true })
 export class User extends BaseEntity {
   @PrimaryKey({ type: 'string' })
   id: string = v4();
