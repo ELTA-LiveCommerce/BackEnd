@@ -18,6 +18,7 @@ import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 import { BroadcastCreateRequestDto } from '@/api/v2/seller/lives/dto/broadcast-create.request.dto';
 import { v4 as uuid } from 'uuid';
 import { Transactional } from '@nestjs-cls/transactional';
+import axios from 'axios';
 
 @Injectable()
 export class BroadcastService {
@@ -219,30 +220,36 @@ export class BroadcastService {
   async join(broadcastId: string, userId: string) {
     const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream'] });
 
-    if (!broadcast) {
-      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
-    }
+    if (!broadcast) throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    if (!broadcast.isLive) throw new BadRequestException('라이브 중인 방송이 아닙니다.');
+    if (!broadcast.stream) throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
 
-    if (!broadcast.isLive) {
-      throw new BadRequestException('라이브 중인 방송이 아닙니다.');
-    }
-
-    if (!broadcast.stream) {
-      throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
-    }
-
-    const { id: channelId, chatGroupId } = broadcast.stream;
+    const { id: rtcChannelId, chatGroupId } = broadcast.stream;
     const uidChat = userId.replace(/-/g, '_');
-    const rtcToken = this.agora.rtcTokenWithAccount(channelId, uidChat, 'subscriber');
-    const chatToken = this.agora.chatUserToken(userId);
 
-    await this.agora.addUser(chatGroupId!, userId);
+    try {
+      await this.agora.addUser(chatGroupId!, uidChat);
+    } catch (e: any) {
+      if (
+        axios.isAxiosError(e) &&
+        e.response?.status === 403 &&
+        e.response.data?.error === 'forbidden_op' &&
+        String(e.response.data.error_description).includes('already in group')
+      ) {
+        /* already joined → ignore */
+      } else {
+        throw e;
+      }
+    }
+
+    const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'subscriber');
+    const chatToken = this.agora.chatUserToken(userId);
 
     return {
       broadcastId: broadcast.id,
-      channelId,
+      channelId: rtcChannelId,
       chatGroupId,
-      uid: userId.replace(/-/g, '_'),
+      uid: uidChat,
       rtcToken,
       chatToken,
       appId: process.env.AGORA_APP_ID,
