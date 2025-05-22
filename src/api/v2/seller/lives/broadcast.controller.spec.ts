@@ -50,6 +50,7 @@ describe('BroadcastController', () => {
     const mockUser = { id: 'seller-uuid', name: 'Test Seller' } as User;
     const createDto: BroadcastCreateRequestDto = {
       title: 'New Live',
+      description: '라이브 방송 설명입니다.',
       scheduledAt: new Date().toISOString(),
       productIds: ['prod-uuid-1'],
       thumbnailImageUrl: 'http://image.url/thumb.jpg',
@@ -76,3 +77,4 @@ describe('BroadcastController', () => {
     });
   });
 });
+

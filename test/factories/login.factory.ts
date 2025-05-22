@@ -18,7 +18,7 @@ export function createLoginFactory(overrides: Partial<Login> = {}): Login {
   login.user = overrides.user || createUserFactory();
   login.provider = overrides.provider || LoginProvider.KAKAO;
   login.providerId = overrides.providerId || '12345';
-  login.email = overrides.email || `provider-${v4().slice(0, 8)}@example.com`;
+  login.loginId = overrides.loginId || `provider-${v4().slice(0, 8)}@example.com`;
   login.nickname = overrides.nickname || 'Provider User';
   login.profileImage = overrides.profileImage || 'https://example.com/profile.jpg';
   login.accessToken = overrides.accessToken || 'access-token';
@@ -61,3 +61,4 @@ export function createAppleLoginFactory(user?: User, overrides: Partial<Login> =
     ...overrides,
   });
 }
+

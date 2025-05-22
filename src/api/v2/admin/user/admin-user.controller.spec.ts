@@ -141,7 +141,7 @@ describe('AdminUserController', () => {
       // Then
       expect(userService.update).toHaveBeenCalledWith(userId, updateUserDto);
       expect(result).toHaveProperty('data');
-      expect(result.data).toHaveProperty('email', updatedUser.email);
+      expect(result.data).toHaveProperty('email', updatedUser.loginId);
     });
   });
 

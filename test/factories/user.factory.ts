@@ -13,7 +13,7 @@ export function createUserFactory(overrides: Partial<User> = {}): User {
   const user = new User();
 
   user.id = overrides.id || v4();
-  user.email = overrides.email || `test-${v4().slice(0, 8)}@example.com`;
+  user.loginId = overrides.loginId || `test-${v4().slice(0, 8)}@example.com`;
   user.name = overrides.name || 'Test User';
   user.password = overrides.password || 'hashedPassword';
   user.role = overrides.role || UserRole.VIEWER;
@@ -27,3 +27,4 @@ export function createUserFactory(overrides: Partial<User> = {}): User {
 
   return user;
 }
+

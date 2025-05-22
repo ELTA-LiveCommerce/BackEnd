@@ -7,7 +7,7 @@ import {
   ViewerProductListResponseDto,
   ViewerProductResponseBodyDto,
 } from './product-response.dto';
-import { Product } from '@/module/product/entity/product.entity';
+import { Product, ProductStatus } from '@/module/product/entity/product.entity';
 import { User } from '@/module/user/entity/user.entity';
 import { NotFoundException } from '@nestjs/common';
 import { mock, MockProxy } from 'jest-mock-extended';
@@ -34,6 +34,7 @@ describe('ProductController (Viewer V2)', () => {
     mainImage: 'image.png',
     shortDescription: '짧은 설명',
     category: { id: 'cat-uuid', name: '카테고리1' } as any,
+    status: ProductStatus.DEFAULT,
     createdAt: new Date(),
     updatedAt: new Date(),
   } as Product;
@@ -89,3 +90,4 @@ describe('ProductController (Viewer V2)', () => {
     });
   });
 });
+

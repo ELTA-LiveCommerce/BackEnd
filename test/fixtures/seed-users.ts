@@ -21,7 +21,7 @@ export enum TestUserStatus {
 // 테스트용 사용자 타입
 export interface TestUser {
   id: string;
-  email: string;
+  loginId: string;
   password: string;
   name: string;
   role: TestUserRole;
@@ -39,7 +39,7 @@ export async function seedTestUsers(em: EntityManager): Promise<void> {
   const usersData: TestUser[] = [
     {
       id: v4(),
-      email: 'admin@example.com',
+      loginId: 'admin@example.com',
       password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
       name: '관리자',
       role: TestUserRole.ADMIN,
@@ -50,7 +50,7 @@ export async function seedTestUsers(em: EntityManager): Promise<void> {
     },
     {
       id: v4(),
-      email: 'seller@example.com',
+      loginId: 'seller@example.com',
       password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
       name: '판매자',
       role: TestUserRole.SELLER,
@@ -61,7 +61,7 @@ export async function seedTestUsers(em: EntityManager): Promise<void> {
     },
     {
       id: v4(),
-      email: 'viewer@example.com',
+      loginId: 'viewer@example.com',
       password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
       name: '일반 사용자',
       role: TestUserRole.VIEWER,
@@ -72,7 +72,7 @@ export async function seedTestUsers(em: EntityManager): Promise<void> {
     },
     {
       id: v4(),
-      email: 'test-viewer@example.com',
+      loginId: 'test-viewer@example.com',
       password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
       name: '테스트 뷰어',
       role: TestUserRole.VIEWER,
@@ -83,7 +83,7 @@ export async function seedTestUsers(em: EntityManager): Promise<void> {
     },
     {
       id: v4(),
-      email: 'test-seller@example.com',
+      loginId: 'test-seller@example.com',
       password: '$2b$10$ONyKj03pG1bhpmDWufp1uO3vqjGMQcB/d.9RiEBQsQvtCzKmD9UYa', // 'password123'
       name: '테스트 판매자',
       role: TestUserRole.SELLER,
@@ -99,7 +99,7 @@ export async function seedTestUsers(em: EntityManager): Promise<void> {
     await em.getConnection().execute(`
       CREATE TABLE IF NOT EXISTS "user" (
         id UUID PRIMARY KEY,
-        email VARCHAR(255) NOT NULL UNIQUE,
+        loginId VARCHAR(255) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL,
@@ -112,10 +112,10 @@ export async function seedTestUsers(em: EntityManager): Promise<void> {
 
     // 사용자 데이터 삽입
     await em.getConnection().execute(`
-      INSERT INTO "user" (id, email, password, name, role, "isVerified", status, "createdAt", "updatedAt")
+      INSERT INTO "user" (id, loginId, password, name, role, "isVerified", status, "createdAt", "updatedAt")
       VALUES (
         '${userData.id}', 
-        '${userData.email}', 
+        '${userData.loginId}', 
         '${userData.password}', 
         '${userData.name}', 
         '${userData.role}', 
@@ -124,8 +124,9 @@ export async function seedTestUsers(em: EntityManager): Promise<void> {
         '${userData.createdAt.toISOString()}', 
         '${userData.updatedAt.toISOString()}'
       )
-      ON CONFLICT (email) DO UPDATE
+      ON CONFLICT (loginId) DO UPDATE
       SET name = '${userData.name}', role = '${userData.role}', "updatedAt" = '${userData.updatedAt.toISOString()}';
     `);
   }
 }
+

@@ -563,6 +563,7 @@ describe('OrderService', () => {
         orderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         offset: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
         getResultList: jest.fn().mockResolvedValue([mockOrder]),
         getCount: jest.fn().mockResolvedValue(1),
         clone: jest.fn().mockImplementation(function () {
@@ -576,8 +577,8 @@ describe('OrderService', () => {
             clonedQb.select = jest.fn().mockReturnValue(clonedQb);
             clonedQb.leftJoinAndSelect = jest.fn().mockReturnValue(clonedQb);
             clonedQb.getResultList = jest.fn().mockResolvedValue([mockOrder]);
-            clonedQb.getCount = jest.fn().mockResolvedValue(1); // count는 값을 반환
-            clonedQb.clone = jest.fn().mockImplementation(createClonedQb); // 중첩 clone 지원
+            clonedQb.getCount = jest.fn().mockResolvedValue(1);
+            clonedQb.clone = jest.fn().mockImplementation(createClonedQb);
             return clonedQb;
           };
           return createClonedQb();
@@ -618,8 +619,9 @@ describe('OrderService', () => {
         orderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         offset: jest.fn().mockReturnThis(),
-        getResultList: jest.fn().mockResolvedValue([mockOrder]), // PENDING 상태의 주문만 반환한다고 가정
-        getCount: jest.fn().mockResolvedValue(1), // PENDING 상태의 주문 수
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        getResultList: jest.fn().mockResolvedValue([mockOrder]),
+        getCount: jest.fn().mockResolvedValue(1),
         clone: jest.fn().mockImplementation(function () {
           const createClonedQb = () => {
             const clonedQb: any = {};
@@ -631,8 +633,8 @@ describe('OrderService', () => {
             clonedQb.select = jest.fn().mockReturnValue(clonedQb);
             clonedQb.leftJoinAndSelect = jest.fn().mockReturnValue(clonedQb);
             clonedQb.getResultList = jest.fn().mockResolvedValue([mockOrder]);
-            clonedQb.getCount = jest.fn().mockResolvedValue(1); // count는 값을 반환
-            clonedQb.clone = jest.fn().mockImplementation(createClonedQb); // 중첩 clone 지원
+            clonedQb.getCount = jest.fn().mockResolvedValue(1);
+            clonedQb.clone = jest.fn().mockImplementation(createClonedQb);
             return clonedQb;
           };
           return createClonedQb();

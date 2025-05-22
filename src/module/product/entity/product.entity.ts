@@ -53,7 +53,7 @@ export class Product extends BaseEntity {
    * 재고 수량
    */
   @Property({ default: 0, type: 'number' })
-  stockQuantity: number = 0;s
+  stockQuantity: number = 0;
 
   /**
    * 상품 상태
@@ -79,3 +79,4 @@ export class Product extends BaseEntity {
   @ManyToOne(() => User)
   seller: User;
 }
+

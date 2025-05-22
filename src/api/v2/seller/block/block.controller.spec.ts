@@ -32,12 +32,12 @@ describe('SellerBlockController', () => {
     id: 'block-uuid',
     seller: mockSeller,
     blockedUser: mockBlockedUser,
-    blockType: BlockType.FULL_BLOCK,
+    blockType: BlockType.BLOCKED,
     reason: '테스트 차단 사유',
     createdAt: new Date(),
     updatedAt: new Date(),
     isBlocked: true,
-    type: BlockType.FULL_BLOCK,
+    type: BlockType.BLOCKED,
   } as SellerUserBlock;
 
   const mockResponseBody = SellerBlockedUserResponseBody.fromEntity(mockBlockEntity);
@@ -62,7 +62,7 @@ describe('SellerBlockController', () => {
       const blockDto: SellerBlockUserRequestDto = {
         userIdToBlock: mockBlockedUser.id,
         reason: '테스트 차단 사유',
-        blockType: BlockType.FULL_BLOCK,
+        blockType: BlockType.BLOCKED,
       };
       userBlockService.blockUser.mockResolvedValue(mockBlockEntity);
 
@@ -108,3 +108,4 @@ describe('SellerBlockController', () => {
     });
   });
 });
+

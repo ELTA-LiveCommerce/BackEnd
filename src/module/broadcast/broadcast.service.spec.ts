@@ -83,6 +83,7 @@ describe('BroadcastService', () => {
     const sellerId = 'test-seller-id';
     const dto: BroadcastCreateRequestDto = {
       title: 'Test Live',
+      description: '테스트 라이브 방송 설명입니다.',
       scheduledAt: new Date().toISOString(),
       productIds: ['prod1', 'prod2'],
       thumbnailImageUrl: 'http://example.com/thumb.jpg',
@@ -128,3 +129,4 @@ describe('BroadcastService', () => {
     });
   });
 });
+

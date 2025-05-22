@@ -9,7 +9,7 @@ import { UserRole } from '@/shared/enum/user-role.enum';
 export function createUserFactory(overrides?: Partial<User>): User {
   const user = new User();
   user.id = overrides?.id || uuidv4();
-  user.email = overrides?.email || `test-${uuidv4()}@example.com`;
+  user.loginId = overrides?.loginId || `test-${uuidv4()}@example.com`;
   user.name = overrides?.name || '테스트 사용자';
   user.role = overrides?.role || UserRole.VIEWER;
   user.password = overrides?.password || 'TestPass1!';
@@ -50,3 +50,4 @@ export function createBroadcastFactory(overrides?: Partial<Broadcast>): Broadcas
   broadcast.updatedAt = overrides?.updatedAt || new Date();
   return broadcast;
 }
+

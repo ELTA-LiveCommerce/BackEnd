@@ -37,21 +37,21 @@ import { ProductService } from '@/module/product/product.service';
 // 모의 사용자
 export const mockViewer: Partial<User> = {
   id: 'viewer-test-id',
-  email: 'test-viewer@example.com',
+  loginId: 'test-viewer@example.com',
   name: 'Test Viewer',
   role: UserRole.VIEWER,
 };
 
 export const mockSeller: Partial<User> = {
   id: 'seller-test-id',
-  email: 'test-seller@example.com',
+  loginId: 'test-seller@example.com',
   name: 'Test Seller',
   role: UserRole.SELLER,
 };
 
 export const mockAdmin: Partial<User> = {
   id: 'admin-test-id',
-  email: 'test-admin@example.com',
+  loginId: 'test-admin@example.com',
   name: 'Test Admin',
   role: UserRole.ADMIN,
 };
@@ -74,11 +74,11 @@ export const TEST_E2E_JWT_EXPIRES_IN = '24h';
 export function generateTestToken(
   jwtService: JwtService,
   userId = 'test-user-id',
-  email = 'test@example.com',
+  loginId = 'test@example.com',
   role = UserRole.VIEWER,
   expiresIn = TEST_E2E_JWT_EXPIRES_IN,
 ): string {
-  return jwtService.sign({ sub: userId, email, role, iss: 'test-issuer' }, { expiresIn });
+  return jwtService.sign({ sub: userId, loginId, role, iss: 'test-issuer' }, { expiresIn });
 }
 
 /**
@@ -458,3 +458,4 @@ export function testRequest(app: INestApplication, authToken?: string) {
     },
   };
 }
+

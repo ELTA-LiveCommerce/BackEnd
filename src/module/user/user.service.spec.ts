@@ -16,6 +16,7 @@ import { SellerInfo } from '@/module/user/entity/seller-info.entity';
 import { Order } from '@/module/order/entity/order.entity';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
+import { Follow } from '@/module/user/entity/follow.entity';
 
 import { UserService } from './user.service';
 
@@ -195,6 +196,8 @@ describe('UserService', () => {
       }),
       // execute 메소드 구현
       execute: jest.fn().mockResolvedValue([{ totalAmount: 350000, refundCount: 1 }]),
+      nativeDelete: jest.fn().mockResolvedValue(undefined),
+      populate: jest.fn().mockResolvedValue([]),
     };
 
     mockSellerUserBlockRepository = {
@@ -471,32 +474,35 @@ describe('UserService', () => {
   describe('withdrawUser', () => {
     const userId = 'user-id-1'; // mockUsers의 첫 번째 사용자 (SELLER)
 
-    it('should call findOne and removeAndFlush when user exists', async () => {
+    it('should call findOne and persistAndFlush when user exists', async () => {
       const mockUserInstance = new User();
       Object.assign(
         mockUserInstance,
         mockUsers.find((u) => u.id === userId),
       );
       mockUserRepository.findOne.mockResolvedValueOnce(mockUserInstance);
-      mockUserRepository.removeAndFlush.mockClear(); // 이전 호출 기록 제거
+
+      // persistAndFlush 모킹 설정
+      mockEntityManager.persistAndFlush.mockClear(); // 이전 호출 기록 제거
 
       await service.withdrawUser(userId);
 
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: userId });
-      expect(mockUserRepository.removeAndFlush).toHaveBeenCalledWith(mockUserInstance);
+      expect(mockEntityManager.persistAndFlush).toHaveBeenCalled();
+      expect(mockUserInstance.deletedAt).toBeInstanceOf(Date);
     });
 
     it('should throw NotFoundException when user does not exist', async () => {
       const nonExistentUserId = 'non-existent-id';
       mockUserRepository.findOne.mockResolvedValueOnce(null);
-      mockUserRepository.removeAndFlush.mockClear();
+      mockEntityManager.persistAndFlush.mockClear();
 
       await expect(service.withdrawUser(nonExistentUserId)).rejects.toThrow(
-        new NotFoundException(`User with ID ${nonExistentUserId} not found.`),
+        new NotFoundException(`User ${nonExistentUserId} not found`),
       );
 
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({ id: nonExistentUserId });
-      expect(mockUserRepository.removeAndFlush).not.toHaveBeenCalled();
+      expect(mockEntityManager.persistAndFlush).not.toHaveBeenCalled();
     });
   });
 
@@ -564,7 +570,7 @@ describe('UserService', () => {
   });
 
   describe('updateUserStatusBySeller', () => {
-    it('사용자 상태를 INACTIVE로 성공적으로 업데이트해야 한다', async () => {
+    it('사용자 상태를 BLOCKED로 성공적으로 업데이트해야 한다', async () => {
       if (typeof service.updateUserStatusBySeller !== 'function') {
         console.warn('updateUserStatusBySeller 메서드가 구현되지 않았습니다.');
         return;
@@ -572,8 +578,8 @@ describe('UserService', () => {
       const sellerId = 'seller-mock-id-1';
       const userId = 'user-mock-id-1';
       const statusDto: SellerUserStatusUpdateRequestDto = {
-        status: SellerUserStatus.INACTIVE,
-        reason: '테스트로 인한 비활성화',
+        status: SellerUserStatus.BLOCKED,
+        reason: '테스트로 인한 차단',
       };
 
       const mockUser = new User();
