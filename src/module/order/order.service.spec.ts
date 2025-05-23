@@ -283,9 +283,6 @@ describe('OrderService', () => {
             attributes: '{"color": "red"}',
           },
         ],
-        shippingAddress: '서울시 강남구',
-        notes: '문 앞에 놓아주세요',
-        paymentMethod: '카드',
       };
 
       // Mock OrderService.createOrder implementation
@@ -317,9 +314,6 @@ describe('OrderService', () => {
             quantity: 2,
           },
         ],
-        shippingAddress: '서울시 강남구',
-        notes: '문 앞에 놓아주세요',
-        paymentMethod: '카드',
       };
 
       // Original implementation mocked with failure
@@ -350,9 +344,6 @@ describe('OrderService', () => {
             quantity: 2,
           },
         ],
-        shippingAddress: '서울시 강남구',
-        notes: '문 앞에 놓아주세요',
-        paymentMethod: '카드',
       };
 
       // Mock implementation for product not found scenario
@@ -393,9 +384,6 @@ describe('OrderService', () => {
             quantity: 20, // 재고보다 많은 수량
           },
         ],
-        shippingAddress: '서울시 강남구',
-        notes: '문 앞에 놓아주세요',
-        paymentMethod: '카드',
       };
 
       // Mock specific scenario implementation
@@ -460,8 +448,6 @@ describe('OrderService', () => {
         ],
         totalAmount: 200,
         userId: mockUser.id,
-        shippingAddress: '서울시 강남구',
-        paymentMethod: '카드',
         createdAt: new Date(),
         updatedAt: new Date(),
       } as any);
@@ -469,9 +455,6 @@ describe('OrderService', () => {
       // Create 메서드 실행
       const createOrderDto: CreateOrderDto = {
         items: [{ productId: 'product-id', quantity: 2 }],
-        shippingAddress: '서울시 강남구',
-        paymentMethod: '카드',
-        notes: '배송 전 연락 바랍니다',
       };
 
       // 실행
@@ -530,9 +513,6 @@ describe('OrderService', () => {
       // Create 메서드 실행
       const createOrderDto: CreateOrderDto = {
         items: [{ productId: 'product-id', quantity: 2 }],
-        shippingAddress: '서울시 강남구',
-        paymentMethod: '카드',
-        notes: '배송 전 연락 바랍니다',
       };
 
       // 실행

@@ -26,21 +26,6 @@ export class CreateOrderRequest {
   @ValidateNested({ each: true })
   @Type(() => OrderItemRequest)
   items: OrderItemRequest[];
-
-  @ApiProperty({ description: '배송지 주소', example: '서울시 강남구 역삼동 123-456', required: false })
-  @IsOptional()
-  @IsString()
-  shippingAddress?: string;
-
-  @ApiProperty({ description: '주문 메모', example: '부재시 경비실에 맡겨주세요', required: false })
-  @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @ApiProperty({ description: '결제 방법', example: '신용카드', required: false })
-  @IsOptional()
-  @IsString()
-  paymentMethod?: string;
 }
 
 export class GetOrdersRequest {
@@ -107,3 +92,4 @@ export class UpdateShippingRequest {
   @IsString({ message: '배송 메모는 문자열이어야 합니다.' })
   shippingMemo?: string;
 }
+

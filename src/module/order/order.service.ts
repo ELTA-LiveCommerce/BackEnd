@@ -69,7 +69,12 @@ export class OrderService {
       throw new NotFoundException('User not found');
     }
 
-    const order = new Order(user, createOrderDto.paymentMethod, createOrderDto.shippingAddress, createOrderDto.notes);
+    const order = new Order(
+      user,
+      '무통장입금', // 기본 결제 방법
+      user.address || '주소 미등록', // 유저의 주소 정보 사용, 없으면 기본값
+      undefined, // 메모는 빈 값
+    );
 
     // 판매자 정보를 저장할 맵
     const sellerProductMap = new Map<
@@ -210,9 +215,9 @@ export class OrderService {
     const skip = (page - 1) * limit;
     const qb = this.entityManager
       .createQueryBuilder(Order, 'o')
-      .leftJoinAndSelect('o.items', 'i')               // 필요한 연관 로드
+      .leftJoinAndSelect('o.items', 'i') // 필요한 연관 로드
       .leftJoinAndSelect('i.product', 'p')
-      .where({ user: userIdFromAuth });               // 본인 주문만
+      .where({ user: userIdFromAuth }); // 본인 주문만
 
     // 상태 필터
     if (status) qb.andWhere({ status });

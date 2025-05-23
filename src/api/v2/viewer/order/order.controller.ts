@@ -37,9 +37,6 @@ export class OrderController {
         quantity: item.quantity,
         attributes: item.attributes,
       })),
-      shippingAddress: createOrderRequest.shippingAddress,
-      notes: createOrderRequest.notes,
-      paymentMethod: createOrderRequest.paymentMethod,
     };
 
     const orderResponseDto = await this.orderService.create(user.id, createOrderDto);
@@ -143,3 +140,4 @@ export class OrderController {
     return OrderResponse.fromOrderResponseDto(orderResponseDto as unknown as OrderResponseBody);
   }
 }
+

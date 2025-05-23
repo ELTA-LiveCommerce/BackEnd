@@ -83,8 +83,6 @@ describe('OrderController', () => {
             quantity: 2,
           },
         ],
-        shippingAddress: '서울시 강남구 테스트동 123',
-        paymentMethod: '신용카드',
       };
 
       orderService.create.mockResolvedValue(mockOrderResponse);
