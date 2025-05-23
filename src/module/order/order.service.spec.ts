@@ -633,6 +633,65 @@ describe('OrderService', () => {
     });
   });
 
+  describe('_updateStatus', () => {
+    it('주문 상태를 PAID로 변경할 때 배송 정보를 생성해야 함', async () => {
+      // Arrange
+      const mockOrderWithItems = {
+        ...mockOrder,
+        items: new MockCollection([mockOrderItem]),
+        user: mockUser,
+        shippingAddress: '서울시 강남구',
+        paidAt: undefined,
+      } as unknown as Order;
+
+      // Mock the private method createDeliveryForOrder
+      const createDeliveryForOrderSpy = jest
+        .spyOn(service as any, 'createDeliveryForOrder')
+        .mockResolvedValue(undefined);
+
+      // Act
+      await service._updateStatus(mockOrderWithItems, OrderStatus.PAID);
+
+      // Assert
+      expect(mockOrderWithItems.status).toBe(OrderStatus.PAID);
+      expect(mockOrderWithItems.paidAt).toBeDefined();
+      expect(createDeliveryForOrderSpy).toHaveBeenCalledWith(mockOrderWithItems);
+      expect(mockOrderRepository.persistAndFlush).toHaveBeenCalledWith(mockOrderWithItems);
+    });
+
+    it('주문 상태를 SHIPPED로 변경할 때 shippedAt을 설정해야 함', async () => {
+      // Arrange
+      const mockOrderForShipping = {
+        ...mockOrder,
+        shippedAt: undefined,
+      } as unknown as Order;
+
+      // Act
+      await service._updateStatus(mockOrderForShipping, OrderStatus.SHIPPED);
+
+      // Assert
+      expect(mockOrderForShipping.status).toBe(OrderStatus.SHIPPED);
+      expect(mockOrderForShipping.shippedAt).toBeDefined();
+      expect(mockOrderRepository.persistAndFlush).toHaveBeenCalledWith(mockOrderForShipping);
+    });
+
+    it('주문 상태를 CANCELLED로 변경할 때 cancelledAt을 설정해야 함', async () => {
+      // Arrange
+      const mockOrderForCancel = {
+        ...mockOrder,
+        cancelledAt: undefined,
+      } as unknown as Order;
+
+      // Act
+      await service._updateStatus(mockOrderForCancel, OrderStatus.CANCELLED);
+
+      // Assert
+      expect(mockOrderForCancel.status).toBe(OrderStatus.CANCELLED);
+      expect(mockOrderForCancel.cancelledAt).toBeDefined();
+      expect(mockOrderRepository.persistAndFlush).toHaveBeenCalledWith(mockOrderForCancel);
+    });
+  });
+
   // 임시로 비활성화하는 테스트들 (필요 시 다시 추가)
   /*
   describe('getOrderDetail', () => {

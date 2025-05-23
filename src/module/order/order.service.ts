@@ -107,19 +107,8 @@ export class OrderService {
 
     await this.entityManager.persistAndFlush(order);
 
-    // 판매자별로 배송 정보 생성
+    // 판매자별로 결제 정보만 생성 (배송은 입금 완료 후 생성)
     for (const [sellerId, { seller, products }] of sellerProductMap.entries()) {
-      // 판매자별 배송 정보 생성
-      const createDeliveryDto: CreateDeliveryAutoDto = {
-        orderId: order.id,
-        sellerId: sellerId,
-        productIds: products.map((p) => p.product.id),
-        recipientName: order.user.name,
-        recipientPhoneNumber: order.user.phoneNumber || 'N/A',
-        address: order.shippingAddress || 'N/A',
-      };
-      await this.deliveryService.createDelivery(createDeliveryDto);
-
       // 판매자별 결제 정보 생성
       const sellerTotal = products.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
       await this.paymentService.createPayment({
@@ -602,6 +591,11 @@ export class OrderService {
     order.status = status;
     // Update timestamp based on status
     switch (status) {
+      case OrderStatus.PAID:
+        order.paidAt = new Date();
+        // 입금 완료 시 배송 정보 생성
+        await this.createDeliveryForOrder(order);
+        break;
       case OrderStatus.PROCESSING:
         // paidAt should be set when payment is confirmed, maybe move this logic?
         // For now, let's assume paidAt is already set when status becomes PAID.
@@ -620,6 +614,48 @@ export class OrderService {
         break;
     }
     await this.orderRepository.persistAndFlush(order);
+  }
+
+  /**
+   * 주문에 대한 배송 정보를 생성합니다.
+   * @param order 주문 엔티티
+   * @private
+   */
+  private async createDeliveryForOrder(order: Order): Promise<void> {
+    // 판매자별로 상품 정보 분류
+    const sellerProductMap = new Map<
+      string,
+      { seller: User; products: Array<{ product: Product; quantity: number }> }
+    >();
+
+    for (const orderItem of order.items.getItems()) {
+      const product = orderItem.product;
+      const sellerId = product.seller.id;
+
+      if (!sellerProductMap.has(sellerId)) {
+        sellerProductMap.set(sellerId, { seller: product.seller, products: [] });
+      }
+      sellerProductMap.get(sellerId)?.products.push({ product, quantity: orderItem.quantity });
+    }
+
+    // 판매자별로 배송 정보 생성
+    for (const [sellerId, { seller, products }] of sellerProductMap.entries()) {
+      const createDeliveryDto: CreateDeliveryAutoDto = {
+        orderId: order.id,
+        sellerId: sellerId,
+        productIds: products.map((p) => p.product.id),
+        recipientName: order.user.name,
+        recipientPhoneNumber: order.user.phoneNumber || 'N/A',
+        address: order.shippingAddress || 'N/A',
+      };
+
+      try {
+        await this.deliveryService.createDelivery(createDeliveryDto);
+      } catch (error) {
+        console.error(`Failed to create delivery for order ${order.id}, seller ${sellerId}:`, error);
+        // 배송 생성 실패 시에도 주문 상태 업데이트는 계속 진행
+      }
+    }
   }
 }
 
