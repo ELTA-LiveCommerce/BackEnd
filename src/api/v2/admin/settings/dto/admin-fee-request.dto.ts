@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import { IsEnum, IsOptional, IsString, IsUUID, IsInt, Min, IsNumber, Max } from 'class-validator';
 
 export enum AdminFeeSortBy {
-  SELLER_NAME = 'sellerName',
+  SELLER_NAME = 'name',
   PHONE_NUMBER = 'phoneNumber',
   FEE_PERCENTAGE = 'feePercentage',
 }
@@ -61,3 +61,4 @@ export class AdminUpdateFeeRequest {
   @Max(0.99)
   feePercentage: number;
 }
+

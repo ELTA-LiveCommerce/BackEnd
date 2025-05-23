@@ -64,7 +64,7 @@ export class UserService {
     limit?: number;
     search?: string;
     role?: UserRole;
-    sortBy?: string;
+    sortBy?: keyof User;
     sortOrder?: string;
   }): Promise<{ users: User[]; total: number }>;
   async findAll(options?: {
@@ -474,10 +474,10 @@ export class UserService {
     });
 
     // 👉 Soft-delete
-    user.deletedAt = new Date();            // 방법 ①
+    user.deletedAt = new Date(); // 방법 ①
     // await this.userRepository.softRemoveAndFlush(user);  // 방법 ②
 
-    await this.em.persistAndFlush(user);    // (① 방식일 때)
+    await this.em.persistAndFlush(user); // (① 방식일 때)
 
     // 여전히 데이터가 남아 있으므로 FK 충돌 없음
   }
@@ -750,7 +750,6 @@ export class UserService {
         existingBlock.type = BlockType.CAUTION;
         existingBlock.reason = statusUpdateDto.reason || '판매자에 의한 경고';
         await this.sellerUserBlockRepository.persistAndFlush(existingBlock);
-        
       } else {
         // create
         const block = new SellerUserBlock(
@@ -760,8 +759,6 @@ export class UserService {
           statusUpdateDto.reason || '판매자에 의한 경고',
         );
         await this.sellerUserBlockRepository.persistAndFlush(block);
-        
-
       }
     } else if (statusUpdateDto.status === SellerUserStatus.ACTIVE) {
       // 차단 해제
@@ -772,8 +769,6 @@ export class UserService {
 
       if (block) {
         await this.sellerUserBlockRepository.removeAndFlush(block);
-        
-        
       }
     } else if (statusUpdateDto.status === SellerUserStatus.BLOCKED) {
       // 차단 처리
@@ -786,7 +781,6 @@ export class UserService {
         existingBlock.type = BlockType.BLOCKED;
         existingBlock.reason = statusUpdateDto.reason || '판매자에 의한 차단';
         await this.sellerUserBlockRepository.persistAndFlush(existingBlock);
-        
       } else {
         // create
         const block = new SellerUserBlock(
@@ -796,7 +790,6 @@ export class UserService {
           statusUpdateDto.reason || '판매자에 의한 차단',
         );
         await this.sellerUserBlockRepository.persistAndFlush(block);
-        
       }
     }
 
@@ -804,3 +797,4 @@ export class UserService {
     return user;
   }
 }
+
