@@ -26,6 +26,11 @@ export class CreateOrderRequest {
   @ValidateNested({ each: true })
   @Type(() => OrderItemRequest)
   items: OrderItemRequest[];
+
+  @ApiProperty({ description: '결제 방법', example: '신용카드' })
+  @IsString()
+  @IsNotEmpty()
+  paymentMethod: string;
 }
 
 export class GetOrdersRequest {

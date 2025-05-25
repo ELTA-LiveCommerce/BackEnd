@@ -283,6 +283,7 @@ describe('OrderService', () => {
             attributes: '{"color": "red"}',
           },
         ],
+        paymentMethod: '신용카드',
       };
 
       // Mock OrderService.createOrder implementation
@@ -314,6 +315,7 @@ describe('OrderService', () => {
             quantity: 2,
           },
         ],
+        paymentMethod: '신용카드',
       };
 
       // Original implementation mocked with failure
@@ -344,6 +346,7 @@ describe('OrderService', () => {
             quantity: 2,
           },
         ],
+        paymentMethod: '신용카드',
       };
 
       // Mock implementation for product not found scenario
@@ -384,6 +387,7 @@ describe('OrderService', () => {
             quantity: 20, // 재고보다 많은 수량
           },
         ],
+        paymentMethod: '신용카드',
       };
 
       // Mock specific scenario implementation
@@ -455,6 +459,7 @@ describe('OrderService', () => {
       // Create 메서드 실행
       const createOrderDto: CreateOrderDto = {
         items: [{ productId: 'product-id', quantity: 2 }],
+        paymentMethod: '신용카드',
       };
 
       // 실행
@@ -513,6 +518,7 @@ describe('OrderService', () => {
       // Create 메서드 실행
       const createOrderDto: CreateOrderDto = {
         items: [{ productId: 'product-id', quantity: 2 }],
+        paymentMethod: '신용카드',
       };
 
       // 실행

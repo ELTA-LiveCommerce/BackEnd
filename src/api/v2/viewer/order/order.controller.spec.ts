@@ -83,6 +83,7 @@ describe('OrderController', () => {
             quantity: 2,
           },
         ],
+        paymentMethod: '신용카드',
       };
 
       orderService.create.mockResolvedValue(mockOrderResponse);

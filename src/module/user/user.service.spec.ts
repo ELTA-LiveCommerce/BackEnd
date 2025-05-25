@@ -858,5 +858,45 @@ describe('UserService', () => {
       );
     });
   });
+
+  describe('findByLoginId', () => {
+    it('정상적인 사용자를 찾을 수 있어야 함', async () => {
+      // 정상 사용자 설정
+      const normalUser = {
+        id: 'normal-user-id',
+        loginId: 'normal@example.com',
+        name: '정상 사용자',
+        deletedAt: null,
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(normalUser);
+
+      const result = await service.findByLoginId('normal@example.com');
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe('normal-user-id');
+      expect(result.loginId).toBe('normal@example.com');
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ loginId: 'normal@example.com' });
+    });
+
+    it('소프트 삭제된 사용자는 조회되지 않아야 함', async () => {
+      // 소프트 삭제된 사용자는 findOne에서 null을 반환하도록 설정
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.findByLoginId('deleted@example.com');
+
+      expect(result).toBeNull();
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ loginId: 'deleted@example.com' });
+    });
+
+    it('존재하지 않는 사용자는 null을 반환해야 함', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.findByLoginId('nonexistent@example.com');
+
+      expect(result).toBeNull();
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ loginId: 'nonexistent@example.com' });
+    });
+  });
 });
 
