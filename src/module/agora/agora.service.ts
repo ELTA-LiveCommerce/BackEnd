@@ -70,9 +70,8 @@ export class AgoraService {
   /* ───── CHAT USER TOKEN ───── */
 
   chatUserToken(uid: string, ttl = 3600) {
-    const uidChat = uid.replace(/-/g, '_');
     const exp = this.now() + ttl;
-    return ChatTokenBuilder.buildUserToken(this.appId, this.cert, uidChat, exp);
+    return ChatTokenBuilder.buildUserToken(this.chatKey, this.cert, uid, exp);
   }
 
   /* ───── Chat **App-Token** (OAuth) ───── */

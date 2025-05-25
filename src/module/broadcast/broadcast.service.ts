@@ -70,8 +70,6 @@ export class BroadcastService {
         }
       }
 
-      console.log('Broadcast created:', broadcast.products);
-
       const productInfos = broadcast.products.getItems().map((bp) => ({
         id: bp.product.id,
         name: bp.product.name,
@@ -200,13 +198,13 @@ export class BroadcastService {
 
       /* ── 6. 토큰 발급 ───────────────────────────── */
       const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'publisher');
-      const chatToken = this.agora.chatUserToken(hostUserId); // 내부에서 uidChat 로 변환
-
+      const chatToken = this.agora.chatUserToken(uidChat); // 내부에서 uidChat 로 변환
       /* ── 7. 응답 ─────────────────────────────────── */
       return {
         broadcastId: broadcast.id,
         channelId: rtcChannelId,
         chatGroupId: chatGroupId, // ← 프런트가 addUser 때 필요
+        chatAppKey: process.env.AGORA_CHAT_APP_KEY,
         uid: uidChat,
         rtcToken,
         chatToken,
@@ -244,11 +242,12 @@ export class BroadcastService {
 
     const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'subscriber');
     const chatToken = this.agora.chatUserToken(userId);
-
+    console.log('Agora tokens:', { rtcToken, chatToken });
     return {
       broadcastId: broadcast.id,
       channelId: rtcChannelId,
       chatGroupId,
+      chatAppKey: process.env.AGORA_CHAT_APP_KEY,
       uid: uidChat,
       rtcToken,
       chatToken,
