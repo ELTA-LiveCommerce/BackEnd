@@ -80,7 +80,6 @@ export class AdminFeeController {
     if (user.role !== UserRole.SELLER) {
       throw new BadRequestException(`해당 사용자는 셀러가 아닙니다.`);
     }
-
     // 수수료 업데이트
     const updatedUser = await this.userService.update(id, {
       feePercentage: updateFeeDto.feePercentage,

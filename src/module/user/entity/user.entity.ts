@@ -10,6 +10,7 @@ import {
   ManyToMany,
   Unique,
   Filter,
+  DecimalType,
 } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
@@ -53,7 +54,7 @@ export class User extends BaseEntity {
   @Property({ nullable: true, type: 'string' })
   bankAccount?: string;
 
-  @Property({ nullable: true, type: 'number', default: 0.1 })
+  @Property({ nullable: true, type: DecimalType, precision: 5, scale: 2, default: 0.1 })
   feePercentage?: number = 0.1; // 기본 수수료 10%
 
   @Enum({ items: () => UserRole, default: UserRole.VIEWER, type: 'string' })
