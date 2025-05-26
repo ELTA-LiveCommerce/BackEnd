@@ -409,6 +409,12 @@ export class OrderService {
     return {
       id: order.id,
       orderNumber: order.orderNumber,
+      products: order.items.getItems().map((item) => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
       status: order.status,
       totalAmount: order.totalAmount,
       itemCount: order.items.length,

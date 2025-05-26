@@ -68,6 +68,12 @@ export class OrderController {
     const items = paginatedOrdersResponseDto.items.map((item) => ({
       id: item.id,
       orderNumber: item.orderNumber,
+      products: item.products.map((product) => ({
+        productId: product.productId,
+        productName: product.productName,
+        quantity: product.quantity,
+        price: product.price,
+      })),
       status: item.status,
       totalAmount: item.totalAmount,
       itemCount: item.itemCount,

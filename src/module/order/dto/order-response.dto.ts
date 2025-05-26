@@ -1,4 +1,5 @@
 import { OrderStatus } from '@/shared/enum/order-status.enum';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class OrderItemResponseDto {
   id: string;
@@ -32,9 +33,19 @@ export class OrderResponseDto {
   refundedAt?: Date;
 }
 
+export class OrderProductDto {
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+}
+
+
 export class OrderSummaryDto {
   id: string;
   orderNumber: string;
+  @ApiProperty({ type: () => OrderProductDto, isArray: true })
+  products: OrderProductDto[];
   status: OrderStatus;
   totalAmount: number;
   itemCount: number;
