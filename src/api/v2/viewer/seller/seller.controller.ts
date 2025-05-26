@@ -70,12 +70,13 @@ export class SellerController {
    * 셀러 정보를 조회합니다.
    */
   @Get(':sellerId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: '판매자 정보 조회' })
   @ApiOkResponse({ type: SellerInfoResponseDto })
   async getSellerInfo(
     @Param('sellerId') sellerId: string,
     @Query() query: SellerInfoRequestDto,
-    @GetUser() currentUser?: User,
+    @GetUser() currentUser: User,
   ): Promise<SellerInfoResponseDto> {
     // 사용자 정보 조회
     const seller = await this.userService.findOne(sellerId);
