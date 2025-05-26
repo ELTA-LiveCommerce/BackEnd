@@ -136,7 +136,22 @@ export class UserService {
    * @param updateUserDto 업데이트할 사용자 정보
    * @returns 업데이트된 사용자 정보
    */
-  async update(id: string, updateUserDto: any): Promise<User> {
+  async update(
+    id: string,
+    updateUserDto: {
+      name?: string;
+      phoneNumber?: string;
+      role?: UserRole;
+      profileImage?: string;
+      bannerImage?: string;
+      bankName?: string;
+      accountNumber?: string;
+      address?: string;
+      isVerified?: boolean;
+      feePercentage?: number;
+      password?: string;
+    },
+  ): Promise<User> {
     const user = await this.findOne(id);
 
     // 업데이트할 필드들을 적용
