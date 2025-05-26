@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
 import { BaseResponseV2, PagedResponseV2, PagedResponseData } from '@/api/v2/common/base-response.dto';
+import { Expose, Type } from 'class-transformer';
+import { DeliveryStatus } from '@/module/delivery/entity/delivery.entity';
 
 export class OrderItemResponseBody {
   @ApiProperty({ description: '주문 상품 ID', example: 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6' })
@@ -126,3 +128,170 @@ export class OrderListResponse extends PagedResponseV2<OrderSummaryResponseBody>
     );
   }
 }
+
+export class OrderDeliveryItemResponseBody {
+  @ApiProperty({ description: '주문 아이템 ID' })
+  @Expose()
+  id: string;
+
+  @ApiProperty({ description: '상품 ID' })
+  @Expose()
+  productId: string;
+
+  @ApiProperty({ description: '상품명' })
+  @Expose()
+  productName: string;
+
+  @ApiProperty({ description: '상품 이미지', required: false })
+  @Expose()
+  productImage?: string;
+
+  @ApiProperty({ description: '주문 수량' })
+  @Expose()
+  quantity: number;
+
+  @ApiProperty({ description: '상품 가격' })
+  @Expose()
+  price: number;
+
+  @ApiProperty({ description: '총 가격' })
+  @Expose()
+  totalPrice: number;
+}
+
+export class OrderDeliverySellerResponseBody {
+  @ApiProperty({ description: '판매자 ID' })
+  @Expose()
+  id: string;
+
+  @ApiProperty({ description: '판매자명' })
+  @Expose()
+  name: string;
+}
+
+export class OrderDeliveryResponseBody {
+  @ApiProperty({ description: '배송 ID' })
+  @Expose()
+  id: string;
+
+  @ApiProperty({ enum: DeliveryStatus, description: '배송 상태' })
+  @Expose()
+  status: DeliveryStatus;
+
+  @ApiProperty({ description: '운송장 번호', required: false })
+  @Expose()
+  trackingNumber?: string;
+
+  @ApiProperty({ description: '택배회사', required: false })
+  @Expose()
+  courierCompany?: string;
+
+  @ApiProperty({ description: '수취인 이름' })
+  @Expose()
+  recipientName: string;
+
+  @ApiProperty({ description: '수취인 전화번호' })
+  @Expose()
+  recipientPhoneNumber: string;
+
+  @ApiProperty({ description: '배송 주소' })
+  @Expose()
+  address: string;
+
+  @ApiProperty({ description: '배송 시작일', type: Date, required: false })
+  @Expose()
+  shippedAt?: Date;
+
+  @ApiProperty({ description: '배송 완료일', type: Date, required: false })
+  @Expose()
+  deliveredAt?: Date;
+
+  @ApiProperty({ description: '배송 취소일', type: Date, required: false })
+  @Expose()
+  canceledAt?: Date;
+
+  @ApiProperty({ description: '생성일', type: Date })
+  @Expose()
+  createdAt: Date;
+
+  @ApiProperty({ description: '수정일', type: Date })
+  @Expose()
+  updatedAt: Date;
+
+  @ApiProperty({ type: OrderDeliverySellerResponseBody, description: '판매자 정보' })
+  @Expose()
+  @Type(() => OrderDeliverySellerResponseBody)
+  seller: OrderDeliverySellerResponseBody;
+
+  @ApiProperty({ type: [OrderDeliveryItemResponseBody], description: '주문 상품 목록' })
+  @Expose()
+  @Type(() => OrderDeliveryItemResponseBody)
+  orderItems: OrderDeliveryItemResponseBody[];
+}
+
+export class OrderDeliveryListResponseBody {
+  @ApiProperty({ type: [OrderDeliveryResponseBody], description: '배송 정보 목록' })
+  @Expose()
+  @Type(() => OrderDeliveryResponseBody)
+  deliveries: OrderDeliveryResponseBody[];
+}
+
+export class OrderDeliveryListResponse extends BaseResponseV2<OrderDeliveryListResponseBody> {
+  static fromServiceResponse(serviceResponse: {
+    deliveries: Array<{
+      delivery: any;
+      seller: { id: string; name: string };
+      orderItems: Array<{
+        id: string;
+        productId: string;
+        productName: string;
+        productImage?: string;
+        quantity: number;
+        price: number;
+        totalPrice: number;
+      }>;
+    }>;
+  }): OrderDeliveryListResponse {
+    const responseBody = new OrderDeliveryListResponseBody();
+
+    responseBody.deliveries = serviceResponse.deliveries.map((item) => {
+      const deliveryBody = new OrderDeliveryResponseBody();
+
+      // Delivery 정보 매핑
+      deliveryBody.id = item.delivery.id;
+      deliveryBody.status = item.delivery.status;
+      deliveryBody.trackingNumber = item.delivery.trackingNumber;
+      deliveryBody.courierCompany = item.delivery.courierCompany;
+      deliveryBody.recipientName = item.delivery.recipientName;
+      deliveryBody.recipientPhoneNumber = item.delivery.recipientPhoneNumber;
+      deliveryBody.address = item.delivery.address;
+      deliveryBody.shippedAt = item.delivery.shippedAt;
+      deliveryBody.deliveredAt = item.delivery.deliveredAt;
+      deliveryBody.canceledAt = item.delivery.canceledAt;
+      deliveryBody.createdAt = item.delivery.createdAt;
+      deliveryBody.updatedAt = item.delivery.updatedAt;
+
+      // Seller 정보 매핑
+      deliveryBody.seller = {
+        id: item.seller.id,
+        name: item.seller.name,
+      };
+
+      // OrderItems 정보 매핑
+      deliveryBody.orderItems = item.orderItems.map((orderItem) => ({
+        id: orderItem.id,
+        productId: orderItem.productId,
+        productName: orderItem.productName,
+        productImage: orderItem.productImage,
+        quantity: orderItem.quantity,
+        price: orderItem.price,
+        totalPrice: orderItem.totalPrice,
+      }));
+
+      return deliveryBody;
+    });
+
+    return BaseResponseV2.success(responseBody, '배송 정보 조회 성공');
+  }
+}
+

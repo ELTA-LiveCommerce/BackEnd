@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrderController } from './order.controller';
 import { OrderService } from '@/module/order/order.service';
+import { DeliveryService } from '@/module/delivery/delivery.service';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
+import { DeliveryStatus } from '@/module/delivery/entity/delivery.entity';
 import { User } from '@/module/user/entity/user.entity';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateOrderRequest, GetOrdersRequest, CancelOrderRequest } from './order-request.dto';
@@ -11,6 +13,7 @@ import { OrderResponseBody, OrderSummaryResponseBody } from './order-response.dt
 describe('OrderController', () => {
   let controller: OrderController;
   let orderService: MockProxy<OrderService>;
+  let deliveryService: MockProxy<DeliveryService>;
 
   const mockUser = {
     id: 'test-user-id',
@@ -51,8 +54,45 @@ describe('OrderController', () => {
     updatedAt: new Date(),
   };
 
+  const mockDeliveryResponse = {
+    deliveries: [
+      {
+        delivery: {
+          id: 'test-delivery-id',
+          status: DeliveryStatus.SHIPPING,
+          trackingNumber: '1234567890',
+          courierCompany: 'CJ대한통운',
+          recipientName: '수취인',
+          recipientPhoneNumber: '010-1234-5678',
+          address: '서울시 강남구 테스트동 123',
+          shippedAt: new Date(),
+          deliveredAt: null,
+          canceledAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        seller: {
+          id: 'test-seller-id',
+          name: '테스트 판매자',
+        },
+        orderItems: [
+          {
+            id: 'test-item-id',
+            productId: 'test-product-id',
+            productName: '테스트 상품',
+            productImage: 'http://example.com/image.jpg',
+            quantity: 2,
+            price: 25000,
+            totalPrice: 50000,
+          },
+        ],
+      },
+    ],
+  };
+
   beforeEach(async () => {
     orderService = mock<OrderService>();
+    deliveryService = mock<DeliveryService>();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [OrderController],
@@ -60,6 +100,10 @@ describe('OrderController', () => {
         {
           provide: OrderService,
           useValue: orderService,
+        },
+        {
+          provide: DeliveryService,
+          useValue: deliveryService,
         },
       ],
     })
@@ -155,6 +199,26 @@ describe('OrderController', () => {
       expect(result.data.status).toBe(OrderStatus.CANCELLED);
       expect(result.data.cancelledAt).toBeDefined();
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('getOrderDeliveries', () => {
+    it('should return delivery information for an order', async () => {
+      const orderId = 'test-order-id';
+
+      deliveryService.findDeliveriesByOrderForViewer.mockResolvedValue(mockDeliveryResponse as any);
+
+      const result = await controller.getOrderDeliveries(mockUser, orderId);
+
+      expect(deliveryService.findDeliveriesByOrderForViewer).toHaveBeenCalledWith(orderId, mockUser.id);
+      expect(result.success).toBe(true);
+      expect(result.data.deliveries).toHaveLength(1);
+      expect(result.data.deliveries[0].id).toBe('test-delivery-id');
+      expect(result.data.deliveries[0].status).toBe(DeliveryStatus.SHIPPING);
+      expect(result.data.deliveries[0].trackingNumber).toBe('1234567890');
+      expect(result.data.deliveries[0].seller.name).toBe('테스트 판매자');
+      expect(result.data.deliveries[0].orderItems).toHaveLength(1);
+      expect(result.data.deliveries[0].orderItems[0].productName).toBe('테스트 상품');
     });
   });
 });

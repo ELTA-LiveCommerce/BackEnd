@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@ne
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { OrderService } from '@/module/order/order.service';
+import { DeliveryService } from '@/module/delivery/delivery.service';
 import { Roles } from '@/shared/common/decorators/roles.decorator';
 import { GetUser } from '@/shared/common/decorators/get-user.decorator';
 import { User } from '@/module/user/entity/user.entity';
@@ -13,7 +14,13 @@ import { GetOrdersDto } from '@/module/order/dto/get-orders.dto';
 import { UpdateShippingDto } from '@/module/order/dto/update-shipping.dto';
 
 import { CancelOrderRequest, CreateOrderRequest, GetOrdersRequest, UpdateShippingRequest } from './order-request.dto';
-import { OrderResponse, OrderListResponse, OrderResponseBody, OrderSummaryResponseBody } from './order-response.dto';
+import {
+  OrderResponse,
+  OrderListResponse,
+  OrderResponseBody,
+  OrderSummaryResponseBody,
+  OrderDeliveryListResponse,
+} from './order-response.dto';
 import { EmptyResponseV2 } from '@/api/v2/common/base-response.dto';
 
 @ApiTags('v2/viewer/orders')
@@ -21,7 +28,10 @@ import { EmptyResponseV2 } from '@/api/v2/common/base-response.dto';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(
+    private readonly orderService: OrderService,
+    private readonly deliveryService: DeliveryService,
+  ) {}
 
   /**
    * 새로운 주문을 생성합니다.
@@ -144,6 +154,22 @@ export class OrderController {
     const orderResponseDto = await this.orderService.updateShippingInfoBySeller(orderId, user.id, updateShippingDto);
 
     return OrderResponse.fromOrderResponseDto(orderResponseDto as unknown as OrderResponseBody);
+  }
+
+  /**
+   * 특정 주문의 배송 정보를 조회합니다.
+   */
+  @Get(':orderId/deliveries')
+  @ApiOperation({ summary: '주문 배송 정보 조회' })
+  @ApiParam({ name: 'orderId', description: '주문 ID' })
+  @ApiResponse({ status: 200, description: '배송 정보 조회 성공', type: OrderDeliveryListResponse })
+  async getOrderDeliveries(
+    @GetUser() user: User,
+    @Param('orderId') orderId: string,
+  ): Promise<OrderDeliveryListResponse> {
+    const deliveriesData = await this.deliveryService.findDeliveriesByOrderForViewer(orderId, user.id);
+
+    return OrderDeliveryListResponse.fromServiceResponse(deliveriesData);
   }
 }
 

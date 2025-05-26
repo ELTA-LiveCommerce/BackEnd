@@ -210,6 +210,75 @@ export class DeliveryService {
   }
 
   /**
+   * 뷰어가 자신의 주문에서 판매자별 배송 정보를 조회합니다.
+   */
+  async findDeliveriesByOrderForViewer(
+    orderId: string,
+    userId: string,
+  ): Promise<{
+    deliveries: Array<{
+      delivery: Delivery;
+      seller: {
+        id: string;
+        name: string;
+      };
+      orderItems: Array<{
+        id: string;
+        productId: string;
+        productName: string;
+        productImage?: string;
+        quantity: number;
+        price: number;
+        totalPrice: number;
+      }>;
+    }>;
+  }> {
+    // 주문 조회 및 권한 확인
+    const order = await this.entityManager.findOne(
+      Order,
+      { id: orderId, user: { id: userId } },
+      { populate: ['items.product.seller', 'user'] },
+    );
+
+    if (!order) {
+      throw new NotFoundException('주문을 찾을 수 없거나 조회 권한이 없습니다.');
+    }
+
+    // 해당 주문의 배송 정보들을 조회
+    const deliveries = await this.deliveryRepository.find(
+      { order },
+      { populate: ['order', 'order.items.product', 'seller'] },
+    );
+
+    // 배송 정보와 관련 상품들을 매핑
+    const deliveryData = deliveries.map((delivery) => {
+      const sellerOrderItems = order.items
+        .getItems()
+        .filter((item) => item.product?.seller?.id === delivery.seller.id)
+        .map((item) => ({
+          id: item.id,
+          productId: item.product.id,
+          productName: item.product.name,
+          productImage: item.product.mainImage,
+          quantity: item.quantity,
+          price: item.price,
+          totalPrice: item.totalPrice,
+        }));
+
+      return {
+        delivery,
+        seller: {
+          id: delivery.seller.id,
+          name: delivery.seller.name,
+        },
+        orderItems: sellerOrderItems,
+      };
+    });
+
+    return { deliveries: deliveryData };
+  }
+
+  /**
    * ID로 배송 정보를 조회합니다.
    */
   async findOne(id: string): Promise<Delivery> {
@@ -459,3 +528,4 @@ export class DeliveryService {
     }
   }
 }
+
