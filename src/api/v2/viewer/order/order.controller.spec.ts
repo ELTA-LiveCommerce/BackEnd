@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OrderController } from './order.controller';
 import { OrderService } from '@/module/order/order.service';
 import { DeliveryService } from '@/module/delivery/delivery.service';
-import { mock, MockProxy } from 'jest-mock-extended';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
 import { DeliveryStatus } from '@/module/delivery/entity/delivery.entity';
 import { User } from '@/module/user/entity/user.entity';
@@ -12,8 +11,8 @@ import { OrderResponseBody, OrderSummaryResponseBody } from './order-response.dt
 
 describe('OrderController', () => {
   let controller: OrderController;
-  let orderService: MockProxy<OrderService>;
-  let deliveryService: MockProxy<DeliveryService>;
+  let orderService: jest.Mocked<OrderService>;
+  let deliveryService: jest.Mocked<DeliveryService>;
 
   const mockUser = {
     id: 'test-user-id',
@@ -47,6 +46,14 @@ describe('OrderController', () => {
   const mockOrderSummary = {
     id: 'test-order-id',
     orderNumber: 'ORD20240601123456',
+    products: [
+      {
+        productId: 'test-product-id',
+        productName: '테스트 상품',
+        quantity: 2,
+        price: 25000,
+      },
+    ],
     status: OrderStatus.PAID,
     totalAmount: 50000,
     itemCount: 1,
@@ -91,19 +98,28 @@ describe('OrderController', () => {
   };
 
   beforeEach(async () => {
-    orderService = mock<OrderService>();
-    deliveryService = mock<DeliveryService>();
+    const mockOrderService = {
+      create: jest.fn(),
+      getOrdersByUser: jest.fn(),
+      getOrderDetail: jest.fn(),
+      cancelOrder: jest.fn(),
+      updateShippingInfoBySeller: jest.fn(),
+    };
+
+    const mockDeliveryService = {
+      findDeliveriesByOrderForViewer: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [OrderController],
       providers: [
         {
           provide: OrderService,
-          useValue: orderService,
+          useValue: mockOrderService,
         },
         {
           provide: DeliveryService,
-          useValue: deliveryService,
+          useValue: mockDeliveryService,
         },
       ],
     })
@@ -112,6 +128,8 @@ describe('OrderController', () => {
       .compile();
 
     controller = module.get<OrderController>(OrderController);
+    orderService = module.get<OrderService>(OrderService) as jest.Mocked<OrderService>;
+    deliveryService = module.get<DeliveryService>(DeliveryService) as jest.Mocked<DeliveryService>;
   });
 
   it('should be defined', () => {

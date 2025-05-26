@@ -149,6 +149,7 @@ export class UserService {
     if (updateUserDto.accountNumber) user.accountNumber = updateUserDto.accountNumber;
     if (updateUserDto.address) user.address = updateUserDto.address;
     if (updateUserDto.isVerified !== undefined) user.isVerified = updateUserDto.isVerified;
+    if (updateUserDto.feePercentage) user.feePercentage = updateUserDto.feePercentage;
 
     // 비밀번호 변경은 별도 처리
     if (updateUserDto.password) {
