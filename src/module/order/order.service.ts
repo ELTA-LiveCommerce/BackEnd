@@ -69,7 +69,12 @@ export class OrderService {
       throw new NotFoundException('User not found');
     }
 
-    const order = new Order(user, createOrderDto.paymentMethod, user.address || '주소 미등록', undefined);
+    const order = new Order(
+      user,
+      '무통장입금', // 기본 결제 방법
+      user.address || '주소 미등록', // 유저의 주소 정보 사용, 없으면 기본값
+      undefined, // 메모는 빈 값
+    );
 
     // 판매자 정보를 저장할 맵
     const sellerProductMap = new Map<

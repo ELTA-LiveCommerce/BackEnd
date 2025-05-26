@@ -20,9 +20,5 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
   items: CreateOrderItemDto[];
-
-  @IsString()
-  @IsNotEmpty()
-  paymentMethod: string;
 }
 

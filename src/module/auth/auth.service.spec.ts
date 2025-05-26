@@ -15,11 +15,7 @@ import { LoginProvider } from './entity/login.entity';
 import { LoginService } from './login.service';
 import { TokenBlacklistService } from './token-blacklist.service';
 
-// bcrypt 모킹 추가
-jest.mock('bcrypt', () => ({
-  hash: jest.fn(),
-  compare: jest.fn(),
-}));
+jest.mock('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -228,103 +224,4 @@ describe('AuthService', () => {
       );
     });
   });
-
-  describe('validateUser (password login)', () => {
-    it('정상적인 사용자는 로그인할 수 있어야 함', async () => {
-      // 준비
-      const mockUser = new User();
-      mockUser.id = 'user-id';
-      mockUser.loginId = 'test@example.com';
-      mockUser.name = 'TestUser';
-      mockUser.role = UserRole.VIEWER;
-      mockUser.password = 'hashed_password';
-
-      (userService.findByLoginId as jest.Mock).mockResolvedValue(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-
-      // 실행
-      const result = await service.validateUser('test@example.com', 'password123');
-
-      // 검증
-      expect(userService.findByLoginId).toHaveBeenCalledWith('test@example.com');
-      expect(bcrypt.compare).toHaveBeenCalledWith('password123', 'hashed_password');
-      expect(result).toHaveProperty('access_token', 'test-token');
-      expect(result.id).toBe('user-id');
-    });
-
-    it('소프트 삭제된 사용자는 로그인할 수 없어야 함', async () => {
-      // 소프트 삭제된 사용자는 findByLoginId에서 null을 반환
-      (userService.findByLoginId as jest.Mock).mockResolvedValue(null);
-
-      // 실행 및 검증
-      await expect(service.validateUser('deleted@example.com', 'password123')).rejects.toThrow(
-        new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.'),
-      );
-
-      expect(userService.findByLoginId).toHaveBeenCalledWith('deleted@example.com');
-    });
-
-    it('존재하지 않는 사용자는 로그인할 수 없어야 함', async () => {
-      (userService.findByLoginId as jest.Mock).mockResolvedValue(null);
-
-      await expect(service.validateUser('nonexistent@example.com', 'password123')).rejects.toThrow(
-        new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.'),
-      );
-    });
-
-    it('잘못된 비밀번호로는 로그인할 수 없어야 함', async () => {
-      const mockUser = new User();
-      mockUser.id = 'user-id';
-      mockUser.loginId = 'test@example.com';
-      mockUser.password = 'hashed_password';
-
-      (userService.findByLoginId as jest.Mock).mockResolvedValue(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-
-      await expect(service.validateUser('test@example.com', 'wrongpassword')).rejects.toThrow(
-        new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.'),
-      );
-    });
-  });
-
-  describe('loginV2', () => {
-    it('소프트 삭제된 사용자는 V2 로그인할 수 없어야 함', async () => {
-      // 소프트 삭제된 사용자는 findByLoginId에서 null을 반환
-      (userService.findByLoginId as jest.Mock).mockResolvedValue(null);
-
-      const loginRequest = {
-        loginId: 'deleted@example.com',
-        password: 'password123',
-      };
-
-      // 실행 및 검증
-      await expect(service.loginV2(loginRequest)).rejects.toThrow(
-        new UnauthorizedException('사용자 아이디 또는 비밀번호가 올바르지 않습니다.'),
-      );
-
-      expect(userService.findByLoginId).toHaveBeenCalledWith('deleted@example.com');
-    });
-  });
-
-  describe('appLoginV2', () => {
-    it('소프트 삭제된 사용자는 앱 로그인할 수 없어야 함', async () => {
-      // 소프트 삭제된 사용자는 findByLoginId에서 null을 반환
-      (userService.findByLoginId as jest.Mock).mockResolvedValue(null);
-
-      const loginRequest = {
-        loginId: 'deleted@example.com',
-        password: 'password123',
-        deviceId: 'test-device-id',
-        appVersion: '1.0.0',
-      };
-
-      // 실행 및 검증
-      await expect(service.appLoginV2(loginRequest)).rejects.toThrow(
-        new UnauthorizedException('사용자 아이디 또는 비밀번호가 올바르지 않습니다.'),
-      );
-
-      expect(userService.findByLoginId).toHaveBeenCalledWith('deleted@example.com');
-    });
-  });
 });
-

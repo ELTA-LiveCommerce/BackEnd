@@ -41,13 +41,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('만료된 토큰입니다.');
     }
 
-    try {
-      const user = await this.userService.findOne(payload.sub);
-      return user;
-    } catch (error) {
-      // 사용자를 찾을 수 없거나 소프트 삭제된 경우
+    const user = await this.userService.findOne(payload.sub);
+    if (!user) {
       throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
     }
+
+    return user;
   }
 }
-

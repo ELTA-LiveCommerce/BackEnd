@@ -37,7 +37,6 @@ export class OrderController {
         quantity: item.quantity,
         attributes: item.attributes,
       })),
-      paymentMethod: createOrderRequest.paymentMethod,
     };
 
     const orderResponseDto = await this.orderService.create(user.id, createOrderDto);
