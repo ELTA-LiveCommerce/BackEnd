@@ -15,7 +15,7 @@ export class AdminFeeResponse {
   phoneNumber: string;
 
   @ApiProperty({ description: '수수료 비율' })
-  feePercentage: number;
+  feePercentage?: number;
 
   static fromEntity(user: User): AdminFeeResponse {
     return {
