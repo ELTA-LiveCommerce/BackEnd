@@ -199,6 +199,13 @@ export class RefundService {
 
     // 상태별 추가 처리
     switch (statusUpdateDto.status) {
+      case RefundStatus.REQUESTED:
+        // 반품 신청 상태로 변경 시 주문 상태를 REFUND_REQUESTED로 변경
+        if (refund.orderItem?.order) {
+          await this.orderService.markOrderAsRefundRequested(refund.orderItem.order.id);
+        }
+        break;
+
       case RefundStatus.PROCESSING:
         // 처리중으로 변경 시 특별한 처리 없음
         break;

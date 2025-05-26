@@ -72,8 +72,6 @@ describe('ReturnRequestController', () => {
         orderId: 'test-order-id',
         reasonCategory: ReturnReasonCategory.PRODUCT_ISSUE,
         reasonDetail: ReturnReasonDetail.DAMAGED_PRODUCT,
-        pickupName: '홍길동',
-        pickupAddress: '서울시 강남구 테스트동 123',
         pickupType: ReturnPickupType.DOOR_FRONT,
         pickupNote: '경비실에 맡겨주세요',
       };

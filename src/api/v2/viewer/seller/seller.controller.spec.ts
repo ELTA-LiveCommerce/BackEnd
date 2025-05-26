@@ -198,7 +198,7 @@ describe('SellerController', () => {
         followingCount: mockFollowing.length,
       });
 
-      const result = await controller.getSellerInfo(sellerId, query, undefined);
+      const result = await controller.getSellerInfo(sellerId, query, null as any);
 
       expect(userService.findOne).toHaveBeenCalledWith(sellerId);
       expect(userFollowService.getFollowCounts).toHaveBeenCalledWith(sellerId);

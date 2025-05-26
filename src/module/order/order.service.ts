@@ -615,11 +615,26 @@ export class OrderService {
       case OrderStatus.CANCELLED:
         order.cancelledAt = new Date();
         break;
+      case OrderStatus.REFUND_REQUESTED:
+        // 반품 신청 시점에 특별한 타임스탬프는 설정하지 않음
+        break;
       case OrderStatus.REFUNDED:
         order.refundedAt = new Date();
         break;
     }
     await this.orderRepository.persistAndFlush(order);
+  }
+
+  /**
+   * 반품 신청 시 주문 상태를 REFUND_REQUESTED로 변경합니다.
+   * @param orderId 주문 ID
+   */
+  async markOrderAsRefundRequested(orderId: string): Promise<void> {
+    const order = await this._findOrderById(orderId);
+    if (!order) {
+      throw new NotFoundException(`주문 ID ${orderId}를 찾을 수 없습니다.`);
+    }
+    await this._updateStatus(order, OrderStatus.REFUND_REQUESTED);
   }
 
   /**

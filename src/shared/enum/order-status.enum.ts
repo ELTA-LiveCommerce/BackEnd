@@ -5,5 +5,7 @@ export enum OrderStatus {
   SHIPPED = 'SHIPPED', // 배송 중
   DELIVERED = 'DELIVERED', // 배송 완료
   CANCELLED = 'CANCELLED', // 주문 취소
+  REFUND_REQUESTED = 'REFUND_REQUESTED', // 반품 신청됨
   REFUNDED = 'REFUNDED', // 환불 완료
 }
+
