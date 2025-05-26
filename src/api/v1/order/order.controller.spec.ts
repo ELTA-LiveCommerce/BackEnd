@@ -42,6 +42,14 @@ describe('OrderController', () => {
       {
         id: 'order-id',
         orderNumber: 'ORD-230101-1234',
+        products: [
+          {
+            productId: 'product-id',
+            productName: '테스트 상품',
+            quantity: 2,
+            price: 10000,
+          },
+        ],
         status: OrderStatus.PENDING,
         totalAmount: 20000,
         itemCount: 1,
@@ -181,3 +189,4 @@ describe('OrderController', () => {
     });
   });
 });
+

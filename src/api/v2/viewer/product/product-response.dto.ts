@@ -1,6 +1,7 @@
 import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 import { Product } from '@/module/product/entity/product.entity';
 import { User } from '@/module/user/entity/user.entity';
+import { Delivery, DeliveryStatus } from '@/module/delivery/entity/delivery.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 // 판매자 정보 (간략)
@@ -122,3 +123,90 @@ export class ViewerProductListResponseDto extends PagedResponseV2<ViewerProductR
     return PagedResponseV2.create(items, total, page, limit, message);
   }
 }
+
+/**
+ * 뷰어 상품 배송 조회 응답 바디 DTO
+ */
+export class ViewerProductDeliveryResponseBodyDto {
+  @ApiProperty({ description: '배송 정보', required: false })
+  delivery: {
+    id: string;
+    trackingNumber?: string;
+    courierCompany?: string;
+    status: DeliveryStatus;
+    shippedAt?: Date;
+    deliveredAt?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null;
+
+  @ApiProperty({ description: '상품 정보' })
+  product: {
+    id: string;
+    name: string;
+    image?: string;
+  };
+
+  @ApiProperty({ description: '판매자 정보' })
+  seller: {
+    id: string;
+    name: string;
+  };
+
+  @ApiProperty({ description: '주문 정보' })
+  orderInfo: {
+    orderId: string;
+    orderNumber: string;
+    quantity: number;
+    price: number;
+    totalPrice: number;
+    orderDate: Date;
+  };
+
+  static fromServiceData(data: {
+    delivery: Delivery | null;
+    product: {
+      id: string;
+      name: string;
+      image?: string;
+    };
+    seller: {
+      id: string;
+      name: string;
+    };
+    orderInfo: {
+      orderId: string;
+      orderNumber: string;
+      quantity: number;
+      price: number;
+      totalPrice: number;
+      orderDate: Date;
+    };
+  }): ViewerProductDeliveryResponseBodyDto {
+    return {
+      delivery: data.delivery
+        ? {
+            id: data.delivery.id,
+            trackingNumber: data.delivery.trackingNumber,
+            courierCompany: data.delivery.courierCompany,
+            status: data.delivery.status,
+            shippedAt: data.delivery.shippedAt,
+            deliveredAt: data.delivery.deliveredAt,
+            createdAt: data.delivery.createdAt,
+            updatedAt: data.delivery.updatedAt,
+          }
+        : null,
+      product: data.product,
+      seller: data.seller,
+      orderInfo: data.orderInfo,
+    };
+  }
+}
+
+/**
+ * 뷰어 상품 배송 조회 응답 DTO
+ */
+export class ViewerProductDeliveryResponseDto extends BaseResponseV2<ViewerProductDeliveryResponseBodyDto> {
+  // BaseResponseV2를 상속받아 표준 응답 형식 제공
+}
+

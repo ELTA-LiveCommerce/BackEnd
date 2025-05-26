@@ -292,6 +292,79 @@ export class DeliveryService {
   }
 
   /**
+   * 뷰어가 특정 상품의 배송 정보를 조회합니다.
+   */
+  async findDeliveryByProductForViewer(
+    productId: string,
+    userId: string,
+  ): Promise<{
+    delivery: Delivery | null;
+    product: {
+      id: string;
+      name: string;
+      image?: string;
+    };
+    seller: {
+      id: string;
+      name: string;
+    };
+    orderInfo: {
+      orderId: string;
+      orderNumber: string;
+      quantity: number;
+      price: number;
+      totalPrice: number;
+      orderDate: Date;
+    };
+  } | null> {
+    // 사용자가 구매한 상품인지 확인
+    const orderItem = await this.entityManager.findOne(
+      OrderItem,
+      {
+        product: { id: productId },
+        order: { user: { id: userId } },
+      },
+      {
+        populate: ['product', 'product.seller', 'order', 'order.user'],
+      },
+    );
+
+    if (!orderItem) {
+      throw new NotFoundException('구매하지 않은 상품이거나 존재하지 않는 상품입니다.');
+    }
+
+    // 해당 주문의 배송 정보 조회 (판매자별로)
+    const delivery = await this.deliveryRepository.findOne(
+      {
+        order: orderItem.order.id,
+        seller: orderItem.product.seller.id,
+      },
+      { populate: ['seller'] },
+    );
+
+    return {
+      delivery,
+      product: {
+        id: orderItem.product.id,
+        name: orderItem.product.name,
+        image: orderItem.product.mainImage,
+      },
+      seller: {
+        id: orderItem.product.seller.id,
+        name: orderItem.product.seller.name,
+      },
+      orderInfo: {
+        orderId: orderItem.order.id,
+        orderNumber: orderItem.order.orderNumber,
+        quantity: orderItem.quantity,
+        price: orderItem.price,
+        totalPrice: orderItem.totalPrice,
+        orderDate: orderItem.order.createdAt,
+      },
+    };
+  }
+
+  /**
    * 배송 정보를 업데이트합니다.
    */
   async update(id: string, updateDeliveryDto: UpdateDeliveryDto, user: User): Promise<Delivery> {
