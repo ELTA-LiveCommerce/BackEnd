@@ -199,6 +199,7 @@ export class BroadcastService {
       /* ── 6. 토큰 발급 ───────────────────────────── */
       const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'publisher');
       const chatToken = this.agora.chatUserToken(uidChat); // 내부에서 uidChat 로 변환
+      console.log('Agora tokens:', { rtcToken, chatToken });
       /* ── 7. 응답 ─────────────────────────────────── */
       return {
         broadcastId: broadcast.id,
@@ -242,6 +243,7 @@ export class BroadcastService {
 
     const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'subscriber');
     const chatToken = this.agora.chatUserToken(userId);
+    console.log(chatToken);
     console.log('Agora tokens:', { rtcToken, chatToken });
     return {
       broadcastId: broadcast.id,
