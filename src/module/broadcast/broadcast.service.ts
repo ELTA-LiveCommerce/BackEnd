@@ -192,8 +192,8 @@ export class BroadcastService {
       em.persist(stream);
 
       /* ── 5. 채팅 그룹 생성 → groupId 반환 ────────── */
-      const chatGroupId = await this.agora.createGroup(uidChat, `live_${rtcChannelId}`);
-      stream.chatGroupId = chatGroupId; // DB 저장
+      const chatRoomId = await this.agora.createRoom(uidChat, `live_${rtcChannelId}`);
+      stream.chatRoomId = chatRoomId; // DB 저장
       em.persist(stream); // flush later by txn
 
       /* ── 6. 토큰 발급 ───────────────────────────── */
@@ -204,7 +204,7 @@ export class BroadcastService {
       return {
         broadcastId: broadcast.id,
         channelId: rtcChannelId,
-        chatGroupId: chatGroupId, // ← 프런트가 addUser 때 필요
+        chatRoomId: chatRoomId, // ← 프런트가 addUser 때 필요
         chatAppKey: process.env.AGORA_CHAT_APP_KEY,
         uid: uidChat,
         rtcToken,
@@ -223,11 +223,11 @@ export class BroadcastService {
     if (!broadcast.isLive) throw new BadRequestException('라이브 중인 방송이 아닙니다.');
     if (!broadcast.stream) throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
 
-    const { id: rtcChannelId, chatGroupId } = broadcast.stream;
+    const { id: rtcChannelId, chatRoomId } = broadcast.stream;
     const uidChat = userId.replace(/-/g, '_');
 
     try {
-      await this.agora.addUser(chatGroupId!, uidChat);
+      await this.agora.addUser(chatRoomId!, uidChat);
     } catch (e: any) {
       if (
         axios.isAxiosError(e) &&
@@ -248,7 +248,7 @@ export class BroadcastService {
     return {
       broadcastId: broadcast.id,
       channelId: rtcChannelId,
-      chatGroupId,
+      chatRoomId,
       chatAppKey: process.env.AGORA_CHAT_APP_KEY,
       uid: uidChat,
       rtcToken,
@@ -304,7 +304,7 @@ export class BroadcastService {
         throw new BadRequestException('활성화된 스트림이 없습니다.');
       }
 
-      await this.agora.deleteGroup(broadcast.stream.chatGroupId!);
+      await this.agora.deleteRoom(broadcast.stream.chatRoomId!);
 
       // 방송 상태 업데이트
       broadcast.endLive();

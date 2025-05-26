@@ -119,46 +119,43 @@ export class AgoraService {
   /* ───── CHAT REST Helper ───── */
 
   /** 방송 시작: 방(owner) 생성 */
-  async createGroup(ownerUid: string, groupName: string) {
+  async createRoom(ownerUid: string, roomName: string) {
     await this.ensureChatUser(ownerUid);
     await this.appTokenHeader();
 
-    const res = await this.rest.post('/chatgroups', {
-      groupname: groupName, // id 는 넣지 않는다
-      desc: '라이브 채팅',
-      public: false,
-      approval: true,
+    const res = await this.rest.post('/chatrooms', {
+      name: roomName, // roomname
+      description: '라이브 채팅',
       maxusers: 5000,
       owner: ownerUid,
     });
 
-    // 👉 생성된 그룹 ID (문자열) 반환
-    return res.data.data.groupid as string;
+    // 👉 생성된 roomId (문자열) 반환
+    return res.data.data.id as string;
   }
 
   /** 시청자 입장 */
-  async addUser(groupId: string, uid: string) {
+  async addUser(roomId: string, uid: string) {
     await this.ensureChatUser(uid);
-
     await this.appTokenHeader();
-    return this.rest.post(`/chatgroups/${groupId}/users/${uid.replace(/-/g, '_')}`);
+    return this.rest.post(`/chatrooms/${roomId}/users/${uid.replace(/-/g, '_')}`);
   }
 
-  async removeUser(groupId: string, uid: string) {
+  async removeUser(roomId: string, uid: string) {
     await this.appTokenHeader();
-    return this.rest.delete(`/chatgroups/${groupId}/users/${uid.replace(/-/g, '_')}`);
+    return this.rest.delete(`/chatrooms/${roomId}/users/${uid.replace(/-/g, '_')}`);
   }
 
-  async deleteGroup(groupId: string) {
+  async deleteRoom(roomId: string) {
     await this.appTokenHeader();
-    return this.rest.delete(`/chatgroups/${groupId}`);
+    return this.rest.delete(`/chatrooms/${roomId}`);
   }
 
-  async sendSystemMessage(groupId: string, text: string) {
+  async sendSystemMessage(roomId: string, text: string) {
     await this.appTokenHeader();
-    return this.rest.post(`/chatgroups/${groupId}/messages`, {
+    return this.rest.post(`/chatrooms/${roomId}/messages`, {
       type: 'txt',
-      msg : text,
+      msg: text,
     });
   }
 

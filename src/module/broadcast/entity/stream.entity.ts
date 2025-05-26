@@ -17,7 +17,7 @@ export class Stream {
   broadcast: Broadcast;
 
   @Property({ type: 'string', nullable: true })
-  chatGroupId?: string;
+  chatRoomId?: string;
 
   @Property({ onCreate: () => new Date() })
   startedAt: Date;
