@@ -19,16 +19,6 @@ export class CreateReturnRequestRequest {
   @IsEnum(ReturnReasonDetail)
   reasonDetail!: ReturnReasonDetail;
 
-  @ApiProperty({ description: '회수자 이름', example: '홍길동' })
-  @IsNotEmpty()
-  @IsString()
-  pickupName!: string;
-
-  @ApiProperty({ description: '회수지 주소', example: '서울시 강남구 역삼동 123-456' })
-  @IsNotEmpty()
-  @IsString()
-  pickupAddress!: string;
-
   @ApiProperty({ enum: ReturnPickupType, description: '회수 요청 방법' })
   @IsNotEmpty()
   @IsEnum(ReturnPickupType)

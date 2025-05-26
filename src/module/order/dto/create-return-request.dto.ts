@@ -17,14 +17,6 @@ export class CreateReturnRequestDto {
   reasonDetail!: ReturnReasonDetail;
 
   @IsNotEmpty()
-  @IsString()
-  pickupName!: string;
-
-  @IsNotEmpty()
-  @IsString()
-  pickupAddress!: string;
-
-  @IsNotEmpty()
   @IsEnum(ReturnPickupType)
   pickupType!: ReturnPickupType;
 

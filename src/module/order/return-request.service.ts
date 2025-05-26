@@ -28,13 +28,15 @@ export class ReturnRequestService {
       throw new NotFoundException('해당 주문에 대한 권한이 없습니다.');
     }
 
+    const user = order.user;
+
     // 반품 요청 생성
     const returnRequest = new ReturnRequest({
       order,
       reasonCategory: createReturnRequestDto.reasonCategory,
       reasonDetail: createReturnRequestDto.reasonDetail,
-      pickupName: createReturnRequestDto.pickupName,
-      pickupAddress: createReturnRequestDto.pickupAddress,
+      pickupName: user.name,
+      pickupAddress: user.address || '',
       pickupType: createReturnRequestDto.pickupType,
       pickupNote: createReturnRequestDto.pickupNote,
     });

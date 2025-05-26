@@ -37,8 +37,6 @@ export class ReturnRequestController {
       orderId: createReturnRequestRequest.orderId,
       reasonCategory: createReturnRequestRequest.reasonCategory,
       reasonDetail: createReturnRequestRequest.reasonDetail,
-      pickupName: createReturnRequestRequest.pickupName,
-      pickupAddress: createReturnRequestRequest.pickupAddress,
       pickupType: createReturnRequestRequest.pickupType,
       pickupNote: createReturnRequestRequest.pickupNote,
     };
