@@ -6,6 +6,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { RefundStatus } from '@/shared/enum/refund-status.enum';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
+import { OrderService } from '@/module/order/order.service';
 
 import { RefundService } from './refund.service';
 import { RefundEntity } from './entity/refund.entity';
@@ -18,6 +19,7 @@ describe('RefundService', () => {
   let mockRefundRepository: any;
   let mockRefundHistoryRepository: any;
   let mockEntityManager: any;
+  let mockOrderService: any;
 
   const mockSeller = {
     id: 'seller-id-1',
@@ -67,6 +69,10 @@ describe('RefundService', () => {
       persistAndFlush: jest.fn(),
     };
 
+    mockOrderService = {
+      markOrderAsRefunded: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RefundService,
@@ -81,6 +87,10 @@ describe('RefundService', () => {
         {
           provide: EntityManager,
           useValue: mockEntityManager,
+        },
+        {
+          provide: OrderService,
+          useValue: mockOrderService,
         },
       ],
     }).compile();
@@ -204,8 +214,10 @@ describe('RefundService', () => {
 
       expect(mockRefundWithProcessingStatus.status).toBe(RefundStatus.COMPLETED);
       expect(mockRefundWithProcessingStatus.statusMemo).toBe('반품 처리 완료하였습니다.');
-      expect(mockRefundWithProcessingStatus.orderItem.order.status).toBe(OrderStatus.REFUNDED);
-      expect(mockEntityManager.persistAndFlush).toHaveBeenCalledTimes(2);
+      expect(mockOrderService.markOrderAsRefunded).toHaveBeenCalledWith(
+        mockRefundWithProcessingStatus.orderItem.order.id,
+      );
+      expect(mockEntityManager.persistAndFlush).toHaveBeenCalled();
 
       // 히스토리 생성 확인
       expect(mockRefundHistoryRepository.persist).toHaveBeenCalled();

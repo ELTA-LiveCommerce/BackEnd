@@ -623,6 +623,18 @@ export class OrderService {
   }
 
   /**
+   * 반품 완료 시 주문 상태를 REFUNDED로 변경합니다.
+   * @param orderId 주문 ID
+   */
+  async markOrderAsRefunded(orderId: string): Promise<void> {
+    const order = await this._findOrderById(orderId);
+    if (!order) {
+      throw new NotFoundException(`주문 ID ${orderId}를 찾을 수 없습니다.`);
+    }
+    await this._updateStatus(order, OrderStatus.REFUNDED);
+  }
+
+  /**
    * 주문에 대한 배송 정보를 생성합니다.
    * @param order 주문 엔티티
    * @private

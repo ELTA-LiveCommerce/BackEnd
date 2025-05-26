@@ -1,5 +1,12 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { QueryOrder, EntityManager } from '@mikro-orm/core';
 import { QueryBuilder } from '@mikro-orm/postgresql';
 
@@ -11,6 +18,7 @@ import { RefundStatus } from '@/shared/enum/refund-status.enum';
 import { User } from '@/module/user/entity/user.entity';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
+import { OrderService } from '@/module/order/order.service';
 import { RefundStatusHistoryEntity } from './entity/refund-status-history.entity';
 import { RefundStatusHistoryRepository } from './repository/refund-status-history.repository';
 import { RefundStatusHistoryDto } from './dto/refund-status-history.dto';
@@ -28,6 +36,8 @@ export class RefundService {
     @InjectRepository(RefundStatusHistoryEntity)
     private readonly refundStatusHistoryRepository: RefundStatusHistoryRepository,
     private readonly em: EntityManager,
+    @Inject(forwardRef(() => OrderService))
+    private readonly orderService: OrderService,
   ) {}
 
   async findSellerRefundsPaged(
@@ -93,7 +103,8 @@ export class RefundService {
     // Clone for count query before applying limit/offset
     qb.limit(limit).offset(offset);
 
-    const refundMaps = await qb.clone()
+    const refundMaps = await qb
+      .clone()
       .orderBy({ [dateField]: QueryOrder.DESC })
       .limit(limit)
       .offset(offset)
@@ -195,8 +206,7 @@ export class RefundService {
       case RefundStatus.COMPLETED:
         // 완료 상태로 변경 시 관련 주문 상태도 변경 (REFUNDED)
         if (refund.orderItem?.order) {
-          refund.orderItem.order.status = OrderStatus.REFUNDED;
-          await this.em.persistAndFlush(refund.orderItem.order);
+          await this.orderService.markOrderAsRefunded(refund.orderItem.order.id);
         }
         break;
 
