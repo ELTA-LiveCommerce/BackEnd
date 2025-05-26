@@ -23,7 +23,7 @@ export class AdminFeeResponse {
       sellerName: user.name,
       bankAccount: user.bankAccount || 'N/A',
       phoneNumber: user.phoneNumber || 'N/A',
-      feePercentage: user.feePercentage || 0.1, // 기본 수수료 10%
+      feePercentage: user.feePercentage, // 기본 수수료 10%
     };
   }
 }
@@ -51,3 +51,4 @@ export class AdminFeeListResponse {
     };
   }
 }
+
