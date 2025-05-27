@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
+import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 
 export class AdminBroadcastProductResponse {
   @ApiProperty({ description: '상품 ID' })
@@ -29,7 +30,7 @@ export class AdminBroadcastProductResponse {
   }
 }
 
-export class AdminBroadcastResponse {
+export class AdminBroadcastResponseBody {
   @ApiProperty({ description: '방송 ID' })
   id: string;
 
@@ -60,7 +61,7 @@ export class AdminBroadcastResponse {
   @ApiProperty({ description: '상품 목록', type: [AdminBroadcastProductResponse] })
   products: AdminBroadcastProductResponse[];
 
-  static fromEntity(broadcast: Broadcast): AdminBroadcastResponse {
+  static fromEntity(broadcast: Broadcast): AdminBroadcastResponseBody {
     return {
       id: broadcast.id,
       title: broadcast.title,
@@ -78,26 +79,63 @@ export class AdminBroadcastResponse {
   }
 }
 
-export class AdminBroadcastListResponse {
-  @ApiProperty({ description: '응답 데이터' })
-  data: {
-    items: AdminBroadcastResponse[];
+export class AdminBroadcastResponse extends BaseResponseV2<AdminBroadcastResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
+
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
+
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
+
+  @ApiProperty({ description: '방송 상세 정보', type: AdminBroadcastResponseBody })
+  declare data: AdminBroadcastResponseBody;
+
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
+
+  static fromEntity(broadcast: Broadcast): AdminBroadcastResponse {
+    const body = AdminBroadcastResponseBody.fromEntity(broadcast);
+    return BaseResponseV2.success(body);
+  }
+}
+
+export class AdminBroadcastListResponse extends PagedResponseV2<AdminBroadcastResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
+
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
+
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
+
+  @ApiProperty({
+    description: '페이지네이션된 방송 목록 데이터',
+    type: 'object',
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/AdminBroadcastResponseBody' } },
+      total: { type: 'number', description: '전체 항목 수' },
+      page: { type: 'number', description: '현재 페이지 번호' },
+      limit: { type: 'number', description: '페이지당 항목 수' },
+      totalPages: { type: 'number', description: '전체 페이지 수' },
+    },
+  })
+  declare data: {
+    items: AdminBroadcastResponseBody[];
     total: number;
     page: number;
     limit: number;
     totalPages: number;
   };
 
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
+
   static fromResult(broadcasts: Broadcast[], total: number, page: number, limit: number): AdminBroadcastListResponse {
-    const totalPages = Math.ceil(total / limit);
-    return {
-      data: {
-        items: broadcasts.map(AdminBroadcastResponse.fromEntity),
-        total,
-        page,
-        limit,
-        totalPages,
-      },
-    };
+    const items = broadcasts.map(AdminBroadcastResponseBody.fromEntity);
+    return new AdminBroadcastListResponse(items, total, page, limit);
   }
 }
+

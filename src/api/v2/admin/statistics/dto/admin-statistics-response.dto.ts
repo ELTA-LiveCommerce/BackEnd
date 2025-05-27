@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { BaseResponse, BaseOffsetPageResponse, OffsetPage } from '@/shared/common/base-response';
+import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 
 export class AdminSellerStatisticsResponseBody {
   @ApiProperty({ description: '셀러 ID', example: 'user-123' })
@@ -36,28 +36,63 @@ export class AdminSellerStatisticsResponseBody {
   }
 }
 
-export class AdminSellerStatisticsListResponseBody extends OffsetPage<AdminSellerStatisticsResponseBody> {
-  static fromResult(
-    statistics: any[],
-    total: number,
-    page: number,
-    limit: number,
-  ): AdminSellerStatisticsListResponseBody {
+export class AdminSellerStatisticsListResponse extends PagedResponseV2<AdminSellerStatisticsResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
+
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
+
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
+
+  @ApiProperty({
+    description: '페이지네이션된 셀러 통계 데이터',
+    type: 'object',
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/AdminSellerStatisticsResponseBody' } },
+      total: { type: 'number', description: '전체 항목 수' },
+      page: { type: 'number', description: '현재 페이지 번호' },
+      limit: { type: 'number', description: '페이지당 항목 수' },
+      totalPages: { type: 'number', description: '전체 페이지 수' },
+    },
+  })
+  declare data: {
+    items: AdminSellerStatisticsResponseBody[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
+
+  static fromResult(statistics: any[], total: number, page: number, limit: number): AdminSellerStatisticsListResponse {
     const items = statistics.map((stat) => AdminSellerStatisticsResponseBody.fromEntity(stat));
-    return new AdminSellerStatisticsListResponseBody(items, total, limit, page);
+    return new AdminSellerStatisticsListResponse(items, total, page, limit);
   }
 }
 
-export class AdminSellerStatisticsResponse extends BaseResponse<AdminSellerStatisticsResponseBody> {
+export class AdminSellerStatisticsResponse extends BaseResponseV2<AdminSellerStatisticsResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
+
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
+
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
+
+  @ApiProperty({ description: '셀러 통계 정보', type: AdminSellerStatisticsResponseBody })
+  declare data: AdminSellerStatisticsResponseBody;
+
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
+
   static fromEntity(entity: any): AdminSellerStatisticsResponse {
     const body = AdminSellerStatisticsResponseBody.fromEntity(entity);
-    return new AdminSellerStatisticsResponse(body);
+    return BaseResponseV2.success(body);
   }
 }
 
-export class AdminSellerStatisticsListResponse extends BaseOffsetPageResponse<AdminSellerStatisticsResponseBody> {
-  static fromResult(statistics: any[], total: number, page: number, limit: number): AdminSellerStatisticsListResponse {
-    const body = AdminSellerStatisticsListResponseBody.fromResult(statistics, total, page, limit);
-    return new AdminSellerStatisticsListResponse(body);
-  }
-}

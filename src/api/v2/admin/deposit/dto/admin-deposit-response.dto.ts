@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { DepositStatus } from '@/shared/enum/deposit-status.enum';
-import { BaseResponse, BaseOffsetPageResponse, OffsetPage } from '@/shared/common/base-response';
+import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 
 export class AdminDepositResponseBody {
   @ApiProperty({ description: '입금 ID', example: 'deposit-123' })
@@ -49,24 +49,63 @@ export class AdminDepositResponseBody {
   }
 }
 
-export class AdminDepositListResponseBody extends OffsetPage<AdminDepositResponseBody> {
-  static fromResult(deposits: any[], total: number, page: number, limit: number): AdminDepositListResponseBody {
+export class AdminDepositListResponse extends PagedResponseV2<AdminDepositResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
+
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
+
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
+
+  @ApiProperty({
+    description: '페이지네이션된 입금 목록 데이터',
+    type: 'object',
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/AdminDepositResponseBody' } },
+      total: { type: 'number', description: '전체 항목 수' },
+      page: { type: 'number', description: '현재 페이지 번호' },
+      limit: { type: 'number', description: '페이지당 항목 수' },
+      totalPages: { type: 'number', description: '전체 페이지 수' },
+    },
+  })
+  declare data: {
+    items: AdminDepositResponseBody[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
+
+  static fromResult(deposits: any[], total: number, page: number, limit: number): AdminDepositListResponse {
     const items = deposits.map((deposit) => AdminDepositResponseBody.fromEntity(deposit));
-    return new AdminDepositListResponseBody(items, total, limit, page);
+    return new AdminDepositListResponse(items, total, page, limit);
   }
 }
 
-export class AdminDepositResponse extends BaseResponse<AdminDepositResponseBody> {
+export class AdminDepositResponse extends BaseResponseV2<AdminDepositResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
+
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
+
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
+
+  @ApiProperty({ description: '입금 상세 정보', type: AdminDepositResponseBody })
+  declare data: AdminDepositResponseBody;
+
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
+
   static fromEntity(deposit: any): AdminDepositResponse {
     const body = AdminDepositResponseBody.fromEntity(deposit);
-    return new AdminDepositResponse(body);
-  }
-}
-
-export class AdminDepositListResponse extends BaseOffsetPageResponse<AdminDepositResponseBody> {
-  static fromResult(deposits: any[], total: number, page: number, limit: number): AdminDepositListResponse {
-    const body = AdminDepositListResponseBody.fromResult(deposits, total, page, limit);
-    return new AdminDepositListResponse(body);
+    return BaseResponseV2.success(body);
   }
 }
 
