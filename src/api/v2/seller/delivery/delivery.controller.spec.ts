@@ -30,20 +30,21 @@ describe('DeliveryController (Seller V2)', () => {
     mainImage: 'https://example.com/image.jpg',
   } as Product;
 
-  const mockOrder = {
-    id: 'order-uuid-1',
-    user: mockBuyer,
-    items: { getItems: () => [mockOrderItem] }, // 컬렉션 모킹
-    createdAt: new Date(),
-  } as unknown as Order; // Type assertion for complex mock
-
   const mockOrderItem = {
     id: 'order-item-uuid-1',
     product: mockProduct,
     quantity: 1,
-    order: mockOrder,
   } as OrderItem;
-  mockOrder.items.getItems = () => [mockOrderItem]; // 순환 참조 해결을 위해 재할당
+
+  const mockOrder = {
+    id: 'order-uuid-1',
+    user: mockBuyer,
+    items: [mockOrderItem], // 배열로 직접 할당
+    createdAt: new Date(),
+  } as unknown as Order;
+
+  // 순환 참조 설정
+  mockOrderItem.order = mockOrder;
 
   const mockDelivery = {
     id: 'delivery-uuid-1',
@@ -153,3 +154,4 @@ describe('DeliveryController (Seller V2)', () => {
     });
   });
 });
+

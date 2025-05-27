@@ -97,7 +97,7 @@ export class AdminOrderResponseBody {
     response.updatedAt = entity.updatedAt;
 
     // items가 배열이 아닌 Collection인 경우 Array.from으로 변환
-    const items = Array.isArray(entity.items) ? entity.items : Array.from(entity.items || []);
+    const items: OrderItem[] = Array.isArray(entity.items) ? entity.items : Array.from(entity.items || []);
     response.items = items.map((item) => AdminOrderItemResponseBody.fromEntity(item));
 
     return response;

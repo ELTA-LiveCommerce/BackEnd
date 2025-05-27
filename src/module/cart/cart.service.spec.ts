@@ -38,11 +38,7 @@ describe('CartService', () => {
   const mockCart = {
     id: 'cart-id-1',
     user: mockUser,
-    items: {
-      getItems: jest.fn().mockReturnValue([mockCartItem]),
-      add: jest.fn(),
-      removeAll: jest.fn(),
-    },
+    items: [], // 실제 배열로 변경
   };
 
   beforeEach(async () => {
@@ -144,7 +140,7 @@ describe('CartService', () => {
       await service.addToCart(mockUser.id, mockProduct.id, 2);
 
       // Then
-      expect(mockCart.items.add).toHaveBeenCalled();
+      expect(mockCart.items.length).toBeGreaterThan(0); // 배열에 아이템이 추가되었는지 확인
       expect(entityManagerMock.flush).toHaveBeenCalled();
     });
 
@@ -272,7 +268,7 @@ describe('CartService', () => {
       await service.clearCart(mockUser.id);
 
       // Then
-      expect(mockCart.items.removeAll).toHaveBeenCalled();
+      expect(mockCart.items.length).toBe(0); // 배열이 비워졌는지 확인
       expect(entityManagerMock.flush).toHaveBeenCalled();
     });
   });

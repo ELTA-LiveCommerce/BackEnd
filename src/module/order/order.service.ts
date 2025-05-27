@@ -92,7 +92,7 @@ export class OrderService {
       }
 
       const orderItem = new OrderItem(order, product, itemDto.quantity, product.price /*, itemDto.attributes*/);
-      order.items.add(orderItem);
+      order.items.push(orderItem);
       order.totalAmount += orderItem.totalPrice;
       product.stockQuantity -= itemDto.quantity;
       this.entityManager.persist(product);
@@ -160,7 +160,7 @@ export class OrderService {
       }
     }
 
-    const orderItemsData: OrderItemResponseDto[] = order.items.getItems().map((item) => ({
+    const orderItemsData: OrderItemResponseDto[] = order.items.map((item) => ({
       id: item.id,
       productId: item.product.id,
       productName: item.product.name,
@@ -334,7 +334,7 @@ export class OrderService {
       throw new NotFoundException('주문을 찾을 수 없습니다.');
     }
 
-    const isSellerProductInOrder = order.items.getItems().some((item) => item.product.seller?.id === sellerId);
+    const isSellerProductInOrder = order.items.some((item) => item.product.seller?.id === sellerId);
 
     if (!isSellerProductInOrder) {
       throw new ForbiddenException('해당 주문에 대한 배송 정보를 업데이트할 권한이 없습니다.');
@@ -368,7 +368,7 @@ export class OrderService {
    * @param order 주문 Entity
    */
   private mapToOrderResponseDto(order: Order): OrderResponseDto {
-    const itemDtos: OrderItemResponseDto[] = order.items.getItems().map((item) => ({
+    const itemDtos: OrderItemResponseDto[] = order.items.map((item) => ({
       id: item.id,
       productId: item.product.id,
       productName: item.product.name,
@@ -409,7 +409,7 @@ export class OrderService {
     return {
       id: order.id,
       orderNumber: order.orderNumber,
-      products: order.items.getItems().map((item) => ({
+      products: order.items.map((item) => ({
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
@@ -661,7 +661,7 @@ export class OrderService {
       { seller: User; products: Array<{ product: Product; quantity: number }> }
     >();
 
-    for (const orderItem of order.items.getItems()) {
+    for (const orderItem of order.items) {
       const product = orderItem.product;
       const sellerId = product.seller.id;
 

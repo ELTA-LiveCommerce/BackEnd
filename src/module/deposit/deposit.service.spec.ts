@@ -153,10 +153,7 @@ describe('DepositService', () => {
       user: mockUserBuyer1,
       orderNumber: 'ORDER-001',
       status: OrderStatus.PAID,
-      items: {
-        getItems: jest.fn(() => [mockOrderItemA]),
-        count: jest.fn(() => 1),
-      } as any,
+      items: [mockOrderItemA], // 배열로 변경
       totalAmount: 10000,
       shippingAddress: 'Address A Detail A',
       createdAt: new Date('2023-01-01'),
@@ -231,8 +228,8 @@ describe('DepositService', () => {
       expect(result.data.items.length).toBe(total);
 
       expect(result.data.items[0].orderId).toBe(mockOrders[0].id);
-      expect(result.data.items[0].productName).toBe(mockOrders[0].items.getItems()[0].product.name);
-      expect(result.data.items[0].quantity).toBe(mockOrders[0].items.getItems()[0].quantity);
+      expect(result.data.items[0].productName).toBe(mockOrders[0].items[0].product.name);
+      expect(result.data.items[0].quantity).toBe(mockOrders[0].items[0].quantity);
       expect(result.data.items[0].buyerLoginId).toBe(mockOrders[0].user.loginId);
       expect(result.data.items[0].buyerAddress).toBe(mockOrders[0].shippingAddress);
 
@@ -260,21 +257,15 @@ describe('DepositService', () => {
     const orderIds = [orderId1, orderId2];
 
     // Helper to create mocks with init functions
-    const createMockOrderItems = (targetSellerId: string) => ({
-      init: jest.fn().mockResolvedValue(undefined), // Mock for order.items.init()
-      getItems: () => [
-        {
-          product: {
-            init: jest.fn().mockResolvedValue(undefined), // Mock for item.product.init()
-            seller: {
-              id: targetSellerId,
-              init: jest.fn().mockResolvedValue(undefined), // Mock for product.seller.init()
-            },
+    const createMockOrderItems = (targetSellerId: string) => [
+      {
+        product: {
+          seller: {
+            id: targetSellerId,
           },
-          // Mock for OrderItem.init() might be needed if accessed directly
         },
-      ],
-    });
+      },
+    ];
 
     const mockOrder1 = {
       id: orderId1,
@@ -401,3 +392,4 @@ describe('DepositService', () => {
     });
   });
 });
+

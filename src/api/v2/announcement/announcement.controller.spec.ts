@@ -29,11 +29,11 @@ describe('AnnouncementController', () => {
     isVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-    logins: new Collection<any>(this as any), // logins 필드 모킹 수정
-    following: new Collection<any>(this as any),
-    followers: new Collection<any>(this as any),
-    blockedUsersByMe: new Collection<any>(this as any), // 추가된 필드
-    blockingSellersOfMe: new Collection<any>(this as any), // 추가된 필드
+    logins: [], // 배열 타입으로 수정
+    following: [],
+    followers: [],
+    blockedUsersByMe: [], // 배열 타입으로 수정
+    blockingSellersOfMe: [], // 배열 타입으로 수정
   } as UserEntity;
 
   beforeEach(async () => {
@@ -128,3 +128,4 @@ describe('AnnouncementController', () => {
     });
   });
 });
+
