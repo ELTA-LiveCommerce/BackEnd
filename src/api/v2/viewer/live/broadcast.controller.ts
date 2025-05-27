@@ -18,6 +18,7 @@ import {
   BroadcastProductsResponseDto,
 } from '@/module/broadcast/dto/current-selling-product.dto';
 import { ApiResponse } from '@/api/v2/common/api-response.dto';
+import { BroadcastAnnouncementResponseDto } from '@/module/broadcast/dto/broadcast-announcement.dto';
 
 @ApiTags('v2/viewer/lives')
 @Controller('v2/viewer/lives')
@@ -80,6 +81,30 @@ export class BroadcastController {
   /**
    * 현재 방송에서 판매 중인 상품 조회
    */
+
+  @Get(':id/announcement')
+  @ApiOperation({ summary: '방송 공지사항 조회' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({
+    description: '방송 공지사항 정보',
+    type: ApiResponse.withData(BroadcastAnnouncementResponseDto),
+  })
+  async getBroadcastAnnouncement(
+    @Param('id') broadcastId: string,
+  ): Promise<ApiResponse<BroadcastAnnouncementResponseDto | null>> {
+    const announcement = await this.broadcastService.getBroadcastAnnouncement(broadcastId);
+
+    // 방송 공지사항이 없는 경우 null 반환
+    if (!announcement) {
+      return ApiResponse.success(null, '방송 공지사항이 없습니다.');
+    }
+
+    return ApiResponse.success(
+      BroadcastAnnouncementResponseDto.fromEntity({ content: announcement }),
+      '방송 공지사항 조회 성공',
+    );
+  }
+
   @Get(':id/current-product')
   @ApiOperation({ summary: '현재 방송에서 판매 중인 상품 조회' })
   @ApiParam({ name: 'id', description: '방송 ID' })

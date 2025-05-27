@@ -21,6 +21,7 @@ import {
   BroadcastProductsResponseDto,
 } from '@/module/broadcast/dto/current-selling-product.dto';
 import { ApiResponse } from '@/api/v2/common/api-response.dto';
+import { BroadcastAnnouncementDto, BroadcastAnnouncementResponseDto } from '@/module/broadcast/dto/broadcast-announcement.dto';
 
 @ApiTags('v2/seller/lives')
 @Controller('v2/seller/lives')
@@ -138,6 +139,33 @@ export class BroadcastController {
 
     const productDto = CurrentSellingProductDto.fromEntity(currentProduct);
     return ApiResponse.success(productDto, '방송 상품 조회 성공');
+  }
+
+  /**
+   * 현재 방송 공지 변경
+   */
+  @Put(':id/announcement')
+  @ApiOperation({ summary: '현재 방송 공지 변경' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({
+    description: '변경된 방송 공지 정보',
+    type: ApiResponse.withData(BroadcastAnnouncementResponseDto),
+  })
+  async updateBroadcastAnnouncement(
+    @Param('id') broadcastId: string,
+    @Body() dto: BroadcastAnnouncementDto,
+    @CurrentUser() seller: User,
+  ): Promise<ApiResponse<BroadcastAnnouncementResponseDto>> {
+    const updatedAnnouncement = await this.broadcastService.updateBroadcastAnnouncement(
+      broadcastId,
+      dto.content,
+      seller.id,
+    );
+
+    return ApiResponse.success(
+      BroadcastAnnouncementResponseDto.fromEntity({ content: updatedAnnouncement }),
+      '방송 공지가 변경되었습니다.',
+    );
   }
 
   /**

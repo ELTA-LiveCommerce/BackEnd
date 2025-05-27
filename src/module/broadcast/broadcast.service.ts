@@ -495,5 +495,47 @@ export class BroadcastService {
     broadcast.stream.currentSellingProduct = undefined;
     this.em.persist(broadcast.stream);
   }
+
+  async getBroadcastAnnouncement(broadcastId: string): Promise<string | null> {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream'] });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    if (!broadcast.stream) {
+      throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
+    }
+
+    // 방송 공지사항이 없으면 null 반환
+    return broadcast.stream.announcement || null;
+  }
+
+  async updateBroadcastAnnouncement(
+    broadcastId: string,
+    content: string,
+    sellerId: string,
+  ): Promise<string> {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    // 방송 소유자 확인
+    if (broadcast.seller.id !== sellerId) {
+      throw new ForbiddenException('이 방송의 공지사항을 변경할 권한이 없습니다.');
+    }
+
+    if (!broadcast.stream) {
+      throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
+    }
+
+    // 방송 공지사항 업데이트
+    broadcast.stream.announcement = content;
+    this.em.persistAndFlush(broadcast.stream);
+
+    return content;
+  }
 }
 

@@ -25,6 +25,9 @@ export class Stream {
   @Property({ nullable: true })
   endedAt?: Date;
 
+  @Property({ type: 'string', nullable: true })
+  announcement?: string;
+
   @ManyToOne(() => BroadcastProduct, { nullable: true })
   currentSellingProduct?: BroadcastProduct;
 
