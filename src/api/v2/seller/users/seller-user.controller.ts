@@ -45,7 +45,7 @@ export class SellerUserController {
       dto.name = user.name;
       dto.profileImage = user.profileImage;
       dto.status = user.isBlocked ? user.isBlocked : SellerUserDerivedStatus.ACTIVE;
-      dto.lastLoginAt = user.logins[0].lastLoginAt;
+      dto.lastLoginAt = user.logins ? user.logins[0].lastLoginAt : '';
       dto.createdAt = user.createdAt;
 
       // 확장된 필드 추가
