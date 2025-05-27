@@ -21,7 +21,11 @@
     "test:e2e:specific": "NODE_ENV=test dotenv -e .env.test -- jest --config ./test/jest-e2e.json -t",
     "test:e2e:setup": "docker-compose -f docker-compose.test.yml up -d",
     "test:e2e:teardown": "docker-compose -f docker-compose.test.yml down",
-    "test:e2e:ci": "npm run test:e2e:setup && npm run test:e2e && npm run test:e2e:teardown"
+    "test:e2e:ci": "npm run test:e2e:setup && npm run test:e2e && npm run test:e2e:teardown",
+    "seed": "npm run build && npx mikro-orm seeder:run",
+    "seed:admin": "npm run build && npx mikro-orm seeder:run --class=AdminSeeder",
+    "seed:seller": "npm run build && npx mikro-orm seeder:run --class=SellerSeeder",
+    "seed:basic": "npm run build && npx mikro-orm seeder:run --class=AdminSeeder && npx mikro-orm seeder:run --class=SellerSeeder"
   },
   "dependencies": {
     "@mikro-orm/core": "~5.1.5",
