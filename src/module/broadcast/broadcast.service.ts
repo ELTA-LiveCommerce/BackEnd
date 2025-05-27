@@ -242,7 +242,7 @@ export class BroadcastService {
     }
 
     const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'subscriber');
-    const chatToken = this.agora.chatUserToken(userId);
+    const chatToken = this.agora.chatUserToken(uidChat);
     console.log(chatToken);
     console.log('Agora tokens:', { rtcToken, chatToken });
     return {
