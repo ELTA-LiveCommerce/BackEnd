@@ -45,6 +45,7 @@ export class DepositService {
     const offset = (page - 1) * limit;
 
     const depositCompletedStatuses = [
+      OrderStatus.PENDING,
       OrderStatus.PAID,
       OrderStatus.PROCESSING,
       OrderStatus.SHIPPED,
