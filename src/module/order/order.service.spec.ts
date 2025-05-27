@@ -17,26 +17,7 @@ import { OrderStatus } from '@/shared/enum/order-status.enum';
 import { NotificationService } from '@/module/notification/notification.service';
 
 // Mock Collection 클래스
-class MockCollection {
-  private items: any[] = [];
-
-  constructor(items: any[] = []) {
-    this.items = items;
-  }
-
-  add(...items: any[]) {
-    this.items.push(...items);
-    return this;
-  }
-
-  getItems() {
-    return this.items;
-  }
-
-  isInitialized() {
-    return true;
-  }
-}
+// MockCollection 제거 - 이제 배열을 직접 사용
 
 describe('OrderService', () => {
   let service: OrderService;
@@ -99,7 +80,7 @@ describe('OrderService', () => {
       user: mockUser,
       status: OrderStatus.PENDING,
       totalAmount: 200,
-      items: new MockCollection([mockOrderItem]),
+      items: [mockOrderItem],
       createdAt: new Date('2023-01-01'),
       updatedAt: new Date('2023-01-01'),
       shippingAddress: '서울시 강남구',
@@ -638,7 +619,7 @@ describe('OrderService', () => {
       // Arrange
       const mockOrderWithItems = {
         ...mockOrder,
-        items: new MockCollection([mockOrderItem]),
+        items: [mockOrderItem],
         user: mockUser,
         shippingAddress: '서울시 강남구',
         paidAt: undefined,

@@ -92,7 +92,7 @@ export class DepositService {
     const orders = await qb.getResultList();
 
     const depositListItems = orders.flatMap((order) =>
-      order.items.getItems().map((orderItem) => {
+      order.items.map((orderItem) => {
         const item = new DepositListItemDto();
         item.orderId = order.id;
         item.productMainImage = orderItem.product?.mainImage ?? null;
@@ -126,8 +126,8 @@ export class DepositService {
 
         // Check if the order belongs to the seller using a standard loop for async compatibility
         let isSellerOrder = false;
-        await wrap(order.items).init(); // Ensure items are loaded before looping
-        for (const item of order.items.getItems()) {
+        // Items are already loaded as array, no need to init
+        for (const item of order.items) {
           await wrap(item.product).init();
           await wrap(item.product?.seller)?.init();
           if (item.product?.seller?.id === sellerId) {
@@ -224,7 +224,7 @@ export class DepositService {
     const orders = await qb.getResultList();
 
     const deposits = orders.flatMap((order) =>
-      order.items.getItems().map((orderItem) => {
+      order.items.map((orderItem) => {
         return {
           id: order.id,
           quantity: orderItem.quantity,
@@ -262,7 +262,7 @@ export class DepositService {
       throw new NotFoundException(`주문 ID ${id}를 찾을 수 없습니다.`);
     }
 
-    const orderItem = order.items.getItems()[0]; // 첫 번째 아이템만 사용 (개선 가능)
+    const orderItem = order.items[0]; // 첫 번째 아이템만 사용 (개선 가능)
 
     if (!orderItem) {
       throw new NotFoundException(`주문 ID ${id}에 해당하는 상품이 없습니다.`);
@@ -309,7 +309,7 @@ export class DepositService {
 
     await this.orderRepository.flush();
 
-    const orderItem = order.items.getItems()[0]; // 첫 번째 아이템만 사용 (개선 가능)
+    const orderItem = order.items[0]; // 첫 번째 아이템만 사용 (개선 가능)
 
     return {
       id: order.id,

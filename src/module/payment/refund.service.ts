@@ -56,21 +56,21 @@ export class RefundService {
         throw new ForbiddenException('You do not have permission to request refund for this order');
       }
       // 판매자 ID 찾기
-      const sellerProduct = order.items.getItems().find((item) => item.product?.seller);
+      const sellerProduct = order.items.find((item) => item.product?.seller);
       if (!sellerProduct || !sellerProduct.product?.seller) {
         throw new BadRequestException('Cannot find seller information for this order');
       }
       sellerId = sellerProduct.product.seller.id;
     } else if (user.role === UserRole.SELLER) {
       // 판매자인 경우, 자신이 판매한 상품의 주문만 환불 가능
-      const isSeller = order.items.getItems().some((item) => item.product?.seller?.id === user.id);
+      const isSeller = order.items.some((item) => item.product?.seller?.id === user.id);
       if (!isSeller) {
         throw new ForbiddenException('You do not have permission to refund this order');
       }
       sellerId = user.id;
     } else {
       // 관리자인 경우 판매자 ID 찾기
-      const sellerProduct = order.items.getItems().find((item) => item.product?.seller);
+      const sellerProduct = order.items.find((item) => item.product?.seller);
       if (!sellerProduct || !sellerProduct.product?.seller) {
         throw new BadRequestException('Cannot find seller information for this order');
       }
@@ -168,7 +168,7 @@ export class RefundService {
       }
     } else if (user.role === UserRole.SELLER) {
       // 판매자는 자신이 판매한 상품의 주문에 대한 환불만 조회 가능
-      const isSeller = order.items.getItems().some((item) => item.product?.seller?.id === user.id);
+      const isSeller = order.items.some((item) => item.product?.seller?.id === user.id);
       if (!isSeller) {
         throw new ForbiddenException('You do not have permission to view refunds for this order');
       }
@@ -240,3 +240,4 @@ export class RefundService {
     await this.entityManager.removeAndFlush(refund);
   }
 }
+

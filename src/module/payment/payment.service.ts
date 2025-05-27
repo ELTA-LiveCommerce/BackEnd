@@ -61,7 +61,7 @@ export class PaymentService {
     }
 
     // 판매자 권한 확인
-    const isSellerProduct = order.items.getItems().some((item) => item.product?.seller?.id === user.id);
+    const isSellerProduct = order.items.some((item) => item.product?.seller?.id === user.id);
     if (!isSellerProduct && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('You do not have permission to manage payment for this order');
     }
@@ -174,7 +174,7 @@ export class PaymentService {
     // 관리자가 아닌 경우, 자신의 주문 또는 판매한 상품의 입금만 볼 수 있음
     if (user.role !== UserRole.ADMIN) {
       const isBuyer = order.user?.id === user.id;
-      const isSeller = order.items.getItems().some((item) => item.product?.seller?.id === user.id);
+      const isSeller = order.items.some((item) => item.product?.seller?.id === user.id);
 
       if (!isBuyer && !isSeller) {
         throw new ForbiddenException('You do not have permission to view this payment information');
@@ -296,3 +296,4 @@ export class PaymentService {
     await this.entityManager.flush();
   }
 }
+

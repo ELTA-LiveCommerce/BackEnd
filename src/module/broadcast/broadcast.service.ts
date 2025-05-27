@@ -1,6 +1,6 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager, QueryBuilder } from '@mikro-orm/postgresql';
-import { Collection, Loaded } from '@mikro-orm/core';
+import { Loaded } from '@mikro-orm/core';
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -58,19 +58,19 @@ export class BroadcastService {
           throw new BadRequestException(`Following product IDs not found: ${notFoundProductIds.join(', ')}`);
         }
 
-        broadcast.products = new Collection<BroadcastProduct>(broadcast);
+        broadcast.products = [];
         for (let i = 0; i < products.length; i++) {
           const product = products[i];
           const broadcastProduct = new BroadcastProduct();
           broadcastProduct.broadcast = broadcast;
           broadcastProduct.product = product;
           broadcastProduct.sortOrder = i;
-          broadcast.products.add(broadcastProduct);
+          broadcast.products.push(broadcastProduct);
           em.persist(broadcastProduct);
         }
       }
 
-      const productInfos = broadcast.products.getItems().map((bp) => ({
+      const productInfos = broadcast.products.map((bp) => ({
         id: bp.product.id,
         name: bp.product.name,
       }));
@@ -153,7 +153,7 @@ export class BroadcastService {
           description: b.description,
           thumbnailUrl: b.thumbnailUrl,
           scheduledAt: b.scheduledAt,
-          products: b.products.getItems().map((bp) => ({
+          products: b.products.map((bp) => ({
             id: bp.product.id,
             name: bp.product.name,
           })),
@@ -168,7 +168,6 @@ export class BroadcastService {
   // TODO: 방송 시작/종료, 상품 연동 등의 메서드 추가
   async start(hostUserId: string, broadcastId: string) {
     return this.em.transactional(async (em) => {
-
       /* ── 1. 방송·권한 체크 (변동 없음) ─────────────── */
       const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
       if (!broadcast) throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
@@ -511,11 +510,7 @@ export class BroadcastService {
     return broadcast.stream.announcement || null;
   }
 
-  async updateBroadcastAnnouncement(
-    broadcastId: string,
-    content: string,
-    sellerId: string,
-  ): Promise<string> {
+  async updateBroadcastAnnouncement(broadcastId: string, content: string, sellerId: string): Promise<string> {
     const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
 
     if (!broadcast) {

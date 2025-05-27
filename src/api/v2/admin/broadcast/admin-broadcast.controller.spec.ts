@@ -100,7 +100,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-01'),
           isLive: false,
           maxViewers: 0,
-          products: { getItems: () => [], isInitialized: () => true },
+          products: [],
         } as unknown as Broadcast,
         {
           id: 'broadcast-2',
@@ -109,7 +109,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-02'),
           isLive: false,
           maxViewers: 0,
-          products: { getItems: () => [], isInitialized: () => true },
+          products: [],
         } as unknown as Broadcast,
       ];
 
@@ -165,7 +165,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-01'),
           isLive: false,
           maxViewers: 0,
-          products: { getItems: () => [], isInitialized: () => true },
+          products: [],
         } as unknown as Broadcast,
         {
           id: 'broadcast-2',
@@ -174,7 +174,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-02'),
           isLive: false,
           maxViewers: 0,
-          products: { getItems: () => [], isInitialized: () => true },
+          products: [],
         } as unknown as Broadcast,
       ];
 
@@ -207,7 +207,7 @@ describe('AdminBroadcastController', () => {
         scheduledAt: new Date('2023-07-01'),
         isLive: false,
         maxViewers: 0,
-        products: { getItems: () => [], isInitialized: () => true },
+        products: [],
         createdAt: new Date(),
       } as unknown as Broadcast;
 

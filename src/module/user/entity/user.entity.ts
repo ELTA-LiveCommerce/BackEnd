@@ -1,5 +1,4 @@
 import {
-  Collection,
   Entity,
   Enum,
   OneToMany,
@@ -70,13 +69,13 @@ export class User extends BaseEntity {
   deletedAt?: Date;
 
   @OneToMany(() => Login, (login) => login.user)
-  logins = new Collection<Login>(this);
+  logins: Login[] = [];
 
   @OneToMany(() => Follow, (follow) => follow.follower)
-  following = new Collection<Follow>(this);
+  following: Follow[] = [];
 
   @OneToMany(() => Follow, (follow) => follow.following)
-  followers = new Collection<Follow>(this);
+  followers: Follow[] = [];
 
   @OneToOne(() => SellerInfo, (sellerInfo) => sellerInfo.user, {
     cascade: [Cascade.ALL],
@@ -87,9 +86,9 @@ export class User extends BaseEntity {
   sellerInfo?: SellerInfo;
 
   @OneToMany(() => SellerUserBlock, (block) => block.seller, { cascade: [Cascade.ALL] })
-  blockedUsersByMe = new Collection<SellerUserBlock>(this);
+  blockedUsersByMe: SellerUserBlock[] = [];
 
   @OneToMany(() => SellerUserBlock, (block) => block.blockedUser, { cascade: [Cascade.ALL] })
-  blockingSellersOfMe = new Collection<SellerUserBlock>(this);
+  blockingSellersOfMe: SellerUserBlock[] = [];
 }
 

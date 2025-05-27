@@ -72,9 +72,7 @@ export class AdminBroadcastResponseBody {
       thumbnailUrl: broadcast.thumbnailUrl,
       isLive: broadcast.isLive,
       maxViewers: broadcast.maxViewers || 0,
-      products: broadcast.products.isInitialized()
-        ? broadcast.products.getItems().map(AdminBroadcastProductResponse.fromBroadcastProduct)
-        : [],
+      products: broadcast.products ? broadcast.products.map(AdminBroadcastProductResponse.fromBroadcastProduct) : [],
     };
   }
 }
