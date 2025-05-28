@@ -94,6 +94,15 @@ export class SellerController {
       isFollowing = await this.userFollowService.isFollowing(currentUser.id, sellerId);
     }
 
+    // 셀러 비즈니스 정보 조회
+    let businessInfo: { businessName?: string; businessAddress?: string; businessNumber?: string } | null = null;
+    try {
+      businessInfo = await this.userService.getSellerInfo(sellerId);
+    } catch (error) {
+      // 비즈니스 정보가 없어도 기본 셀러 정보는 반환
+      console.warn(`Failed to get business info for seller ${sellerId}:`, error.message);
+    }
+
     // 응답 데이터 변환
     const sellerInfo: SellerInfoDto = {
       id: seller.id,
@@ -105,6 +114,10 @@ export class SellerController {
       followers: followersCount,
       following: followingCount,
       isFollowing,
+      // 비즈니스 정보 추가
+      businessName: businessInfo?.businessName,
+      businessAddress: businessInfo?.businessAddress,
+      businessNumber: businessInfo?.businessNumber,
     };
 
     return SellerInfoResponseDto.success(sellerInfo);

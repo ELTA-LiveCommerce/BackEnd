@@ -138,7 +138,14 @@ describe('SellerController', () => {
     it('should return seller information with follow status and follower count', async () => {
       const sellerId = 'test-seller-id';
       const query: SellerInfoRequestDto = {};
+      const mockBusinessInfo = {
+        businessName: 'ABC 상사',
+        businessAddress: '서울시 강남구 테헤란로 123',
+        businessNumber: '123-45-67890',
+      };
+
       userService.findOne.mockResolvedValue(mockSellerUser);
+      userService.getSellerInfo.mockResolvedValue(mockBusinessInfo);
       userFollowService.getFollowCounts.mockResolvedValue({
         followersCount: mockFollowers.length,
         followingCount: mockFollowing.length,
@@ -154,11 +161,15 @@ describe('SellerController', () => {
         followers: mockFollowers.length,
         following: mockFollowing.length,
         isFollowing: true,
+        businessName: 'ABC 상사',
+        businessAddress: '서울시 강남구 테헤란로 123',
+        businessNumber: '123-45-67890',
       };
       const expectedResponse = SellerInfoResponseDto.success(expectedSellerInfo);
 
       const result = await controller.getSellerInfo(sellerId, query, mockCurrentUser);
       expect(userService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(userService.getSellerInfo).toHaveBeenCalledWith(sellerId);
       expect(userFollowService.getFollowCounts).toHaveBeenCalledWith(sellerId);
       expect(userFollowService.isFollowing).toHaveBeenCalledWith(mockCurrentUser.id, sellerId);
       expect(result).toMatchObject({
@@ -170,7 +181,13 @@ describe('SellerController', () => {
     it('should return isFollowing as false when not following', async () => {
       const sellerId = 'test-seller-id';
       const query: SellerInfoRequestDto = {};
+
       userService.findOne.mockResolvedValue(mockSellerUser);
+      userService.getSellerInfo.mockResolvedValue({
+        businessName: 'ABC 상사',
+        businessAddress: undefined,
+        businessNumber: undefined,
+      });
       userFollowService.getFollowCounts.mockResolvedValue({
         followersCount: mockFollowers.length,
         followingCount: mockFollowing.length,
@@ -179,6 +196,9 @@ describe('SellerController', () => {
 
       const result = await controller.getSellerInfo(sellerId, query, mockCurrentUser);
       expect(result.data.isFollowing).toBe(false);
+      expect(result.data.businessName).toBe('ABC 상사');
+      expect(result.data.businessAddress).toBeUndefined();
+      expect(result.data.businessNumber).toBeUndefined();
     });
 
     it('should throw NotFoundException if seller not found', async () => {
@@ -192,7 +212,13 @@ describe('SellerController', () => {
     it('should handle non-authenticated users and set isFollowing to false', async () => {
       const sellerId = 'test-seller-id';
       const query: SellerInfoRequestDto = {};
+
       userService.findOne.mockResolvedValue(mockSellerUser);
+      userService.getSellerInfo.mockResolvedValue({
+        businessName: 'Test Business',
+        businessAddress: '테스트 주소',
+        businessNumber: '000-00-00000',
+      });
       userFollowService.getFollowCounts.mockResolvedValue({
         followersCount: mockFollowers.length,
         followingCount: mockFollowing.length,
@@ -201,9 +227,32 @@ describe('SellerController', () => {
       const result = await controller.getSellerInfo(sellerId, query, null as any);
 
       expect(userService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(userService.getSellerInfo).toHaveBeenCalledWith(sellerId);
       expect(userFollowService.getFollowCounts).toHaveBeenCalledWith(sellerId);
       expect(userFollowService.isFollowing).not.toHaveBeenCalled();
       expect(result.data.isFollowing).toBe(false);
+      expect(result.data.businessName).toBe('Test Business');
+    });
+
+    it('should handle missing business info gracefully', async () => {
+      const sellerId = 'test-seller-id';
+      const query: SellerInfoRequestDto = {};
+
+      userService.findOne.mockResolvedValue(mockSellerUser);
+      userService.getSellerInfo.mockRejectedValue(new Error('No business info found'));
+      userFollowService.getFollowCounts.mockResolvedValue({
+        followersCount: mockFollowers.length,
+        followingCount: mockFollowing.length,
+      });
+      userFollowService.isFollowing.mockResolvedValue(false);
+
+      const result = await controller.getSellerInfo(sellerId, query, mockCurrentUser);
+
+      expect(userService.findOne).toHaveBeenCalledWith(sellerId);
+      expect(userService.getSellerInfo).toHaveBeenCalledWith(sellerId);
+      expect(result.data.businessName).toBeUndefined();
+      expect(result.data.businessAddress).toBeUndefined();
+      expect(result.data.businessNumber).toBeUndefined();
     });
   });
 

@@ -2,6 +2,7 @@ import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { Product, ProductStatus } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
+import { ApiProperty } from '@nestjs/swagger';
 
 /**
  * 판매자 검색 결과 항목 DTO
@@ -33,6 +34,16 @@ export class SellerInfoDto {
   followers: number;
   following: number;
   isFollowing: boolean;
+
+  // 셀러 비즈니스 정보 추가
+  @ApiProperty({ example: 'ABC 상사', description: '상호명', required: false })
+  businessName?: string;
+
+  @ApiProperty({ example: '서울시 강남구 테헤란로 123', description: '사업자주소', required: false })
+  businessAddress?: string;
+
+  @ApiProperty({ example: '123-45-67890', description: '사업자번호', required: false })
+  businessNumber?: string;
 }
 
 /**
