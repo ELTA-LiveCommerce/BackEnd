@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BroadcastProduct, BroadcastProductStatus } from '@/module/product/entity/broadcast-product.entity';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 /**
  * 현재 판매 중인 상품 응답 DTO
@@ -62,6 +63,8 @@ export class CurrentSellingProductDto {
  */
 export class UpdateCurrentSellingProductDto {
   @ApiProperty({ description: '판매할 상품 ID' })
+  @IsString()
+  @IsNotEmpty()
   productId: string;
 }
 
