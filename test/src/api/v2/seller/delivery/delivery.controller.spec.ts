@@ -41,9 +41,7 @@ describe('Seller DeliveryController (E2E - Mock Service)', () => {
     id: 'order-1',
     user: mock<User>({ id: 'buyer-1', name: '구매자' }),
     createdAt: new Date('2024-01-10T10:00:00Z'),
-    items: {
-      getItems: jest.fn().mockReturnValue([mockOrderItem]),
-    } as unknown as Collection<OrderItem>,
+    items: [mockOrderItem],
   });
 
   const mockProduct = mock<Product>({
@@ -184,3 +182,4 @@ describe('Seller DeliveryController (E2E - Mock Service)', () => {
     // TODO: Add tests for search field filtering if needed
   });
 });
+

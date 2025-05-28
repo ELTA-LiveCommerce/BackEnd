@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { SqlEntityManager } from '@mikro-orm/postgresql';
-import { EntityRepository, Collection } from '@mikro-orm/core';
+import { EntityRepository } from '@mikro-orm/core';
 
 import { BroadcastService } from './broadcast.service';
 import { Broadcast } from './entity/broadcast.entity';
@@ -13,22 +13,6 @@ import { BroadcastListItemDto } from './dto/broadcast-list-item.dto';
 import { BroadcastProduct } from '../product/entity/broadcast-product.entity';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { AgoraService } from '../agora/agora.service';
-
-// Mock Collection class
-class MockCollection {
-  private items: any[] = [];
-  constructor(owner?: any) {}
-  add(...items: any[]) {
-    this.items.push(...items);
-    return this;
-  }
-  getItems() {
-    return this.items;
-  }
-  isInitialized() {
-    return true;
-  }
-}
 
 const mockBroadcastRepository = {
   // 필요한 메소드 모킹

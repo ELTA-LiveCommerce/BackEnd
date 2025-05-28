@@ -40,30 +40,36 @@ describe('AdminBroadcastController', () => {
 
     // AdminBroadcastListResponse.fromResult 모킹
     jest.spyOn(AdminBroadcastListResponse, 'fromResult').mockImplementation((broadcasts, total, page, limit) => {
+      const items = broadcasts.map((b: any) => ({
+        id: b.id,
+        title: b.title,
+        sellerId: b.seller.id,
+        sellerName: b.seller.name,
+        scheduledAt: b.scheduledAt,
+        createdAt: b.createdAt || new Date(),
+        isLive: b.isLive,
+        maxViewers: b.maxViewers || 0,
+        products: [],
+      }));
+
       return {
+        success: true,
+        statusCode: 200,
+        message: '요청 성공',
         data: {
-          items: broadcasts.map((b: any) => ({
-            id: b.id,
-            title: b.title,
-            sellerId: b.seller.id,
-            sellerName: b.seller.name,
-            scheduledAt: b.scheduledAt,
-            createdAt: b.createdAt || new Date(),
-            isLive: b.isLive,
-            maxViewers: b.maxViewers || 0,
-            products: [],
-          })),
+          items,
           total,
           page,
           limit,
           totalPages: Math.ceil(total / limit),
         },
+        timestamp: new Date().toISOString(),
       } as AdminBroadcastListResponse;
     });
 
     // AdminBroadcastResponse.fromEntity 모킹
     jest.spyOn(AdminBroadcastResponse, 'fromEntity').mockImplementation((broadcast: any) => {
-      return {
+      const responseBody = {
         id: broadcast.id,
         title: broadcast.title,
         sellerId: broadcast.seller.id,
@@ -73,6 +79,14 @@ describe('AdminBroadcastController', () => {
         isLive: broadcast.isLive,
         maxViewers: broadcast.maxViewers,
         products: [],
+      };
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: '요청 성공',
+        data: responseBody,
+        timestamp: new Date().toISOString(),
       } as AdminBroadcastResponse;
     });
   });
@@ -100,7 +114,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-01'),
           isLive: false,
           maxViewers: 0,
-          products: { getItems: () => [], isInitialized: () => true },
+          products: [],
         } as unknown as Broadcast,
         {
           id: 'broadcast-2',
@@ -109,7 +123,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-02'),
           isLive: false,
           maxViewers: 0,
-          products: { getItems: () => [], isInitialized: () => true },
+          products: [],
         } as unknown as Broadcast,
       ];
 
@@ -165,7 +179,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-01'),
           isLive: false,
           maxViewers: 0,
-          products: { getItems: () => [], isInitialized: () => true },
+          products: [],
         } as unknown as Broadcast,
         {
           id: 'broadcast-2',
@@ -174,7 +188,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-02'),
           isLive: false,
           maxViewers: 0,
-          products: { getItems: () => [], isInitialized: () => true },
+          products: [],
         } as unknown as Broadcast,
       ];
 
@@ -207,7 +221,7 @@ describe('AdminBroadcastController', () => {
         scheduledAt: new Date('2023-07-01'),
         isLive: false,
         maxViewers: 0,
-        products: { getItems: () => [], isInitialized: () => true },
+        products: [],
         createdAt: new Date(),
       } as unknown as Broadcast;
 
@@ -219,7 +233,7 @@ describe('AdminBroadcastController', () => {
       // Then
       expect(broadcastService.findOne).toHaveBeenCalledWith(broadcastId);
       expect(result.data).toBeDefined();
-      expect(result.data.id).toBe(broadcastId);
+      expect(result.data.data.id).toBe(broadcastId);
     });
   });
 });

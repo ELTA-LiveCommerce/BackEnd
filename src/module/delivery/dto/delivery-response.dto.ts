@@ -91,7 +91,7 @@ export class DeliveryResponseDto {
 
     // OrderItem에서 상품 정보 가져오기 (단순화를 위해 첫 번째 항목 가정)
     // delivery.order가 로드되었다고 가정
-    const orderItem = delivery.order?.items?.isInitialized() ? delivery.order.items.getItems()[0] : undefined;
+    const orderItem = delivery.order?.items?.[0];
 
     dto.productId = orderItem?.product?.id || '';
     dto.productName = orderItem?.product?.name || '이름 없음';
@@ -187,3 +187,4 @@ export class SellerDeliveryListItemDto {
     return dto;
   }
 }
+

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { DeliveryStatus } from '@/module/delivery/entity/delivery.entity';
-import { BaseResponse, BaseOffsetPageResponse, OffsetPage } from '@/shared/common/base-response';
+import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 
 export class AdminDeliveryResponseBody {
   @ApiProperty({ description: '배송 ID', example: 'delivery-123' })
@@ -75,13 +75,59 @@ export class AdminDeliveryResponseBody {
   }
 }
 
-export class AdminDeliveryListResponseBody extends OffsetPage<AdminDeliveryResponseBody> {
+export class AdminDeliveryListResponse extends PagedResponseV2<AdminDeliveryResponseBody> {
+  @ApiProperty({
+    description: '성공 여부',
+    example: true,
+  })
+  declare success: boolean;
+
+  @ApiProperty({
+    description: 'HTTP 상태 코드',
+    example: 200,
+  })
+  declare statusCode: number;
+
+  @ApiProperty({
+    description: '응답 메시지',
+    example: '요청 성공',
+  })
+  declare message: string;
+
+  @ApiProperty({
+    description: '페이지네이션된 배송 목록 데이터',
+    type: 'object',
+    properties: {
+      items: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AdminDeliveryResponseBody' },
+      },
+      total: { type: 'number', description: '전체 항목 수' },
+      page: { type: 'number', description: '현재 페이지 번호' },
+      limit: { type: 'number', description: '페이지당 항목 수' },
+      totalPages: { type: 'number', description: '전체 페이지 수' },
+    },
+  })
+  declare data: {
+    items: AdminDeliveryResponseBody[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+
+  @ApiProperty({
+    description: '응답 타임스탬프',
+    example: '2024-05-12T14:30:00Z',
+  })
+  declare timestamp: string;
+
   static fromResult(
     items: { delivery: any; orderItems: any[] }[],
     total: number,
     page: number,
     limit: number,
-  ): AdminDeliveryListResponseBody {
+  ): AdminDeliveryListResponse {
     const responseItems = items.flatMap(({ delivery, orderItems }) => {
       // 주문 아이템이 없는 경우 배송 정보만 반환
       if (!orderItems || orderItems.length === 0) {
@@ -92,25 +138,44 @@ export class AdminDeliveryListResponseBody extends OffsetPage<AdminDeliveryRespo
       return orderItems.map((item) => AdminDeliveryResponseBody.fromEntity(delivery, item));
     });
 
-    return new AdminDeliveryListResponseBody(responseItems, total, limit, page);
+    return new AdminDeliveryListResponse(responseItems, total, page, limit);
   }
 }
 
-export class AdminDeliveryResponse extends BaseResponse<AdminDeliveryResponseBody> {
+export class AdminDeliveryResponse extends BaseResponseV2<AdminDeliveryResponseBody> {
+  @ApiProperty({
+    description: '성공 여부',
+    example: true,
+  })
+  declare success: boolean;
+
+  @ApiProperty({
+    description: 'HTTP 상태 코드',
+    example: 200,
+  })
+  declare statusCode: number;
+
+  @ApiProperty({
+    description: '응답 메시지',
+    example: '요청 성공',
+  })
+  declare message: string;
+
+  @ApiProperty({
+    description: '배송 상세 정보',
+    type: AdminDeliveryResponseBody,
+  })
+  declare data: AdminDeliveryResponseBody;
+
+  @ApiProperty({
+    description: '응답 타임스탬프',
+    example: '2024-05-12T14:30:00Z',
+  })
+  declare timestamp: string;
+
   static fromEntity(delivery: any, orderItem?: any): AdminDeliveryResponse {
     const body = AdminDeliveryResponseBody.fromEntity(delivery, orderItem);
-    return new AdminDeliveryResponse(body);
+    return BaseResponseV2.success(body);
   }
 }
 
-export class AdminDeliveryListResponse extends BaseOffsetPageResponse<AdminDeliveryResponseBody> {
-  static fromResult(
-    items: { delivery: any; orderItems: any[] }[],
-    total: number,
-    page: number,
-    limit: number,
-  ): AdminDeliveryListResponse {
-    const body = AdminDeliveryListResponseBody.fromResult(items, total, page, limit);
-    return new AdminDeliveryListResponse(body);
-  }
-}

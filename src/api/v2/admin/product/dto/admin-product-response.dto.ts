@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Product } from '@/module/product/entity/product.entity';
+import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 
 export class AdminProductResponseBody {
   @ApiProperty({ description: '상품 ID', example: 'c6e5f7a9-3b4c-4d2e-9f8g-h1i2j3k4l5m6' })
@@ -60,59 +61,63 @@ export class AdminProductResponseBody {
   }
 }
 
-export class AdminProductResponse {
-  @ApiProperty({ description: '응답 상태', example: true })
-  success: boolean;
+export class AdminProductResponse extends BaseResponseV2<AdminProductResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
 
-  @ApiProperty({ type: AdminProductResponseBody })
-  data: AdminProductResponseBody;
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
+
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
+
+  @ApiProperty({ description: '상품 상세 정보', type: AdminProductResponseBody })
+  declare data: AdminProductResponseBody;
+
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
 
   static fromEntity(entity: Product): AdminProductResponse {
-    return {
-      success: true,
-      data: AdminProductResponseBody.fromEntity(entity),
-    };
+    const body = AdminProductResponseBody.fromEntity(entity);
+    return BaseResponseV2.success(body);
   }
 }
 
-export class AdminProductListResponseBody {
-  @ApiProperty({ type: [AdminProductResponseBody] })
-  items: AdminProductResponseBody[];
+export class AdminProductListResponse extends PagedResponseV2<AdminProductResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
 
-  @ApiProperty({ description: '총 아이템 수', example: 100 })
-  total: number;
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
 
-  @ApiProperty({ description: '현재 페이지', example: 1 })
-  page: number;
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
 
-  @ApiProperty({ description: '페이지당 항목 수', example: 10 })
-  limit: number;
+  @ApiProperty({
+    description: '페이지네이션된 상품 목록 데이터',
+    type: 'object',
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/AdminProductResponseBody' } },
+      total: { type: 'number', description: '전체 항목 수' },
+      page: { type: 'number', description: '현재 페이지 번호' },
+      limit: { type: 'number', description: '페이지당 항목 수' },
+      totalPages: { type: 'number', description: '전체 페이지 수' },
+    },
+  })
+  declare data: {
+    items: AdminProductResponseBody[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 
-  @ApiProperty({ description: '총 페이지 수', example: 10 })
-  pages: number;
-
-  constructor(items: AdminProductResponseBody[], total: number, page: number, limit: number) {
-    this.items = items;
-    this.total = total;
-    this.page = page;
-    this.limit = limit;
-    this.pages = Math.ceil(total / limit);
-  }
-}
-
-export class AdminProductListResponse {
-  @ApiProperty({ description: '응답 상태', example: true })
-  success: boolean;
-
-  @ApiProperty({ type: AdminProductListResponseBody })
-  data: AdminProductListResponseBody;
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
 
   static fromResult(products: Product[], total: number, page: number, limit: number): AdminProductListResponse {
     const items = products.map((product) => AdminProductResponseBody.fromEntity(product));
-    return {
-      success: true,
-      data: new AdminProductListResponseBody(items, total, page, limit),
-    };
+    return new AdminProductListResponse(items, total, page, limit);
   }
 }
 

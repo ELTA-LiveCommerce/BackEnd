@@ -75,7 +75,7 @@ export class CartService {
       cartItem.cart = cart;
       cartItem.product = product;
       cartItem.quantity = quantity;
-      cart.items.add(cartItem);
+      cart.items.push(cartItem);
     }
 
     await this.em.flush();
@@ -142,7 +142,7 @@ export class CartService {
     const cart = await this.getCart(userId);
 
     // 장바구니의 모든 아이템 삭제
-    cart.items.removeAll();
+    cart.items = [];
     await this.em.flush();
 
     return cart;

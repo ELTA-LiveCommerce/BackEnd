@@ -50,9 +50,7 @@ describe('DeliveryService', () => {
   const mockOrder = {
     id: 'order-id',
     user: mockUser,
-    items: {
-      getItems: () => [mockOrderItem],
-    },
+    items: [mockOrderItem], // 배열로 변경
   } as unknown as Order;
 
   const mockDelivery = {

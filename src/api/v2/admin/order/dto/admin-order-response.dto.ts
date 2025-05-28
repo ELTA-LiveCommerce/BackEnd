@@ -3,6 +3,7 @@ import { Order } from '@/module/order/entity/order.entity';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
 import { Type } from 'class-transformer';
+import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 
 export class AdminOrderItemResponseBody {
   @ApiProperty({ description: '주문 상품 ID', example: 'c6e5f7a9-3b4c-4d2e-9f8g-h1i2j3k4l5m6' })
@@ -96,66 +97,70 @@ export class AdminOrderResponseBody {
     response.updatedAt = entity.updatedAt;
 
     // items가 배열이 아닌 Collection인 경우 Array.from으로 변환
-    const items = Array.isArray(entity.items) ? entity.items : Array.from(entity.items || []);
+    const items: OrderItem[] = Array.isArray(entity.items) ? entity.items : Array.from(entity.items || []);
     response.items = items.map((item) => AdminOrderItemResponseBody.fromEntity(item));
 
     return response;
   }
 }
 
-export class AdminOrderResponse {
-  @ApiProperty({ description: '응답 상태', example: true })
-  success: boolean;
+export class AdminOrderResponse extends BaseResponseV2<AdminOrderResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
 
-  @ApiProperty({ type: AdminOrderResponseBody })
-  data: AdminOrderResponseBody;
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
+
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
+
+  @ApiProperty({ description: '주문 상세 정보', type: AdminOrderResponseBody })
+  declare data: AdminOrderResponseBody;
+
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
 
   static fromEntity(entity: Order): AdminOrderResponse {
-    return {
-      success: true,
-      data: AdminOrderResponseBody.fromEntity(entity),
-    };
+    const body = AdminOrderResponseBody.fromEntity(entity);
+    return BaseResponseV2.success(body);
   }
 }
 
-export class AdminOrderListResponseBody {
-  @ApiProperty({ type: [AdminOrderResponseBody] })
-  items: AdminOrderResponseBody[];
+export class AdminOrderListResponse extends PagedResponseV2<AdminOrderResponseBody> {
+  @ApiProperty({ description: '성공 여부', example: true })
+  declare success: boolean;
 
-  @ApiProperty({ description: '총 아이템 수', example: 100 })
-  total: number;
+  @ApiProperty({ description: 'HTTP 상태 코드', example: 200 })
+  declare statusCode: number;
 
-  @ApiProperty({ description: '현재 페이지', example: 1 })
-  page: number;
+  @ApiProperty({ description: '응답 메시지', example: '요청 성공' })
+  declare message: string;
 
-  @ApiProperty({ description: '페이지당 항목 수', example: 10 })
-  limit: number;
+  @ApiProperty({
+    description: '페이지네이션된 주문 목록 데이터',
+    type: 'object',
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/AdminOrderResponseBody' } },
+      total: { type: 'number', description: '전체 항목 수' },
+      page: { type: 'number', description: '현재 페이지 번호' },
+      limit: { type: 'number', description: '페이지당 항목 수' },
+      totalPages: { type: 'number', description: '전체 페이지 수' },
+    },
+  })
+  declare data: {
+    items: AdminOrderResponseBody[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 
-  @ApiProperty({ description: '총 페이지 수', example: 10 })
-  pages: number;
-
-  constructor(items: AdminOrderResponseBody[], total: number, page: number, limit: number) {
-    this.items = items;
-    this.total = total;
-    this.page = page;
-    this.limit = limit;
-    this.pages = Math.ceil(total / limit);
-  }
-}
-
-export class AdminOrderListResponse {
-  @ApiProperty({ description: '응답 상태', example: true })
-  success: boolean;
-
-  @ApiProperty({ type: AdminOrderListResponseBody })
-  data: AdminOrderListResponseBody;
+  @ApiProperty({ description: '응답 타임스탬프', example: '2024-05-12T14:30:00Z' })
+  declare timestamp: string;
 
   static fromResult(orders: Order[], total: number, page: number, limit: number): AdminOrderListResponse {
     const items = orders.map((order) => AdminOrderResponseBody.fromEntity(order));
-    return {
-      success: true,
-      data: new AdminOrderListResponseBody(items, total, page, limit),
-    };
+    return new AdminOrderListResponse(items, total, page, limit);
   }
 }
 

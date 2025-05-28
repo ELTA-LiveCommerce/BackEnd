@@ -109,8 +109,8 @@ describe('AdminFeeController', () => {
       // Then
       expect(userService.findOne).toHaveBeenCalledWith(userId);
       expect(result.data).toBeDefined();
-      expect(result.data.id).toBe(userId);
-      expect(result.data.feePercentage).toBe(mockUser.feePercentage);
+      expect(result.data.data.id).toBe(userId);
+      expect(result.data.data.feePercentage).toBe(mockUser.feePercentage);
     });
 
     it('존재하지 않는 ID로 요청시 NotFoundException을 던져야 함', async () => {
@@ -174,7 +174,7 @@ describe('AdminFeeController', () => {
         feePercentage: updateDto.feePercentage,
       });
       expect(result.data).toBeDefined();
-      expect(result.data.feePercentage).toBe(updateDto.feePercentage);
+      expect(result.data.data.feePercentage).toBe(updateDto.feePercentage);
     });
 
     it('존재하지 않는 ID로 업데이트 요청시 NotFoundException을 던져야 함', async () => {

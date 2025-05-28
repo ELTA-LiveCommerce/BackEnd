@@ -1,12 +1,4 @@
-export class BaseResponse<T> {
-  success: boolean;
-  data: T;
-
-  constructor(data: T) {
-    this.success = true;
-    this.data = data;
-  }
-}
+import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 
 export class OffsetPage<T> {
   items: T[];
@@ -22,9 +14,9 @@ export class OffsetPage<T> {
   }
 }
 
-export class BaseOffsetPageResponse<T> extends BaseResponse<OffsetPage<T>> {
-  constructor(data: OffsetPage<T>) {
-    super(data);
+export class BaseOffsetPageResponse<T> extends BaseResponseV2<OffsetPage<T>> {
+  constructor(data: OffsetPage<T>, message = 'OK', statusCode = 200) {
+    super(true, statusCode, message, data);
   }
 }
 
