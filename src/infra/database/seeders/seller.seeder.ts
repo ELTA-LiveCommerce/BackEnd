@@ -50,6 +50,11 @@ export class SellerSeeder extends Seeder {
       feePercentage: 0.1, // 기본 수수료 10%
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     await em.persistAndFlush(sellerUser);
@@ -68,3 +73,4 @@ export class SellerSeeder extends Seeder {
     }
   }
 }
+

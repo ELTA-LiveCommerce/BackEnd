@@ -42,6 +42,11 @@ export class AdminSeeder extends Seeder {
       feePercentage: 0, // 관리자는 수수료 0%
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     await em.persistAndFlush(adminUser);

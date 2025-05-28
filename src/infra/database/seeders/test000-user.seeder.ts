@@ -21,6 +21,11 @@ export class Test000UserSeeder extends Seeder {
       isVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     const sellerUser = em.create(User, {
@@ -32,6 +37,11 @@ export class Test000UserSeeder extends Seeder {
       isVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     const viewerUser = em.create(User, {
@@ -43,6 +53,11 @@ export class Test000UserSeeder extends Seeder {
       isVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     const testViewer = em.create(User, {
@@ -54,6 +69,11 @@ export class Test000UserSeeder extends Seeder {
       isVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     const testSeller = em.create(User, {
@@ -65,6 +85,11 @@ export class Test000UserSeeder extends Seeder {
       isVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     const testProfileViewer = em.create(User, {
@@ -76,8 +101,14 @@ export class Test000UserSeeder extends Seeder {
       isVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     await em.persistAndFlush([adminUser, sellerUser, viewerUser, testViewer, testSeller, testProfileViewer]);
   }
 }
+

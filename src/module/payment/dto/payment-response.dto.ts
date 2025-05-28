@@ -108,7 +108,7 @@ export class PaymentResponseDto {
     dto.orderId = payment.order?.id || '';
 
     // 주문 아이템 정보 (첫번째 상품만 표시)
-    const firstItem = payment.order?.items?.getItems()[0];
+    const firstItem = payment.order?.items?.[0];
     if (firstItem) {
       dto.productImage = firstItem.product?.images?.[0] || '';
       dto.productName = firstItem.product?.name || '';
@@ -155,3 +155,4 @@ export class PaymentResponseDto {
     return payments.map((payment) => this.fromEntity(payment));
   }
 }
+
