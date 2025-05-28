@@ -7,12 +7,14 @@ import { AnnouncementControllerModule } from './announcement/announcement-contro
 import { SellerControllerModule } from './seller/seller-controller.module';
 import { UserControllerModule } from './user/user-controller.module';
 import { AdminControllerModule } from './admin/admin-controller.module';
+import { FileControllerModule } from './file/file-controller.module';
 
 @Module({
   imports: [
     AdminControllerModule,
     AnnouncementControllerModule,
     AuthControllerModule,
+    FileControllerModule,
     HealthControllerModule,
     SellerControllerModule,
     UserControllerModule,
