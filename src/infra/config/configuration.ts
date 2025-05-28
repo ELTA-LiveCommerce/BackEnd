@@ -28,6 +28,14 @@ export default () => ({
     senderId: process.env.KAKAO_SENDER_ID,
     apiUrl: process.env.KAKAO_API_URL || 'https://alimtalk-api.kakao.com/v2/sender',
   },
+  popbill: {
+    linkId: process.env.POPBILL_LINK_ID,
+    secretKey: process.env.POPBILL_SECRET_KEY,
+    testCorpNum: process.env.POPBILL_TEST_CORP_NUM,
+    userId: process.env.POPBILL_USER_ID,
+    isTest: process.env.POPBILL_IS_TEST === 'true',
+    senderNumber: process.env.POPBILL_SENDER_NUMBER,
+  },
   apple: {
     clientId: process.env.APPLE_CLIENT_ID,
     teamId: process.env.APPLE_TEAM_ID,

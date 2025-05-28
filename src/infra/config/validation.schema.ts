@@ -31,6 +31,14 @@ export const validationSchema = Joi.object({
   KAKAO_SENDER_ID: Joi.string().allow('').default(''),
   KAKAO_API_URL: Joi.string().uri().allow('').default('https://alimtalk-api.kakao.com/v2/sender'),
 
+  // Popbill
+  POPBILL_LINK_ID: Joi.string().required(),
+  POPBILL_SECRET_KEY: Joi.string().required(),
+  POPBILL_TEST_CORP_NUM: Joi.string().required(),
+  POPBILL_USER_ID: Joi.string().required(),
+  POPBILL_IS_TEST: Joi.boolean().default(true),
+  POPBILL_SENDER_NUMBER: Joi.string().required(),
+
   // Agora
   AGORA_APP_ID: Joi.string().required(),
   AGORA_APP_CERTIFICATE: Joi.string().required(),
