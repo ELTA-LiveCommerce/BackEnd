@@ -10,6 +10,7 @@ import { BroadcastProduct, BroadcastProductStatus } from '@/module/product/entit
 import { Product } from '@/module/product/entity/product.entity';
 import { AgoraService } from '@/module/agora/agora.service';
 import { User } from '@/module/user/entity/user.entity';
+import { UserBlockService } from '@/module/user/user-block.service';
 
 // @Transactional 데코레이터 모킹 - 단순히 함수를 통과시키는 빈 데코레이터로 만듦
 jest.mock('@nestjs-cls/transactional', () => ({
@@ -36,6 +37,10 @@ describe('BroadcastService', () => {
   const mockAgoraService = {
     rtcTokenWithAccount: jest.fn().mockReturnValue('test-rtc-token'),
     chatToken: jest.fn().mockReturnValue('test-chat-token'),
+  };
+
+  const mockUserBlockService = {
+    isUserBlockedBySeller: jest.fn().mockResolvedValue(false),
   };
 
   const mockEntityManager = {
@@ -104,6 +109,10 @@ describe('BroadcastService', () => {
         {
           provide: AgoraService,
           useValue: mockAgoraService,
+        },
+        {
+          provide: UserBlockService,
+          useValue: mockUserBlockService,
         },
         {
           provide: EntityManager,

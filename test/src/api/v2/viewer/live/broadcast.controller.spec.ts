@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { BroadcastController } from '@/api/v2/viewer/live/broadcast.controller';
 import { BroadcastProductStatus } from '@/module/product/entity/broadcast-product.entity';
@@ -68,6 +68,56 @@ describe('Viewer Broadcast Controller', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('join', () => {
+    const joinDto = { broadcastId: 'broadcast-id' };
+
+    it('should successfully join broadcast when user is not blocked', async () => {
+      const result = await controller.join(joinDto, mockUser);
+
+      expect(result.broadcastId).toBe('broadcast-id');
+      expect(result.channelId).toBe('channel-id');
+      expect(result.uid).toBe('user-id');
+      expect(broadcastService.join).toHaveBeenCalledWith('broadcast-id', 'user-id');
+    });
+
+    it('should throw ForbiddenException when user is blocked by seller', async () => {
+      mockBroadcastService.join.mockRejectedValueOnce(
+        new ForbiddenException('차단된 사용자는 이 판매자의 방송을 시청할 수 없습니다.'),
+      );
+
+      await expect(controller.join(joinDto, mockUser)).rejects.toThrow(
+        new ForbiddenException('차단된 사용자는 이 판매자의 방송을 시청할 수 없습니다.'),
+      );
+
+      expect(broadcastService.join).toHaveBeenCalledWith('broadcast-id', 'user-id');
+    });
+
+    it('should throw NotFoundException when broadcast not found', async () => {
+      mockBroadcastService.join.mockRejectedValueOnce(
+        new NotFoundException('방송 ID broadcast-id를 찾을 수 없습니다.'),
+      );
+
+      await expect(controller.join(joinDto, mockUser)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException when broadcast is not live', async () => {
+      mockBroadcastService.join.mockRejectedValueOnce(new BadRequestException('라이브 중인 방송이 아닙니다.'));
+
+      await expect(controller.join(joinDto, mockUser)).rejects.toThrow(BadRequestException);
+    });
+
+    afterEach(() => {
+      // join 메서드의 mock을 초기 상태로 되돌림
+      mockBroadcastService.join.mockResolvedValue({
+        broadcastId: 'broadcast-id',
+        channelId: 'channel-id',
+        uid: 'user-id',
+        rtcToken: 'rtc-token',
+        chatToken: 'chat-token',
+      });
+    });
   });
 
   describe('getCurrentSellingProduct', () => {

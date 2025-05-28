@@ -19,6 +19,7 @@ import { BroadcastCreateRequestDto } from '@/api/v2/seller/lives/dto/broadcast-c
 import { v4 as uuid } from 'uuid';
 import { Transactional } from '@nestjs-cls/transactional';
 import axios from 'axios';
+import { UserBlockService } from '../user/user-block.service';
 
 @Injectable()
 export class BroadcastService {
@@ -30,7 +31,7 @@ export class BroadcastService {
     private readonly em: EntityManager,
     @InjectRepository(Stream) private readonly streamRepository: EntityRepository<Stream>,
     private readonly agora: AgoraService,
-    // private readonly userService: UserService, // UserService가 필요할 경우
+    private readonly userBlockService: UserBlockService,
   ) {}
 
   async createBroadcast(dto: BroadcastCreateRequestDto, sellerId: string): Promise<BroadcastListItemDto> {
@@ -216,11 +217,17 @@ export class BroadcastService {
 
   /** 방송 입장(시청자) ------------------------------------------------------- */
   async join(broadcastId: string, userId: string) {
-    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream'] });
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream', 'seller'] });
 
     if (!broadcast) throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
     if (!broadcast.isLive) throw new BadRequestException('라이브 중인 방송이 아닙니다.');
     if (!broadcast.stream) throw new BadRequestException('해당 방송의 스트림을 찾을 수 없습니다.');
+
+    // 블랙리스트 체크: 해당 판매자가 이 사용자를 차단했는지 확인
+    const isBlocked = await this.userBlockService.isUserBlockedBySeller(broadcast.seller.id, userId);
+    if (isBlocked) {
+      throw new ForbiddenException('차단된 사용자는 이 판매자의 방송을 시청할 수 없습니다.');
+    }
 
     const { id: rtcChannelId, chatRoomId } = broadcast.stream;
     const uidChat = userId.replace(/-/g, '_');
