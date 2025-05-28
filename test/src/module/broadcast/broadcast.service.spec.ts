@@ -201,7 +201,7 @@ describe('BroadcastService', () => {
       const result = await service.updateCurrentSellingProduct('broadcast-id', 'product-id', 'seller-id');
 
       expect(result).toBe(mockBroadcastProduct);
-      expect(mockEntityManager.persist).toHaveBeenCalledTimes(3); // 기존 상품, 새 상품, 스트림 업데이트
+      expect(mockEntityManager.persistAndFlush).toHaveBeenCalledTimes(3); // 기존 상품, 새 상품, 스트림 업데이트
     });
 
     it('should throw ForbiddenException when seller is not the owner', async () => {
