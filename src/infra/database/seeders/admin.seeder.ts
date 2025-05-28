@@ -47,6 +47,11 @@ export class AdminSeeder extends Seeder {
       blockingSellersOfMe: [],
       createdAt: new Date(),
       updatedAt: new Date(),
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
     });
 
     await em.persistAndFlush(adminUser);
