@@ -440,17 +440,17 @@ export class BroadcastService {
 
       if (currentProduct) {
         currentProduct.status = BroadcastProductStatus.SOLD;
-        this.em.persist(currentProduct);
+        this.em.persistAndFlush(currentProduct);
       }
     }
 
     // 새로운 상품 상태 업데이트
     broadcastProduct.status = BroadcastProductStatus.SELLING;
-    this.em.persist(broadcastProduct);
+    this.em.persistAndFlush(broadcastProduct);
 
     // 스트림 정보 업데이트
     broadcast.stream.currentSellingProduct = broadcastProduct;
-    this.em.persist(broadcast.stream);
+    this.em.persistAndFlush(broadcast.stream);
 
     return broadcastProduct;
   }
