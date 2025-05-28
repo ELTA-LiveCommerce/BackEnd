@@ -8,3 +8,4 @@ import { FileModule } from '@/module/file/file.module';
   controllers: [FileController],
 })
 export class FileControllerModule {}
+
