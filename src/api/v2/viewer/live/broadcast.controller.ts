@@ -75,6 +75,12 @@ export class BroadcastController {
     if (!broadcast) {
       return ApiResponse.success(null, '방송을 찾을 수 없습니다.');
     }
+
+    // 뷰어가 조회할 때 종료된 방송은 접근 불가
+    if (!broadcast.isLive) {
+      return ApiResponse.success(null, '종료된 방송입니다.');
+    }
+
     return ApiResponse.success(BroadcastListItemDto.fromEntity(broadcast), '방송 상세 조회 성공');
   }
 

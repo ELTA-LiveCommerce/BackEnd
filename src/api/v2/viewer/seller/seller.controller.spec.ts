@@ -270,27 +270,48 @@ describe('SellerController', () => {
           status: 'LIVE',
           scheduledAt: new Date(),
           products: [],
+          isLive: true,
         }),
         new BroadcastListItemDto({
           id: 'b2',
           title: 'Test Broadcast 2',
           thumbnailUrl: 'http://example.com/broadcast2.jpg',
-          status: 'SCHEDULED',
-          scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+          status: 'LIVE',
+          scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           products: [],
+          isLive: true,
         }),
       ];
 
       const mockPagedResults = new PagedResponseV2(mockItems, 2, 1, 10);
 
       userService.findOne.mockResolvedValue(mockSeller);
-      broadcastService.findSellerBroadcastsPaged.mockResolvedValue(mockPagedResults);
+      broadcastService.findSellerBroadcastsForViewer.mockResolvedValue(mockPagedResults);
 
       const result = await controller.getSellerLives(sellerId, query);
 
       expect(userService.findOne).toHaveBeenCalledWith(sellerId);
-      expect(broadcastService.findSellerBroadcastsPaged).toHaveBeenCalledWith(sellerId, query);
+      expect(broadcastService.findSellerBroadcastsForViewer).toHaveBeenCalledWith(sellerId, query);
       expect(result).toEqual(mockPagedResults);
+
+      result.data.items.forEach((broadcast) => {
+        expect(broadcast.isLive).toBe(true);
+      });
+    });
+
+    it('should use viewer-specific method to exclude ended broadcasts', async () => {
+      const sellerId = 'test-seller-id';
+      const query = { page: 1, limit: 10 };
+      const mockSeller = { id: sellerId } as User;
+
+      userService.findOne.mockResolvedValue(mockSeller);
+      broadcastService.findSellerBroadcastsForViewer.mockResolvedValue(new PagedResponseV2([], 0, 1, 10));
+
+      await controller.getSellerLives(sellerId, query);
+
+      expect(broadcastService.findSellerBroadcastsForViewer).toHaveBeenCalledWith(sellerId, query);
+
+      expect(broadcastService.findSellerBroadcastsPaged).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if seller not found', async () => {

@@ -17,6 +17,7 @@ import { UserBlockService } from '../user/user-block.service';
 
 const mockBroadcastRepository = {
   findOne: jest.fn(),
+  createQueryBuilder: jest.fn(),
 };
 
 const mockProductRepository = {
@@ -499,6 +500,133 @@ describe('BroadcastService', () => {
 
       expect(mockBroadcastRepository.findOne).toHaveBeenCalledWith({ id: broadcastId });
       expect(mockBroadcast.maxViewers).toBe(maxViewers); // 메모리에서는 변경됨
+    });
+  });
+
+  describe('findSellerBroadcastsForViewer', () => {
+    const sellerId = 'test-seller-id';
+    const query = {
+      page: 1,
+      limit: 10,
+      keyword: 'test',
+    };
+
+    const mockLiveBroadcasts = [
+      {
+        id: 'live-broadcast-1',
+        title: 'Live Test Broadcast 1',
+        description: 'Test Description 1',
+        thumbnailUrl: 'http://example.com/thumb1.jpg',
+        scheduledAt: new Date('2024-01-01'),
+        isLive: true,
+        products: [
+          {
+            product: { id: 'prod1', name: 'Product 1' },
+          },
+        ],
+      },
+      {
+        id: 'live-broadcast-2',
+        title: 'Live Test Broadcast 2',
+        description: 'Test Description 2',
+        thumbnailUrl: 'http://example.com/thumb2.jpg',
+        scheduledAt: new Date('2024-01-02'),
+        isLive: true,
+        products: [],
+      },
+    ];
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+
+      // Mock QueryBuilder 설정
+      const mockQueryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        offset: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        clone: jest.fn().mockReturnThis(),
+        getResultList: jest.fn().mockResolvedValue(mockLiveBroadcasts),
+        getCount: jest.fn().mockResolvedValue(mockLiveBroadcasts.length),
+      };
+
+      mockBroadcastRepository.createQueryBuilder = jest.fn().mockReturnValue(mockQueryBuilder);
+      mockEntityManager.populate = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('should return only live broadcasts for viewer', async () => {
+      const result = await service.findSellerBroadcastsForViewer(sellerId, query);
+
+      expect(result.data.items).toHaveLength(2);
+      expect(result.data.total).toBe(2);
+      expect(result.data.items[0].id).toBe('live-broadcast-1');
+      expect(result.data.items[0].isLive).toBe(true);
+      expect(result.data.items[1].id).toBe('live-broadcast-2');
+      expect(result.data.items[1].isLive).toBe(true);
+
+      // QueryBuilder가 isLive: true 조건으로 호출되었는지 확인
+      expect(mockBroadcastRepository.createQueryBuilder).toHaveBeenCalledWith('b');
+
+      const queryBuilder = mockBroadcastRepository.createQueryBuilder.mock.results[0].value;
+      expect(queryBuilder.where).toHaveBeenCalledWith({ seller: sellerId, isLive: true });
+    });
+
+    it('should apply keyword filter correctly', async () => {
+      await service.findSellerBroadcastsForViewer(sellerId, query);
+
+      const queryBuilder = mockBroadcastRepository.createQueryBuilder.mock.results[0].value;
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith({ title: { $like: '%test%' } });
+    });
+
+    it('should apply date filters correctly', async () => {
+      const queryWithDates = {
+        ...query,
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+      };
+
+      await service.findSellerBroadcastsForViewer(sellerId, queryWithDates);
+
+      const queryBuilder = mockBroadcastRepository.createQueryBuilder.mock.results[0].value;
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith({ scheduledAt: { $gte: new Date('2024-01-01') } });
+
+      const endDate = new Date('2024-01-31');
+      endDate.setDate(endDate.getDate() + 1);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith({ scheduledAt: { $lt: endDate } });
+    });
+
+    it('should handle pagination correctly', async () => {
+      const queryWithPagination = {
+        page: 2,
+        limit: 5,
+      };
+
+      await service.findSellerBroadcastsForViewer(sellerId, queryWithPagination);
+
+      const queryBuilder = mockBroadcastRepository.createQueryBuilder.mock.results[0].value;
+      expect(queryBuilder.offset).toHaveBeenCalledWith(5); // (page - 1) * limit = (2 - 1) * 5 = 5
+      expect(queryBuilder.limit).toHaveBeenCalledWith(5);
+    });
+
+    it('should return empty result when no live broadcasts found', async () => {
+      const mockQueryBuilderEmpty = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        offset: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        clone: jest.fn().mockReturnThis(),
+        getResultList: jest.fn().mockResolvedValue([]),
+        getCount: jest.fn().mockResolvedValue(0),
+      };
+
+      mockBroadcastRepository.createQueryBuilder = jest.fn().mockReturnValue(mockQueryBuilderEmpty);
+
+      const result = await service.findSellerBroadcastsForViewer(sellerId, query);
+
+      expect(result.data.items).toHaveLength(0);
+      expect(result.data.total).toBe(0);
     });
   });
 });

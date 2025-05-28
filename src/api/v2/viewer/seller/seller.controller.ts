@@ -145,8 +145,8 @@ export class SellerController {
       // Add other fields if BroadcastListRequestDto expects them (keyword, dates etc.)
     };
 
-    // Call the broadcast service
-    const pagedResult = await this.broadcastService.findSellerBroadcastsPaged(sellerId, broadcastQuery);
+    // Call the broadcast service - 뷰어용 메서드로 변경하여 종료된 방송 제외
+    const pagedResult = await this.broadcastService.findSellerBroadcastsForViewer(sellerId, broadcastQuery);
 
     // Map BroadcastListItemDto to SellerLiveItemDto if necessary, or adjust the test
     // For now, assume the test will be adjusted or the controller returns PagedResponseV2<BroadcastListItemDto>

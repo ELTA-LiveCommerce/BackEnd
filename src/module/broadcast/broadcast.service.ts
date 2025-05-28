@@ -165,6 +165,62 @@ export class BroadcastService {
     return new PagedResponseV2<BroadcastListItemDto>(items, total, page, limit);
   }
 
+  /**
+   * 뷰어가 판매자의 방송 목록을 조회할 때 사용하는 메서드
+   * 종료된 방송(isLive: false)은 제외하고 라이브 중인 방송만 반환
+   */
+  async findSellerBroadcastsForViewer(
+    sellerId: string,
+    query: BroadcastListRequestDto,
+  ): Promise<PagedResponseV2<BroadcastListItemDto>> {
+    const { page = 1, limit = 10, keyword, startDate, endDate } = query;
+    const offset = (page - 1) * limit;
+
+    const qb: QueryBuilder<Broadcast> = this.broadcastRepository.createQueryBuilder('b');
+
+    qb.where({ seller: sellerId, isLive: true }); // 라이브 중인 방송만 조회
+
+    if (keyword) {
+      qb.andWhere({ title: { $like: `%${keyword}%` } });
+    }
+
+    if (startDate) {
+      qb.andWhere({ scheduledAt: { $gte: new Date(startDate) } });
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setDate(end.getDate() + 1);
+      qb.andWhere({ scheduledAt: { $lt: end } });
+    }
+
+    const countQb = qb.clone();
+
+    qb.orderBy({ scheduledAt: 'DESC' }).offset(offset).limit(limit);
+
+    const broadcasts = await qb.getResultList();
+    await this.em.populate(broadcasts, ['products.product']);
+    const total = await countQb.getCount();
+
+    const items = broadcasts.map(
+      (b) =>
+        new BroadcastListItemDto({
+          id: b.id,
+          title: b.title,
+          description: b.description,
+          thumbnailUrl: b.thumbnailUrl,
+          scheduledAt: b.scheduledAt,
+          products: b.products?.map((bp) => ({
+            id: bp.product.id,
+            name: bp.product.name,
+          })),
+          isLive: b.isLive,
+        }),
+    );
+
+    return new PagedResponseV2<BroadcastListItemDto>(items, total, page, limit);
+  }
+
   // TODO: Update, Delete 메서드 추가
   // TODO: 방송 시작/종료, 상품 연동 등의 메서드 추가
   async start(hostUserId: string, broadcastId: string) {
