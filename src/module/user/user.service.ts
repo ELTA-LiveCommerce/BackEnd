@@ -164,7 +164,8 @@ export class UserService {
     if (updateUserDto.accountNumber) user.accountNumber = updateUserDto.accountNumber;
     if (updateUserDto.address) user.address = updateUserDto.address;
     if (updateUserDto.isVerified !== undefined) user.isVerified = updateUserDto.isVerified;
-    if (updateUserDto.feePercentage !== undefined && updateUserDto.feePercentage !== null) user.feePercentage = updateUserDto.feePercentage;
+    if (updateUserDto.feePercentage !== undefined && updateUserDto.feePercentage !== null)
+      user.feePercentage = updateUserDto.feePercentage;
 
     // 비밀번호 변경은 별도 처리
     if (updateUserDto.password) {
@@ -811,6 +812,34 @@ export class UserService {
 
     // 4. 변경된 사용자 반환
     return user;
+  }
+
+  /**
+   * 셀러의 기본 정보(상호명, 사업자주소, 사업자번호)를 조회합니다.
+   * @param sellerId 셀러 ID
+   * @returns 셀러 정보
+   */
+  async getSellerInfo(
+    sellerId: string,
+  ): Promise<{ businessName?: string; businessAddress?: string; businessNumber?: string }> {
+    const seller = await this.userRepository.findOne(
+      { id: sellerId, role: UserRole.SELLER },
+      { populate: ['sellerInfo'] },
+    );
+
+    if (!seller) {
+      throw new NotFoundException(`판매자 ID ${sellerId}를 찾을 수 없습니다.`);
+    }
+
+    if (!seller.sellerInfo) {
+      throw new NotFoundException(`판매자 ID ${sellerId}의 상세 정보를 찾을 수 없습니다.`);
+    }
+
+    return {
+      businessName: seller.sellerInfo.businessName,
+      businessAddress: seller.sellerInfo.businessAddress,
+      businessNumber: seller.sellerInfo.businessNumber,
+    };
   }
 }
 

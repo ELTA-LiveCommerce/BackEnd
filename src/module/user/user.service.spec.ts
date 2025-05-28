@@ -858,5 +858,129 @@ describe('UserService', () => {
       );
     });
   });
+
+  describe('getSellerInfo', () => {
+    it('셀러 정보를 성공적으로 조회한다', async () => {
+      // Given
+      const sellerId = 'seller-id';
+      const mockSellerInfo = {
+        businessName: 'ABC 상사',
+        businessAddress: '서울시 강남구 테헤란로 123',
+        businessNumber: '123-45-67890',
+      };
+      const mockSeller = {
+        id: sellerId,
+        role: UserRole.SELLER,
+        sellerInfo: mockSellerInfo,
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(mockSeller);
+
+      // When
+      const result = await service.getSellerInfo(sellerId);
+
+      // Then
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith(
+        { id: sellerId, role: UserRole.SELLER },
+        { populate: ['sellerInfo'] },
+      );
+      expect(result).toEqual({
+        businessName: 'ABC 상사',
+        businessAddress: '서울시 강남구 테헤란로 123',
+        businessNumber: '123-45-67890',
+      });
+    });
+
+    it('부분적인 셀러 정보를 조회한다', async () => {
+      // Given
+      const sellerId = 'seller-id';
+      const mockSellerInfo = {
+        businessName: 'ABC 상사',
+        businessAddress: undefined,
+        businessNumber: undefined,
+      };
+      const mockSeller = {
+        id: sellerId,
+        role: UserRole.SELLER,
+        sellerInfo: mockSellerInfo,
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(mockSeller);
+
+      // When
+      const result = await service.getSellerInfo(sellerId);
+
+      // Then
+      expect(result).toEqual({
+        businessName: 'ABC 상사',
+        businessAddress: undefined,
+        businessNumber: undefined,
+      });
+    });
+
+    it('존재하지 않는 판매자를 조회하면 NotFoundException이 발생한다', async () => {
+      // Given
+      const sellerId = 'non-existent-seller-id';
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      // When & Then
+      await expect(service.getSellerInfo(sellerId)).rejects.toThrow(
+        new NotFoundException(`판매자 ID ${sellerId}를 찾을 수 없습니다.`),
+      );
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith(
+        { id: sellerId, role: UserRole.SELLER },
+        { populate: ['sellerInfo'] },
+      );
+    });
+
+    it('판매자는 존재하지만 sellerInfo가 없으면 NotFoundException이 발생한다', async () => {
+      // Given
+      const sellerId = 'seller-id';
+      const mockSeller = {
+        id: sellerId,
+        role: UserRole.SELLER,
+        sellerInfo: null,
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(mockSeller);
+
+      // When & Then
+      await expect(service.getSellerInfo(sellerId)).rejects.toThrow(
+        new NotFoundException(`판매자 ID ${sellerId}의 상세 정보를 찾을 수 없습니다.`),
+      );
+    });
+
+    it('셀러 정보가 undefined인 경우 NotFoundException이 발생한다', async () => {
+      // Given
+      const sellerId = 'seller-id';
+      const mockSeller = {
+        id: sellerId,
+        role: UserRole.SELLER,
+        sellerInfo: undefined,
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(mockSeller);
+
+      // When & Then
+      await expect(service.getSellerInfo(sellerId)).rejects.toThrow(
+        new NotFoundException(`판매자 ID ${sellerId}의 상세 정보를 찾을 수 없습니다.`),
+      );
+    });
+
+    it('일반 사용자(VIEWER)를 조회하면 NotFoundException이 발생한다', async () => {
+      // Given
+      const userId = 'viewer-user-id';
+      mockUserRepository.findOne.mockResolvedValue(null); // role이 SELLER가 아니므로 조회되지 않음
+
+      // When & Then
+      await expect(service.getSellerInfo(userId)).rejects.toThrow(
+        new NotFoundException(`판매자 ID ${userId}를 찾을 수 없습니다.`),
+      );
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith(
+        { id: userId, role: UserRole.SELLER },
+        { populate: ['sellerInfo'] },
+      );
+    });
+  });
 });
 
