@@ -47,6 +47,11 @@ export class SellerSeeder extends Seeder {
       accountNumber: sellerAccountNumber,
       role: UserRole.SELLER,
       isVerified: true,
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
       feePercentage: 0.1, // 기본 수수료 10%
       createdAt: new Date(),
       updatedAt: new Date(),

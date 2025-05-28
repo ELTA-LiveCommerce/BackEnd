@@ -40,6 +40,11 @@ export class AdminSeeder extends Seeder {
       role: UserRole.ADMIN,
       isVerified: true,
       feePercentage: 0, // 관리자는 수수료 0%
+      logins: [],
+      following: [],
+      followers: [],
+      blockedUsersByMe: [],
+      blockingSellersOfMe: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     });

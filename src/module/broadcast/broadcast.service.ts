@@ -153,7 +153,7 @@ export class BroadcastService {
           description: b.description,
           thumbnailUrl: b.thumbnailUrl,
           scheduledAt: b.scheduledAt,
-          products: b.products.map((bp) => ({
+          products: b.products?.map((bp) => ({
             id: bp.product.id,
             name: bp.product.name,
           })),
@@ -428,6 +428,8 @@ export class BroadcastService {
       { populate: ['product'] },
     );
 
+    console.log('Broadcast Product:', broadcastProduct);
+
     if (!broadcastProduct) {
       throw new NotFoundException(`해당 방송에 연결된 상품을 찾을 수 없습니다: ${productId}`);
     }
@@ -440,17 +442,17 @@ export class BroadcastService {
 
       if (currentProduct) {
         currentProduct.status = BroadcastProductStatus.SOLD;
-        this.em.persistAndFlush(currentProduct);
+        await this.em.persistAndFlush(currentProduct);
       }
     }
 
     // 새로운 상품 상태 업데이트
     broadcastProduct.status = BroadcastProductStatus.SELLING;
-    this.em.persistAndFlush(broadcastProduct);
+    await this.em.persistAndFlush(broadcastProduct);
 
     // 스트림 정보 업데이트
     broadcast.stream.currentSellingProduct = broadcastProduct;
-    this.em.persistAndFlush(broadcast.stream);
+    await this.em.persistAndFlush(broadcast.stream);
 
     return broadcastProduct;
   }
