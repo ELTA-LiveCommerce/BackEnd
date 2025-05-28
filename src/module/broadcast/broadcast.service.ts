@@ -541,5 +541,94 @@ export class BroadcastService {
 
     return content;
   }
+
+  /**
+   * Agora에서 실시간 시청자 수를 조회합니다.
+   */
+  async getCurrentViewersCount(broadcastId: string): Promise<{
+    success: boolean;
+    currentViewers: number;
+    rtcUsers: number;
+    chatMembers: number;
+  }> {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['stream'] });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    if (!broadcast.isLive || !broadcast.stream) {
+      return {
+        success: true,
+        currentViewers: 0,
+        rtcUsers: 0,
+        chatMembers: 0,
+      };
+    }
+
+    try {
+      // RTC 채널 사용자 수 조회
+      const rtcUsers = await this.agora.getChannelUserCount(broadcast.stream.id);
+
+      // 채팅방 멤버 수 조회 (옵션)
+      let chatMembers = 0;
+      if (broadcast.stream.chatRoomId) {
+        chatMembers = await this.agora.getChatRoomMemberCount(broadcast.stream.chatRoomId);
+      }
+
+      // RTC 사용자 수를 현재 시청자 수로 설정 (호스트 제외하려면 -1)
+      const actualViewers = Math.max(0, rtcUsers - 1); // 호스트 제외
+
+      // 최대 시청자 수 업데이트 (필요시)
+      if (actualViewers > broadcast.maxViewers) {
+        broadcast.maxViewers = actualViewers;
+        await this.em.persistAndFlush(broadcast);
+      }
+
+      return {
+        success: true,
+        currentViewers: actualViewers,
+        rtcUsers,
+        chatMembers,
+      };
+    } catch (error: any) {
+      // 에러 발생 시 0 반환 (로깅은 유지)
+      console.error(`Agora에서 시청자 수를 조회하는데 실패했습니다: ${error.message}`);
+      return {
+        success: false,
+        currentViewers: 0,
+        rtcUsers: 0,
+        chatMembers: 0,
+      };
+    }
+  }
+
+  /**
+   * 방송의 최대 시청자수를 설정합니다.
+   */
+  async updateMaxViewersCount(
+    broadcastId: string,
+    maxViewers: number,
+  ): Promise<{
+    success: boolean;
+    broadcastId: string;
+    maxViewers: number;
+  }> {
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId });
+
+    if (!broadcast) {
+      throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    }
+
+    // 최대 시청자수 업데이트
+    broadcast.maxViewers = maxViewers;
+    await this.em.persistAndFlush(broadcast);
+
+    return {
+      success: true,
+      broadcastId,
+      maxViewers,
+    };
+  }
 }
 

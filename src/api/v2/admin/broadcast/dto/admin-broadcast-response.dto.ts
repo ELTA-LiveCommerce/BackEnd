@@ -58,6 +58,9 @@ export class AdminBroadcastResponseBody {
   @ApiProperty({ description: '최대 시청자 수' })
   maxViewers: number;
 
+  @ApiProperty({ description: '현재 시청자 수' })
+  currentViewers: number;
+
   @ApiProperty({ description: '상품 목록', type: [AdminBroadcastProductResponse] })
   products: AdminBroadcastProductResponse[];
 
@@ -72,6 +75,7 @@ export class AdminBroadcastResponseBody {
       thumbnailUrl: broadcast.thumbnailUrl,
       isLive: broadcast.isLive,
       maxViewers: broadcast.maxViewers || 0,
+      currentViewers: 0, // 실시간 시청자 수는 별도 API (GET /admin/broadcasts/:id/viewers)로 조회
       products: broadcast.products ? broadcast.products.map(AdminBroadcastProductResponse.fromBroadcastProduct) : [],
     };
   }

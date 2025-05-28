@@ -28,9 +28,12 @@ const mockStreamRepository = {
 };
 
 const mockEntityManager = {
-  transactional: jest.fn(),
-  findOne: jest.fn(),
+  find: jest.fn().mockReturnValue([]),
+  findOne: jest.fn().mockReturnValue(null),
   persist: jest.fn(),
+  flush: jest.fn(),
+  persistAndFlush: jest.fn(),
+  transactional: jest.fn((callback) => callback(mockEntityManager)),
 };
 
 const mockAgoraService = {
@@ -38,6 +41,8 @@ const mockAgoraService = {
   rtcTokenWithAccount: jest.fn().mockReturnValue('mock-rtc-token'),
   chatUserToken: jest.fn().mockReturnValue('mock-chat-token'),
   addUser: jest.fn(),
+  getChannelUserCount: jest.fn(),
+  getChatRoomMemberCount: jest.fn(),
 };
 
 const mockUserBlockService = {
@@ -206,6 +211,221 @@ describe('BroadcastService', () => {
       );
 
       expect(mockUserBlockService.isUserBlockedBySeller).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('stopSellingProduct', () => {
+    const mockSeller = { id: 'seller-id', name: 'Test Seller' };
+    const mockStream = {
+      id: 'test-stream-id',
+      currentSellingProduct: { id: 'product-id' },
+    };
+    const mockBroadcast = {
+      id: 'broadcast-id',
+      seller: mockSeller,
+      isLive: true,
+      stream: mockStream,
+    };
+    const mockBroadcastProduct = {
+      id: 'product-id',
+      status: 'SELLING',
+    };
+
+    it('should stop selling the current product', async () => {
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
+      mockEntityManager.findOne.mockReturnValue(Promise.resolve(mockBroadcastProduct));
+
+      await service.stopSellingProduct('broadcast-id', 'seller-id');
+
+      // 메서드 호출 횟수는 구현에 따라 달라질 수 있으므로 호출 여부만 확인
+      expect(mockEntityManager.persist).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when no product is being sold', async () => {
+      const broadcastWithoutProduct = {
+        ...mockBroadcast,
+        stream: { ...mockStream, currentSellingProduct: null },
+      };
+      mockBroadcastRepository.findOne.mockResolvedValue(broadcastWithoutProduct);
+
+      await expect(service.stopSellingProduct('broadcast-id', 'seller-id')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw ForbiddenException when seller is not the owner', async () => {
+      const broadcastWithDifferentSeller = {
+        ...mockBroadcast,
+        seller: { ...mockSeller, id: 'different-seller-id' },
+      };
+      mockBroadcastRepository.findOne.mockResolvedValue(broadcastWithDifferentSeller);
+
+      await expect(service.stopSellingProduct('broadcast-id', 'seller-id')).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getCurrentViewersCount', () => {
+    const broadcastId = 'test-broadcast-id';
+    const mockStream = {
+      id: 'test-channel-id',
+      chatRoomId: 'test-chat-room-id',
+    };
+
+    const mockBroadcast = {
+      id: broadcastId,
+      title: 'Test Broadcast',
+      isLive: true,
+      maxViewers: 50,
+      stream: mockStream,
+    };
+
+    it('should get current viewers count successfully', async () => {
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
+      mockAgoraService.getChannelUserCount.mockResolvedValue(5); // 5 RTC users
+      mockAgoraService.getChatRoomMemberCount.mockResolvedValue(8); // 8 chat members
+
+      const result = await service.getCurrentViewersCount(broadcastId);
+
+      expect(result.success).toBe(true);
+      expect(result.currentViewers).toBe(4); // 5 RTC users - 1 host = 4 viewers
+      expect(result.rtcUsers).toBe(5);
+      expect(result.chatMembers).toBe(8);
+      expect(mockAgoraService.getChannelUserCount).toHaveBeenCalledWith(mockStream.id);
+      expect(mockAgoraService.getChatRoomMemberCount).toHaveBeenCalledWith(mockStream.chatRoomId);
+    });
+
+    it('should update max viewers when current viewers exceeds it', async () => {
+      const mockBroadcastWithLowMax = {
+        ...mockBroadcast,
+        maxViewers: 2, // 낮은 최대값
+      };
+
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcastWithLowMax);
+      mockAgoraService.getChannelUserCount.mockResolvedValue(6); // 6 RTC users
+
+      const result = await service.getCurrentViewersCount(broadcastId);
+
+      expect(result.success).toBe(true);
+      expect(result.currentViewers).toBe(5); // 6 RTC users - 1 host = 5 viewers
+      expect(mockBroadcastWithLowMax.maxViewers).toBe(5); // max viewers updated
+      expect(mockEntityManager.persistAndFlush).toHaveBeenCalledWith(mockBroadcastWithLowMax);
+    });
+
+    it('should return zero viewers for non-live broadcast', async () => {
+      const mockBroadcastNotLive = {
+        ...mockBroadcast,
+        isLive: false,
+      };
+
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcastNotLive);
+
+      const result = await service.getCurrentViewersCount(broadcastId);
+
+      expect(result.success).toBe(true);
+      expect(result.currentViewers).toBe(0);
+      expect(result.rtcUsers).toBe(0);
+      expect(result.chatMembers).toBe(0);
+      expect(mockAgoraService.getChannelUserCount).not.toHaveBeenCalled();
+    });
+
+    it('should handle Agora API errors gracefully', async () => {
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
+      mockAgoraService.getChannelUserCount.mockRejectedValue(new Error('Agora API error'));
+
+      const result = await service.getCurrentViewersCount(broadcastId);
+
+      expect(result.success).toBe(false);
+      expect(result.currentViewers).toBe(0);
+      expect(result.rtcUsers).toBe(0);
+      expect(result.chatMembers).toBe(0);
+    });
+
+    it('should throw NotFoundException when broadcast not found', async () => {
+      mockBroadcastRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getCurrentViewersCount('not-exist-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateMaxViewersCount', () => {
+    const broadcastId = 'test-broadcast-id';
+
+    const mockBroadcast = {
+      id: broadcastId,
+      title: 'Test Broadcast',
+      maxViewers: 50,
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should update max viewers count successfully', async () => {
+      const maxViewers = 150;
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
+
+      const result = await service.updateMaxViewersCount(broadcastId, maxViewers);
+
+      expect(result.success).toBe(true);
+      expect(result.broadcastId).toBe(broadcastId);
+      expect(result.maxViewers).toBe(maxViewers);
+      expect(mockBroadcast.maxViewers).toBe(maxViewers);
+      expect(mockEntityManager.persistAndFlush).toHaveBeenCalledWith(mockBroadcast);
+      expect(mockBroadcastRepository.findOne).toHaveBeenCalledWith({ id: broadcastId });
+    });
+
+    it('should update max viewers count to zero', async () => {
+      const maxViewers = 0;
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
+
+      const result = await service.updateMaxViewersCount(broadcastId, maxViewers);
+
+      expect(result.success).toBe(true);
+      expect(result.maxViewers).toBe(0);
+      expect(mockBroadcast.maxViewers).toBe(0);
+    });
+
+    it('should update max viewers count to maximum allowed value', async () => {
+      const maxViewers = 999999;
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
+
+      const result = await service.updateMaxViewersCount(broadcastId, maxViewers);
+
+      expect(result.success).toBe(true);
+      expect(result.maxViewers).toBe(999999);
+      expect(mockBroadcast.maxViewers).toBe(999999);
+    });
+
+    it('should handle updating same value', async () => {
+      const maxViewers = 50; // 현재와 같은 값
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
+
+      const result = await service.updateMaxViewersCount(broadcastId, maxViewers);
+
+      expect(result.success).toBe(true);
+      expect(result.maxViewers).toBe(50);
+      expect(mockBroadcast.maxViewers).toBe(50);
+      expect(mockEntityManager.persistAndFlush).toHaveBeenCalledWith(mockBroadcast);
+    });
+
+    it('should throw NotFoundException when broadcast not found', async () => {
+      const maxViewers = 150;
+      mockBroadcastRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.updateMaxViewersCount('not-exist-id', maxViewers)).rejects.toThrow(
+        new NotFoundException('방송 ID not-exist-id를 찾을 수 없습니다.'),
+      );
+
+      expect(mockEntityManager.persistAndFlush).not.toHaveBeenCalled();
+    });
+
+    it('should handle database error during persist', async () => {
+      const maxViewers = 150;
+      mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
+      mockEntityManager.persistAndFlush.mockRejectedValue(new Error('Database error'));
+
+      await expect(service.updateMaxViewersCount(broadcastId, maxViewers)).rejects.toThrow('Database error');
+
+      expect(mockBroadcastRepository.findOne).toHaveBeenCalledWith({ id: broadcastId });
+      expect(mockBroadcast.maxViewers).toBe(maxViewers); // 메모리에서는 변경됨
     });
   });
 });

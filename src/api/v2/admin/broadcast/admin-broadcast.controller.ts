@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, HttpStatus, Patch, Body } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/module/auth/guards/roles.guard';
@@ -6,7 +6,7 @@ import { Roles } from '@/shared/common/decorators/roles.decorator';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { UserService } from '@/module/user/user.service';
-import { AdminBroadcastListRequest } from './dto/admin-broadcast-request.dto';
+import { AdminBroadcastListRequest, UpdateMaxViewersRequest } from './dto/admin-broadcast-request.dto';
 import { AdminBroadcastListResponse, AdminBroadcastResponse } from './dto/admin-broadcast-response.dto';
 import { BroadcastListRequestDto } from '@/api/v2/seller/lives/dto/broadcast-list.request.dto';
 
@@ -87,6 +87,85 @@ export class AdminBroadcastController {
     const broadcast = await this.broadcastService.findOne(id);
     const response = AdminBroadcastResponse.fromEntity(broadcast);
     return { data: response };
+  }
+
+  @ApiOperation({ summary: '실시간 시청자수 조회' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: '실시간 시청자수를 조회했습니다.' },
+        data: {
+          type: 'object',
+          properties: {
+            broadcastId: { type: 'string', example: 'broadcast-uuid' },
+            currentViewers: { type: 'number', example: 4 },
+            rtcUsers: { type: 'number', example: 5 },
+            chatMembers: { type: 'number', example: 8 },
+          },
+        },
+      },
+    },
+  })
+  @Get(':id/viewers')
+  async getCurrentViewersCount(@Param('id') broadcastId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { broadcastId: string; currentViewers: number; rtcUsers: number; chatMembers: number };
+  }> {
+    const result = await this.broadcastService.getCurrentViewersCount(broadcastId);
+
+    return {
+      success: result.success,
+      message: '실시간 시청자수를 조회했습니다.',
+      data: {
+        broadcastId,
+        currentViewers: result.currentViewers,
+        rtcUsers: result.rtcUsers,
+        chatMembers: result.chatMembers,
+      },
+    };
+  }
+
+  @ApiOperation({ summary: '방송 최대 시청자수 설정' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: '최대 시청자수가 성공적으로 설정되었습니다.' },
+        data: {
+          type: 'object',
+          properties: {
+            broadcastId: { type: 'string', example: 'broadcast-uuid' },
+            maxViewers: { type: 'number', example: 100 },
+          },
+        },
+      },
+    },
+  })
+  @Patch(':id/max-viewers')
+  async updateMaxViewersCount(
+    @Param('id') broadcastId: string,
+    @Body() updateRequest: UpdateMaxViewersRequest,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: { broadcastId: string; maxViewers: number };
+  }> {
+    const result = await this.broadcastService.updateMaxViewersCount(broadcastId, updateRequest.maxViewers);
+
+    return {
+      success: result.success,
+      message: '최대 시청자수가 성공적으로 설정되었습니다.',
+      data: {
+        broadcastId: result.broadcastId,
+        maxViewers: result.maxViewers,
+      },
+    };
   }
 }
 
