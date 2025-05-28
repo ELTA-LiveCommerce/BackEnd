@@ -3,7 +3,11 @@ import { AdminBroadcastController } from './admin-broadcast.controller';
 import { BroadcastService } from '@/module/broadcast/broadcast.service';
 import { UserService } from '@/module/user/user.service';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
-import { AdminBroadcastListResponse, AdminBroadcastResponse } from './dto/admin-broadcast-response.dto';
+import {
+  AdminBroadcastListResponse,
+  AdminBroadcastResponse,
+  AdminBroadcastResponseBody,
+} from './dto/admin-broadcast-response.dto';
 import { AdminBroadcastListRequest, AdminBroadcastSortBy, SortOrder } from './dto/admin-broadcast-request.dto';
 import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 import { BroadcastListItemDto } from '@/module/broadcast/dto/broadcast-list-item.dto';
@@ -13,23 +17,29 @@ describe('AdminBroadcastController', () => {
   let broadcastService: BroadcastService;
   let userService: UserService;
 
+  const mockBroadcastService = {
+    findSellerBroadcastsPaged: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    getCurrentViewersCount: jest.fn(),
+    updateMaxViewersCount: jest.fn(),
+  };
+
+  const mockUserService = {
+    findById: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminBroadcastController],
       providers: [
         {
           provide: BroadcastService,
-          useValue: {
-            findAll: jest.fn(),
-            findOne: jest.fn(),
-            findSellerBroadcastsPaged: jest.fn(),
-          },
+          useValue: mockBroadcastService,
         },
         {
           provide: UserService,
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: mockUserService,
         },
       ],
     }).compile();
@@ -49,6 +59,7 @@ describe('AdminBroadcastController', () => {
         createdAt: b.createdAt || new Date(),
         isLive: b.isLive,
         maxViewers: b.maxViewers || 0,
+        currentViewers: b.currentViewers || 0,
         products: [],
       }));
 
@@ -78,6 +89,7 @@ describe('AdminBroadcastController', () => {
         createdAt: broadcast.createdAt,
         isLive: broadcast.isLive,
         maxViewers: broadcast.maxViewers,
+        currentViewers: broadcast.currentViewers,
         products: [],
       };
 
@@ -114,6 +126,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-01'),
           isLive: false,
           maxViewers: 0,
+          currentViewers: 0,
           products: [],
         } as unknown as Broadcast,
         {
@@ -123,6 +136,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-02'),
           isLive: false,
           maxViewers: 0,
+          currentViewers: 0,
           products: [],
         } as unknown as Broadcast,
       ];
@@ -179,6 +193,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-01'),
           isLive: false,
           maxViewers: 0,
+          currentViewers: 0,
           products: [],
         } as unknown as Broadcast,
         {
@@ -188,6 +203,7 @@ describe('AdminBroadcastController', () => {
           scheduledAt: new Date('2023-07-02'),
           isLive: false,
           maxViewers: 0,
+          currentViewers: 0,
           products: [],
         } as unknown as Broadcast,
       ];
@@ -208,6 +224,41 @@ describe('AdminBroadcastController', () => {
       expect(result.data.items.length).toBe(mockItems.length);
       expect(result.data.total).toBe(mockItems.length);
     });
+
+    it('should get broadcast by id', async () => {
+      const broadcast = {
+        id: 'broadcast-1',
+        title: 'Test Broadcast',
+        seller: { id: 'seller-1', name: 'Test Seller' },
+        scheduledAt: new Date(),
+        createdAt: new Date(),
+        isLive: true,
+        maxViewers: 100,
+        currentViewers: 50,
+        products: [],
+      } as any;
+
+      (broadcastService.findOne as jest.Mock).mockResolvedValue(broadcast);
+
+      const mockResponse = {
+        data: {
+          id: 'broadcast-1',
+          title: 'Test Broadcast',
+          sellerId: 'seller-1',
+          sellerName: 'Test Seller',
+          scheduledAt: broadcast.scheduledAt,
+          createdAt: broadcast.createdAt,
+          isLive: true,
+          maxViewers: 100,
+          currentViewers: 50,
+          products: [],
+        },
+      } as { data: AdminBroadcastResponseBody };
+
+      const result = await controller.getBroadcast('broadcast-1');
+      expect(result).toBeDefined();
+      expect(broadcastService.findOne).toHaveBeenCalledWith('broadcast-1');
+    });
   });
 
   describe('getBroadcast', () => {
@@ -221,6 +272,7 @@ describe('AdminBroadcastController', () => {
         scheduledAt: new Date('2023-07-01'),
         isLive: false,
         maxViewers: 0,
+        currentViewers: 0,
         products: [],
         createdAt: new Date(),
       } as unknown as Broadcast;
@@ -234,6 +286,151 @@ describe('AdminBroadcastController', () => {
       expect(broadcastService.findOne).toHaveBeenCalledWith(broadcastId);
       expect(result.data).toBeDefined();
       expect(result.data.data.id).toBe(broadcastId);
+    });
+  });
+
+  describe('getCurrentViewersCount', () => {
+    it('should get current viewers count successfully', async () => {
+      const broadcastId = 'test-broadcast-id';
+      const serviceResult = {
+        success: true,
+        currentViewers: 4,
+        rtcUsers: 5,
+        chatMembers: 8,
+      };
+
+      mockBroadcastService.getCurrentViewersCount.mockResolvedValue(serviceResult);
+
+      const result = await controller.getCurrentViewersCount(broadcastId);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('실시간 시청자수를 조회했습니다.');
+      expect(result.data.broadcastId).toBe(broadcastId);
+      expect(result.data.currentViewers).toBe(4);
+      expect(result.data.rtcUsers).toBe(5);
+      expect(result.data.chatMembers).toBe(8);
+      expect(mockBroadcastService.getCurrentViewersCount).toHaveBeenCalledWith(broadcastId);
+    });
+
+    it('should handle service errors', async () => {
+      const broadcastId = 'non-existent-id';
+
+      mockBroadcastService.getCurrentViewersCount.mockRejectedValue(new Error('방송을 찾을 수 없습니다.'));
+
+      await expect(controller.getCurrentViewersCount(broadcastId)).rejects.toThrow('방송을 찾을 수 없습니다.');
+    });
+  });
+
+  describe('updateMaxViewersCount', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should update max viewers count successfully', async () => {
+      const broadcastId = 'test-broadcast-id';
+      const updateRequest = { maxViewers: 100 };
+
+      mockBroadcastService.updateMaxViewersCount.mockResolvedValue({
+        success: true,
+        broadcastId,
+        maxViewers: 100,
+      });
+
+      const result = await controller.updateMaxViewersCount(broadcastId, updateRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('최대 시청자수가 성공적으로 설정되었습니다.');
+      expect(result.data.broadcastId).toBe(broadcastId);
+      expect(result.data.maxViewers).toBe(100);
+      expect(mockBroadcastService.updateMaxViewersCount).toHaveBeenCalledWith(broadcastId, 100);
+      expect(mockBroadcastService.updateMaxViewersCount).toHaveBeenCalledTimes(1);
+    });
+
+    it('should update max viewers count to zero', async () => {
+      const broadcastId = 'test-broadcast-id';
+      const updateRequest = { maxViewers: 0 };
+
+      mockBroadcastService.updateMaxViewersCount.mockResolvedValue({
+        success: true,
+        broadcastId,
+        maxViewers: 0,
+      });
+
+      const result = await controller.updateMaxViewersCount(broadcastId, updateRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.data.maxViewers).toBe(0);
+      expect(mockBroadcastService.updateMaxViewersCount).toHaveBeenCalledWith(broadcastId, 0);
+    });
+
+    it('should update max viewers count to maximum allowed value', async () => {
+      const broadcastId = 'test-broadcast-id';
+      const updateRequest = { maxViewers: 999999 };
+
+      mockBroadcastService.updateMaxViewersCount.mockResolvedValue({
+        success: true,
+        broadcastId,
+        maxViewers: 999999,
+      });
+
+      const result = await controller.updateMaxViewersCount(broadcastId, updateRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.data.maxViewers).toBe(999999);
+      expect(mockBroadcastService.updateMaxViewersCount).toHaveBeenCalledWith(broadcastId, 999999);
+    });
+
+    it('should handle service NotFoundException', async () => {
+      const broadcastId = 'non-existent-id';
+      const updateRequest = { maxViewers: 100 };
+
+      const notFoundError = new Error('방송 ID non-existent-id를 찾을 수 없습니다.');
+      notFoundError.name = 'NotFoundException';
+      mockBroadcastService.updateMaxViewersCount.mockRejectedValue(notFoundError);
+
+      await expect(controller.updateMaxViewersCount(broadcastId, updateRequest)).rejects.toThrow(notFoundError);
+      expect(mockBroadcastService.updateMaxViewersCount).toHaveBeenCalledWith(broadcastId, 100);
+    });
+
+    it('should handle service database error', async () => {
+      const broadcastId = 'test-broadcast-id';
+      const updateRequest = { maxViewers: 100 };
+
+      const dbError = new Error('Database connection failed');
+      mockBroadcastService.updateMaxViewersCount.mockRejectedValue(dbError);
+
+      await expect(controller.updateMaxViewersCount(broadcastId, updateRequest)).rejects.toThrow(dbError);
+      expect(mockBroadcastService.updateMaxViewersCount).toHaveBeenCalledWith(broadcastId, 100);
+    });
+
+    it('should handle invalid broadcast ID format', async () => {
+      const invalidBroadcastId = '';
+      const updateRequest = { maxViewers: 100 };
+
+      // 빈 ID로 서비스 호출 시 에러 발생
+      const validationError = new Error('Invalid broadcast ID');
+      mockBroadcastService.updateMaxViewersCount.mockRejectedValue(validationError);
+
+      await expect(controller.updateMaxViewersCount(invalidBroadcastId, updateRequest)).rejects.toThrow(
+        validationError,
+      );
+    });
+
+    it('should preserve original request data in service call', async () => {
+      const broadcastId = 'test-broadcast-id';
+      const updateRequest = { maxViewers: 12345 };
+
+      mockBroadcastService.updateMaxViewersCount.mockResolvedValue({
+        success: true,
+        broadcastId,
+        maxViewers: 12345,
+      });
+
+      await controller.updateMaxViewersCount(broadcastId, updateRequest);
+
+      // 정확한 값이 서비스로 전달되는지 확인
+      expect(mockBroadcastService.updateMaxViewersCount).toHaveBeenCalledWith(broadcastId, 12345);
+      expect(mockBroadcastService.updateMaxViewersCount).toHaveBeenCalledWith(expect.any(String), expect.any(Number));
     });
   });
 });

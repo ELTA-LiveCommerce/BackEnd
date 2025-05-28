@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsOptional, IsString, IsUUID, IsInt, Min, Max, IsNumber, IsPositive } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID, IsInt, Min, Max, IsNumber } from 'class-validator';
 
 export enum AdminBroadcastSortBy {
   TITLE = 'title',
@@ -72,7 +72,6 @@ export class UpdateMaxViewersRequest {
     maximum: 999999,
   })
   @IsNumber()
-  @IsPositive()
   @Min(0)
   @Max(999999)
   maxViewers!: number;

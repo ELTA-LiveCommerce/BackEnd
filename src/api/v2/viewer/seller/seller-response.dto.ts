@@ -77,7 +77,7 @@ export class SellerLiveItemDto {
     dto.id = broadcast.id;
     dto.title = broadcast.title;
     dto.thumbnailImage = broadcast.thumbnailUrl;
-    dto.viewerCount = 0; // 실제 구현 필요
+    dto.viewerCount = 0; // 실시간 시청자 수는 별도 API로 조회 필요
     dto.isLive = broadcast.isLive;
     dto.startedAt = broadcast.scheduledAt;
     dto.status = broadcast.isLive ? 'LIVE' : 'SCHEDULED';
