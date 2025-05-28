@@ -139,17 +139,17 @@ describe('BroadcastService', () => {
         id: 'test-channel-id',
         chatRoomId: 'test-chat-room-id',
       },
+      maxViewers: 10, // 기본 최대 시청자 수
     };
 
     beforeEach(() => {
       mockBroadcastRepository.findOne.mockResolvedValue(mockBroadcast);
       mockAgoraService.addUser.mockResolvedValue(undefined);
+      mockUserBlockService.isUserBlockedBySeller.mockResolvedValue(false);
+      mockAgoraService.getChannelUserCount.mockResolvedValue(5); // 기본 5명
     });
 
-    it('should successfully join broadcast when user is not blocked', async () => {
-      // 사용자가 차단되지 않은 상태로 설정
-      mockUserBlockService.isUserBlockedBySeller.mockResolvedValue(false);
-
+    it('should successfully join broadcast when user is not blocked and under max viewers', async () => {
       const result = await service.join(broadcastId, userId);
 
       expect(mockBroadcastRepository.findOne).toHaveBeenCalledWith(
@@ -157,11 +157,83 @@ describe('BroadcastService', () => {
         { populate: ['stream', 'seller'] },
       );
       expect(mockUserBlockService.isUserBlockedBySeller).toHaveBeenCalledWith(sellerId, userId);
+      expect(mockAgoraService.getChannelUserCount).toHaveBeenCalledWith('test-channel-id');
       expect(result).toMatchObject({
         broadcastId,
         channelId: 'test-channel-id',
         chatRoomId: 'test-chat-room-id',
         uid: userId.replace(/-/g, '_'),
+      });
+    });
+
+    it('should allow join when maxViewers is 0 (unlimited)', async () => {
+      const unlimitedBroadcast = { ...mockBroadcast, maxViewers: 0 };
+      mockBroadcastRepository.findOne.mockResolvedValue(unlimitedBroadcast);
+
+      const result = await service.join(broadcastId, userId);
+
+      expect(result).toMatchObject({
+        broadcastId,
+        channelId: 'test-channel-id',
+      });
+      expect(mockAgoraService.getChannelUserCount).not.toHaveBeenCalled(); // 최대 인원 체크 안함
+    });
+
+    it('should throw BadRequestException when max viewers reached', async () => {
+      const fullBroadcast = { ...mockBroadcast, maxViewers: 3 };
+      mockBroadcastRepository.findOne.mockResolvedValue(fullBroadcast);
+      mockAgoraService.getChannelUserCount.mockResolvedValue(4); // 4명 RTC 사용자 = 3명 시청자 (호스트 제외)
+
+      await expect(service.join(broadcastId, userId)).rejects.toThrow(
+        new BadRequestException('방송 시청자 수가 최대 허용 인원(3명)에 도달했습니다.'),
+      );
+
+      expect(mockAgoraService.getChannelUserCount).toHaveBeenCalledWith('test-channel-id');
+      expect(mockAgoraService.addUser).not.toHaveBeenCalled(); // 접속 시도하지 않음
+    });
+
+    it('should throw BadRequestException when max viewers exactly reached', async () => {
+      const fullBroadcast = { ...mockBroadcast, maxViewers: 4 };
+      mockBroadcastRepository.findOne.mockResolvedValue(fullBroadcast);
+      mockAgoraService.getChannelUserCount.mockResolvedValue(5); // 5명 RTC 사용자 = 4명 시청자 (호스트 제외)
+
+      await expect(service.join(broadcastId, userId)).rejects.toThrow(
+        new BadRequestException('방송 시청자 수가 최대 허용 인원(4명)에 도달했습니다.'),
+      );
+    });
+
+    it('should allow join when current viewers is one less than max', async () => {
+      const almostFullBroadcast = { ...mockBroadcast, maxViewers: 5 };
+      mockBroadcastRepository.findOne.mockResolvedValue(almostFullBroadcast);
+      mockAgoraService.getChannelUserCount.mockResolvedValue(5); // 5명 RTC 사용자 = 4명 시청자 (호스트 제외)
+
+      const result = await service.join(broadcastId, userId);
+
+      expect(result).toMatchObject({
+        broadcastId,
+        channelId: 'test-channel-id',
+      });
+      expect(mockAgoraService.addUser).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when Agora API fails during viewer count check', async () => {
+      mockAgoraService.getChannelUserCount.mockRejectedValue(new Error('Agora API Error'));
+
+      await expect(service.join(broadcastId, userId)).rejects.toThrow(
+        new BadRequestException('방송 시청자 수를 확인할 수 없어 접속이 제한됩니다.'),
+      );
+
+      expect(mockAgoraService.addUser).not.toHaveBeenCalled();
+    });
+
+    it('should handle zero RTC users gracefully', async () => {
+      mockAgoraService.getChannelUserCount.mockResolvedValue(0); // 아무도 없음
+
+      const result = await service.join(broadcastId, userId);
+
+      expect(result).toMatchObject({
+        broadcastId,
+        channelId: 'test-channel-id',
       });
     });
 
@@ -174,6 +246,7 @@ describe('BroadcastService', () => {
       );
 
       expect(mockUserBlockService.isUserBlockedBySeller).toHaveBeenCalledWith(sellerId, userId);
+      expect(mockAgoraService.getChannelUserCount).not.toHaveBeenCalled(); // 블랙리스트 체크에서 먼저 차단
       expect(mockAgoraService.addUser).not.toHaveBeenCalled();
     });
 

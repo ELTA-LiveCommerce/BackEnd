@@ -229,6 +229,25 @@ export class BroadcastService {
       throw new ForbiddenException('차단된 사용자는 이 판매자의 방송을 시청할 수 없습니다.');
     }
 
+    // 최대 시청자 수 체크
+    if (broadcast.maxViewers > 0) {
+      try {
+        const rtcUsers = await this.agora.getChannelUserCount(broadcast.stream.id);
+        const currentViewers = Math.max(0, rtcUsers - 1); // 호스트 제외
+
+        if (currentViewers >= broadcast.maxViewers) {
+          throw new BadRequestException(`방송 시청자 수가 최대 허용 인원(${broadcast.maxViewers}명)에 도달했습니다.`);
+        }
+      } catch (error: any) {
+        // Agora API 에러 시에도 접속 차단 (안전을 위해)
+        if (error instanceof BadRequestException) {
+          throw error; // 최대 인원 초과 에러는 그대로 전파
+        }
+        console.warn(`Agora에서 시청자 수 조회 실패, 접속 차단: ${error.message}`);
+        throw new BadRequestException('방송 시청자 수를 확인할 수 없어 접속이 제한됩니다.');
+      }
+    }
+
     const { id: rtcChannelId, chatRoomId } = broadcast.stream;
     const uidChat = userId.replace(/-/g, '_');
 
