@@ -8,3 +8,4 @@ import { UserModule } from '@/module/user/user.module';
   controllers: [SellerInfoController],
 })
 export class SellerInfoControllerModule {}
+

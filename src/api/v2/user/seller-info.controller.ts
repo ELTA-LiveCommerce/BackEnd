@@ -9,8 +9,8 @@ import { UserService } from '@/module/user/user.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { SellerInfoResponse, SellerInfoResponseBody } from './dto/seller-info-response.dto';
 
-@ApiTags('User - Seller Info')
-@Controller('user/seller-info')
+@ApiTags('v2/user/seller-info')
+@Controller('v2/user/seller-info')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SellerInfoController {
   constructor(private readonly userService: UserService) {}
