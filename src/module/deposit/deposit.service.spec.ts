@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { EntityRepository, QueryBuilder } from '@mikro-orm/postgresql';
-import { BadRequestException } from '@nestjs/common';
-import { wrap } from '@mikro-orm/core';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { wrap, Collection } from '@mikro-orm/core';
 
 // Mock the wrap function
 jest.mock('@mikro-orm/core', () => ({
@@ -57,6 +57,30 @@ const mockClsService = {
   enter: jest.fn(),
   exit: jest.fn(),
 };
+
+// MockCollection 클래스
+class MockOrderCollection<T> {
+  private items: T[] = [];
+
+  constructor(items: T[] = []) {
+    this.items = items;
+  }
+
+  getItems(): T[] {
+    return this.items;
+  }
+
+  isInitialized(): boolean {
+    return true;
+  }
+
+  // 배열 인덱스 접근을 지원하기 위한 메서드들
+  [index: number]: T;
+
+  get length(): number {
+    return this.items.length;
+  }
+}
 
 describe('DepositService', () => {
   let service: DepositService;
@@ -151,14 +175,21 @@ describe('DepositService', () => {
     const mockOrder = {
       id: 'order-uuid-1',
       user: mockUserBuyer1,
-      orderNumber: 'ORDER-001',
+      orderNumber: 'ORD-001',
       status: OrderStatus.PAID,
-      items: [mockOrderItemA], // 배열로 변경
-      totalAmount: 10000,
-      shippingAddress: 'Address A Detail A',
-      createdAt: new Date('2023-01-01'),
+      items: new Proxy(new MockOrderCollection([mockOrderItemA]), {
+        get(target, prop) {
+          if (typeof prop === 'string' && !isNaN(Number(prop))) {
+            return target.getItems()[Number(prop)];
+          }
+          return target[prop];
+        },
+      }),
+      totalAmount: 100000,
+      shippingAddress: '서울시 강남구',
+      createdAt: new Date(),
       updatedAt: new Date(),
-    } as Order;
+    } as unknown as Order;
 
     const mockOrders = [mockOrder];
     const total = mockOrders.length;

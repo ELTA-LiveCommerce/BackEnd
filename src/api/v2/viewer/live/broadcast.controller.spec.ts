@@ -48,7 +48,13 @@ describe('Viewer Broadcast Controller', () => {
     products: [mockBroadcastProduct],
     scheduledAt: new Date(),
     thumbnailUrl: 'http://example.com/thumbnail.jpg',
-  } as Broadcast;
+    maxViewers: 100,
+    startLive: jest.fn(),
+    endLive: jest.fn(),
+    updateMaxViewers: jest.fn(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as unknown as Broadcast;
 
   const mockEndedBroadcast = {
     id: 'ended-broadcast-id',
@@ -59,7 +65,13 @@ describe('Viewer Broadcast Controller', () => {
     products: [mockBroadcastProduct],
     scheduledAt: new Date(),
     thumbnailUrl: 'http://example.com/thumbnail.jpg',
-  } as Broadcast;
+    maxViewers: 100,
+    startLive: jest.fn(),
+    endLive: jest.fn(),
+    updateMaxViewers: jest.fn(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as unknown as Broadcast;
 
   const mockBroadcastService = {
     join: jest.fn().mockResolvedValue({

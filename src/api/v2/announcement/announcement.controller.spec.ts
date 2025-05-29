@@ -22,19 +22,19 @@ describe('AnnouncementController', () => {
 
   const mockUser: UserEntity = {
     id: 'test-user-id',
-    loginId: 'admin@example.com',
-    name: 'Test Admin',
+    loginId: 'admin@elta.com',
+    name: 'ELTA 관리자',
     password: 'hashedPassword',
     role: UserRole.ADMIN,
     isVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-    logins: [], // 배열 타입으로 수정
+    logins: [],
     following: [],
     followers: [],
-    blockedUsersByMe: [], // 배열 타입으로 수정
-    blockingSellersOfMe: [], // 배열 타입으로 수정
-  } as UserEntity;
+    blockedUsersByMe: [],
+    blockingSellersOfMe: [],
+  } as unknown as UserEntity;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

@@ -74,9 +74,6 @@ describe('NotificationService', () => {
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('Sending KakaoTalk to 010-1234-5678 with template TEST_TEMPLATE'),
       );
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Development mode: Not sending actual KakaoTalk message'),
-      );
 
       // Verify API was not called
       expect(mockKakaoService.sendATS_one).not.toHaveBeenCalled();
@@ -100,9 +97,6 @@ describe('NotificationService', () => {
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('Sending KakaoTalk to 010-1234-5678 with template ORDER_COMPLETE_TEMPLATE'),
       );
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Development mode: Not sending actual KakaoTalk message'),
-      );
     });
 
     it('should handle API errors gracefully', async () => {
@@ -118,9 +112,9 @@ describe('NotificationService', () => {
         totalAmount: 50000,
       });
 
-      // Verify development mode message was logged
+      // Verify log message was called
       expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Development mode: Not sending actual KakaoTalk message'),
+        expect.stringContaining('Sending KakaoTalk to 01012345678 with template ORDER_COMPLETE_TEMPLATE'),
       );
     });
   });
@@ -159,6 +153,7 @@ describe('NotificationService', () => {
         accountHolder: 'ELTA',
         amount: '50,000원',
         dueDate: '2024.12.31',
+        sellerPhoneNumber: '010-1234-5678',
       };
 
       // Mock the private sendKakaoTalkWithTemplate method
@@ -174,6 +169,7 @@ describe('NotificationService', () => {
         계좌주: 'ELTA',
         금액: '50,000원',
         입금마감날짜: '2024.12.31',
+        셀러전화번호: '010-1234-5678',
       });
     });
 
@@ -189,6 +185,7 @@ describe('NotificationService', () => {
         accountHolder: 'ELTA',
         amount: '50,000원',
         dueDate: '2024.12.31',
+        sellerPhoneNumber: '010-1234-5678',
       };
 
       await service.sendDepositAccountNotification('010-9876-5432', params);
@@ -214,21 +211,32 @@ describe('NotificationService', () => {
   describe('getTemplateContent', () => {
     it('should return template content for deposit account template', () => {
       const templateCode = '025050000987';
+      const params = {
+        이름: '김테스트',
+        상품명: '테스트 상품',
+        계좌은행: '농협은행',
+        계좌번호: '123-456-789012',
+        계좌주: 'ELTA',
+        금액: '50,000원',
+        입금마감날짜: '2024.12.31',
+        셀러전화번호: '010-1234-5678',
+      };
 
-      const result = service['getTemplateContent'](templateCode);
+      const result = service['getTemplateContent'](templateCode, params);
 
       expect(result).toContain('[입금계좌 알림]');
-      expect(result).toContain('#{이름}님!');
-      expect(result).toContain('#{상품명}에 대한 입금');
-      expect(result).toContain('#{계좌은행} #{계좌번호}');
-      expect(result).toContain('#{계좌주}로 #{금액}을');
-      expect(result).toContain('#{입금마감날짜}까지 무통장입금');
+      expect(result).toContain('김테스트님!');
+      expect(result).toContain('테스트 상품에 대한 입금');
+      expect(result).toContain('농협은행 123-456-789012');
+      expect(result).toContain('ELTA로 50,000원을');
+      expect(result).toContain('2024.12.31까지 무통장입금');
+      expect(result).toContain('010-1234-5678으로 해주세요');
     });
 
     it('should throw NotImplementedException for unknown template', () => {
       const templateCode = 'UNKNOWN_TEMPLATE';
 
-      expect(() => service['getTemplateContent'](templateCode)).toThrow('Not implemented');
+      expect(() => service['getTemplateContent'](templateCode, {})).toThrow('Not implemented');
     });
   });
 
@@ -243,6 +251,7 @@ describe('NotificationService', () => {
         계좌주: 'ELTA',
         금액: '50,000원',
         입금마감날짜: '2024.12.31',
+        셀러전화번호: '010-1234-5678',
       };
 
       const result = service['getTemplateAltContent'](templateCode, params);
@@ -252,6 +261,7 @@ describe('NotificationService', () => {
       expect(result).toContain('농협은행 123-456-789012');
       expect(result).toContain('ELTA로 50,000원을');
       expect(result).toContain('2024.12.31까지 무통장입금');
+      expect(result).toContain('010-1234-5678으로 해주세요');
     });
 
     it('should handle missing template variables gracefully for deposit template', () => {

@@ -50,6 +50,7 @@ describe('CartService', () => {
     cartItemRepositoryMock = {
       findOne: jest.fn(),
       persistAndFlush: jest.fn(),
+      find: jest.fn().mockResolvedValue([]), // clearCart에서 사용
     };
 
     productRepositoryMock = {
@@ -61,6 +62,8 @@ describe('CartService', () => {
       persistAndFlush: jest.fn(),
       removeAndFlush: jest.fn(),
       flush: jest.fn(),
+      persist: jest.fn(), // addToCart에서 사용
+      remove: jest.fn(), // clearCart에서 사용
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -140,7 +143,7 @@ describe('CartService', () => {
       await service.addToCart(mockUser.id, mockProduct.id, 2);
 
       // Then
-      expect(mockCart.items.length).toBeGreaterThan(0); // 배열에 아이템이 추가되었는지 확인
+      expect(entityManagerMock.persist).toHaveBeenCalled(); // 새 CartItem이 persist되었는지 확인
       expect(entityManagerMock.flush).toHaveBeenCalled();
     });
 
@@ -263,12 +266,14 @@ describe('CartService', () => {
     it('장바구니의 모든 상품을 삭제해야 함', async () => {
       // Given
       cartRepositoryMock.findOne.mockResolvedValue(mockCart);
+      cartItemRepositoryMock.find.mockResolvedValue([mockCartItem]); // 삭제할 아이템들
 
       // When
       await service.clearCart(mockUser.id);
 
       // Then
-      expect(mockCart.items.length).toBe(0); // 배열이 비워졌는지 확인
+      expect(cartItemRepositoryMock.find).toHaveBeenCalledWith({ cart: { id: mockCart.id } });
+      expect(entityManagerMock.remove).toHaveBeenCalled(); // 아이템들이 remove되었는지 확인
       expect(entityManagerMock.flush).toHaveBeenCalled();
     });
   });
