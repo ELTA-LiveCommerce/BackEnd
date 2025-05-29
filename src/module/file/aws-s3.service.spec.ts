@@ -81,9 +81,7 @@ describe('AwsS3Service', () => {
       expect(result).toEqual({
         uploadUrl: mockUploadUrl,
         key: expect.stringMatching(/^products\/[0-9a-f-]{36}\.jpg$/),
-        fileUrl: expect.stringMatching(
-          /^https:\/\/test-bucket\.s3\.ap-northeast-2\.amazonaws\.com\/products\/[0-9a-f-]{36}\.jpg$/,
-        ),
+        fileUrl: expect.stringMatching(/^https:\/\/static\.elta\.kr\/products\/[0-9a-f-]{36}\.jpg$/),
         expiresIn: 900,
       });
 
@@ -110,9 +108,7 @@ describe('AwsS3Service', () => {
 
       // Then
       expect(result.key).toMatch(/^general\/[0-9a-f-]{36}\.png$/);
-      expect(result.fileUrl).toMatch(
-        /^https:\/\/test-bucket\.s3\.ap-northeast-2\.amazonaws\.com\/general\/[0-9a-f-]{36}\.png$/,
-      );
+      expect(result.fileUrl).toMatch(/^https:\/\/static\.elta\.kr\/general\/[0-9a-f-]{36}\.png$/);
     });
 
     it('should handle file without extension', async () => {

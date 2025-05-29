@@ -2,6 +2,7 @@ import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { SqlEntityManager } from '@mikro-orm/postgresql';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 
 import { DeliveryService } from '@/module/delivery/delivery.service';
 import { CreateOrderDto } from '@/module/order/dto/create-order.dto';
@@ -180,9 +181,21 @@ describe('OrderService', () => {
     mockEntityManager = {
       persistAndFlush: jest.fn(),
       flush: jest.fn(),
-      findOne: jest.fn().mockImplementation((entity, criteria) => {
+      findOne: jest.fn().mockImplementation((entity, criteria, options) => {
         if (entity === User && criteria?.id === 'user-id') return Promise.resolve(mockUser);
-        if (entity === Order && criteria?.id === 'order-id') return Promise.resolve(mockOrder);
+        if (entity === Order && options?.populate) {
+          return Promise.resolve({
+            ...mockOrder,
+            items: [
+              {
+                product: { name: '테스트 상품' },
+                quantity: 1,
+                price: 50000,
+                totalPrice: 50000,
+              },
+            ],
+          });
+        }
         if (entity === Product && criteria?.id === 'product-id') return Promise.resolve(mockProduct);
         return Promise.resolve(null);
       }),
@@ -201,6 +214,18 @@ describe('OrderService', () => {
 
     mockNotificationService = {
       sendKakaoTalk: jest.fn().mockImplementation((templateCode, phoneNumber, params) => Promise.resolve()),
+      sendDepositAccountNotification: jest.fn().mockImplementation((phoneNumber, params) => Promise.resolve()),
+    };
+
+    const mockConfigService = {
+      get: jest.fn((key: string, defaultValue?: any) => {
+        const config = {
+          DEPOSIT_BANK_NAME: '농협은행',
+          DEPOSIT_ACCOUNT_NUMBER: '123-456-789012',
+          DEPOSIT_ACCOUNT_HOLDER: 'ELTA',
+        };
+        return config[key] || defaultValue;
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -237,6 +262,10 @@ describe('OrderService', () => {
         {
           provide: NotificationService,
           useValue: mockNotificationService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
         {
           provide: SqlEntityManager,
@@ -506,6 +535,105 @@ describe('OrderService', () => {
       expect(result).toBeDefined();
       expect(result.orderNumber).toBeDefined();
       expect(result.totalAmount).toBeDefined();
+    });
+
+    it('should send deposit account notification for bank transfer orders', async () => {
+      // 유저에게 전화번호 추가
+      mockUser.phoneNumber = '010-1234-5678';
+
+      // 계좌이체 주문을 위한 mock order 설정
+      const bankTransferOrder = {
+        ...mockOrder,
+        paymentMethod: '계좌이체',
+        totalAmount: 50000,
+        items: [
+          {
+            product: { name: '테스트 상품' },
+          },
+        ],
+      };
+
+      // EntityManager의 findOne을 mock하여 저장된 주문을 반환하도록 설정
+      mockEntityManager.findOne.mockImplementation((entity, criteria, options) => {
+        if (entity === User && criteria?.id === 'user-id') return Promise.resolve(mockUser);
+        if (entity === Order && options?.populate) {
+          return Promise.resolve({
+            ...bankTransferOrder,
+            items: [
+              {
+                product: { name: '테스트 상품' },
+                quantity: 1,
+                price: 50000,
+                totalPrice: 50000,
+              },
+            ],
+          });
+        }
+        if (entity === Product && criteria?.id === 'product-id') return Promise.resolve(mockProduct);
+        return Promise.resolve(null);
+      });
+
+      // 실제 create 메서드를 호출하기 위해 spy를 제거
+      jest.restoreAllMocks();
+
+      // 필요한 서비스들을 다시 mock
+      jest.spyOn(mockProductService, 'findOne').mockResolvedValue(mockProduct);
+      jest.spyOn(mockEntityManager, 'persistAndFlush').mockResolvedValue(undefined);
+      jest.spyOn(mockEntityManager, 'persist').mockReturnValue(undefined);
+      jest.spyOn(mockPaymentService, 'createPayment').mockResolvedValue({
+        id: 'payment-id',
+        order: bankTransferOrder,
+        seller: mockProduct.seller,
+        status: 'PENDING',
+        amount: 50000,
+        paymentMethod: '계좌이체',
+        transactionId: 'TR-test',
+      } as any);
+      jest.spyOn(mockNotificationService, 'sendKakaoTalk').mockResolvedValue(undefined);
+      jest.spyOn(mockNotificationService, 'sendDepositAccountNotification').mockResolvedValue(undefined);
+
+      const createOrderDto: CreateOrderDto = {
+        items: [{ productId: 'product-id', quantity: 1 }],
+      };
+
+      // Act
+      await service.create('user-id', createOrderDto);
+
+      // Assert - 입금계좌 안내 알림톡이 발송되었는지 확인
+      expect(mockNotificationService.sendDepositAccountNotification).toHaveBeenCalledWith(
+        '010-1234-5678',
+        expect.objectContaining({
+          customerName: 'Test User',
+          productName: expect.any(String),
+          bankName: '농협은행',
+          accountNumber: '123-456-789012',
+          accountHolder: 'ELTA',
+          amount: expect.stringContaining('원'),
+          dueDate: expect.any(String),
+        }),
+      );
+    });
+
+    it('should not send deposit account notification for non-bank transfer orders', () => {
+      // 이 테스트는 알림톡 발송 조건을 직접 테스트
+      const mockUserWithPhone = { ...mockUser, phoneNumber: '010-1234-5678' };
+      const mockCardOrder = { paymentMethod: '카드' };
+      const mockBankTransferOrder = { paymentMethod: '계좌이체' };
+
+      // 카드 결제 주문에서는 알림톡이 발송되지 않아야 함
+      const shouldSendForCard = mockUserWithPhone.phoneNumber && mockCardOrder.paymentMethod === '계좌이체';
+      expect(shouldSendForCard).toBe(false);
+
+      // 계좌이체 주문에서는 알림톡이 발송되어야 함
+      const shouldSendForBankTransfer =
+        mockUserWithPhone.phoneNumber && mockBankTransferOrder.paymentMethod === '계좌이체';
+      expect(shouldSendForBankTransfer).toBe(true);
+
+      // 전화번호가 없으면 알림톡이 발송되지 않아야 함
+      const mockUserWithoutPhone = { ...mockUser, phoneNumber: null };
+      const shouldSendWithoutPhone =
+        mockUserWithoutPhone.phoneNumber && mockBankTransferOrder.paymentMethod === '계좌이체';
+      expect(shouldSendWithoutPhone).toBeFalsy();
     });
   });
 

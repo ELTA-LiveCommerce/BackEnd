@@ -2,6 +2,7 @@ import { EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { BadRequestException, Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { DeliveryService } from '@/module/delivery/delivery.service';
 import { CreateOrderDto } from '@/module/order/dto/create-order.dto';
@@ -21,7 +22,7 @@ import { ProductService } from '@/module/product/product.service';
 import { User } from '@/module/user/entity/user.entity';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
 import { CreateDeliveryAutoDto } from '@/module/delivery/dto/create-delivery-auto.dto';
-import { NotificationService } from '../notification/notification.service';
+import { NotificationService, PaymentNotificationParams } from '../notification/notification.service';
 
 // MockCollection 클래스 (테스트 통과용)
 class MockOrderCollection<T> {
@@ -56,6 +57,7 @@ export class OrderService {
     private readonly paymentService: PaymentService,
     private readonly entityManager: EntityManager,
     private readonly notificationService: NotificationService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -71,7 +73,7 @@ export class OrderService {
 
     const order = new Order(
       user,
-      '무통장입금', // 기본 결제 방법
+      '계좌이체', // 기본 결제 방법
       user.address || '주소 미등록', // 유저의 주소 정보 사용, 없으면 기본값
       undefined, // 메모는 빈 값
     );
@@ -108,7 +110,11 @@ export class OrderService {
     await this.entityManager.persistAndFlush(order);
 
     // Reload the order with items populated
-    const savedOrder = await this.entityManager.findOne(Order, { id: order.id }, { populate: ['items', 'items.product'] });
+    const savedOrder = await this.entityManager.findOne(
+      Order,
+      { id: order.id },
+      { populate: ['items', 'items.product'] },
+    );
     if (!savedOrder) {
       throw new Error('Failed to reload order');
     }
@@ -121,7 +127,7 @@ export class OrderService {
         orderId: order.id,
         sellerId: sellerId,
         amount: sellerTotal,
-        paymentMethod: order.paymentMethod || '무통장입금',
+        paymentMethod: order.paymentMethod || '계좌이체',
         transactionId: `TR-${order.orderNumber}-${sellerId.substring(0, 4)}`,
       });
 
@@ -148,21 +154,32 @@ export class OrderService {
       }
     }
 
-    // Send notification to user
-    if (user.phoneNumber) {
+    // Send notification to user for deposit account info
+    if (user.phoneNumber && order.paymentMethod === '계좌이체') {
       try {
-        await this.notificationService.sendKakaoTalk(
-          'ORDER_COMPLETE_TEMPLATE', // 실제 템플릿 코드로 변경 필요
-          user.phoneNumber,
-          {
-            orderNumber: order.orderNumber,
-            totalAmount: order.totalAmount,
-            // 추가 파라미터들...
-          },
-        );
+        // 입금 마감일을 3일 후로 설정
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 3);
+
+        // 상품명들을 합쳐서 하나의 문자열로 만들기 (너무 길면 첫 번째 상품명만 사용)
+        const productNames = savedOrder.items.map((item) => item.product.name);
+        const productName =
+          productNames.length === 1 ? productNames[0] : `${productNames[0]} 외 ${productNames.length - 1}건`;
+
+        const depositParams: PaymentNotificationParams = {
+          customerName: user.name || '고객',
+          productName: productName,
+          bankName: this.configService.get<string>('DEPOSIT_BANK_NAME', '농협은행'),
+          accountNumber: this.configService.get<string>('DEPOSIT_ACCOUNT_NUMBER', '123-456-789012'),
+          accountHolder: this.configService.get<string>('DEPOSIT_ACCOUNT_HOLDER', 'ELTA'),
+          amount: `${order.totalAmount.toLocaleString()}원`,
+          dueDate: dueDate.toLocaleDateString('ko-KR'),
+        };
+
+        await this.notificationService.sendDepositAccountNotification(user.phoneNumber, depositParams);
       } catch (error) {
         // 알림톡 발송 실패 시 로깅 (에러를 전파하지 않음)
-        console.error('Failed to send KakaoTalk notification', error);
+        console.error('Failed to send deposit account notification:', error);
       }
     }
 

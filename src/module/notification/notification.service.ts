@@ -1,8 +1,24 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 // 팝빌 SDK import
 import * as popbill from 'popbill';
+
+export interface BankAccountInfo {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+}
+
+export interface PaymentNotificationParams {
+  customerName: string;
+  productName: string;
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  amount: string;
+  dueDate: string;
+}
 
 @Injectable()
 export class NotificationService {
@@ -15,6 +31,7 @@ export class NotificationService {
   private readonly senderNumber: string;
   private readonly isProduction: boolean;
   private readonly kakaoService: any;
+  private readonly depositAccountTemplate: string;
 
   constructor(private readonly configService: ConfigService) {
     this.linkId = this.configService.get<string>('POPBILL_LINK_ID', '');
@@ -24,6 +41,7 @@ export class NotificationService {
     this.isTest = this.configService.get<string>('POPBILL_IS_TEST', 'true') === 'true';
     this.senderNumber = this.configService.get<string>('POPBILL_SENDER_NUMBER', '');
     this.isProduction = this.configService.get<string>('NODE_ENV', 'development') === 'production';
+    this.depositAccountTemplate = this.configService.get<string>('POPBILL_DEPOSIT_TEMPLATE_CODE', '025050000987');
 
     // 팝빌 SDK 설정
     popbill.config({
@@ -43,12 +61,45 @@ export class NotificationService {
   }
 
   /**
+   * 입금계좌 안내 알림톡을 발송합니다.
+   * @param recipientPhoneNumber 수신자 전화번호
+   * @param params 입금 안내 파라미터
+   */
+  async sendDepositAccountNotification(recipientPhoneNumber: string, params: PaymentNotificationParams): Promise<void> {
+    this.logger.log(`Sending deposit account notification to ${recipientPhoneNumber} for ${params.productName}`);
+
+    // 템플릿 변수 치환
+    const templateParams = {
+      이름: params.customerName,
+      상품명: params.productName,
+      계좌은행: params.bankName,
+      계좌번호: params.accountNumber,
+      계좌주: params.accountHolder,
+      금액: params.amount,
+      입금마감날짜: params.dueDate,
+    };
+
+    await this.sendKakaoTalkWithTemplate(this.depositAccountTemplate, recipientPhoneNumber, templateParams);
+  }
+
+  /**
    * 카카오 알림톡을 전송합니다.
    * @param templateCode 알림톡 템플릿 코드
    * @param recipientPhoneNumber 수신자 전화번호
    * @param params 템플릿에 삽입할 파라미터
    */
   async sendKakaoTalk(templateCode: string, recipientPhoneNumber: string, params: Record<string, any>): Promise<void> {
+    await this.sendKakaoTalkWithTemplate(templateCode, recipientPhoneNumber, params);
+  }
+
+  /**
+   * 실제 카카오 알림톡 발송 로직
+   */
+  private async sendKakaoTalkWithTemplate(
+    templateCode: string,
+    recipientPhoneNumber: string,
+    params: Record<string, any>,
+  ): Promise<void> {
     this.logger.log(
       `Sending KakaoTalk to ${recipientPhoneNumber} with template ${templateCode} and params ${JSON.stringify(params)}`,
     );
@@ -61,10 +112,10 @@ export class NotificationService {
 
     try {
       // 알림톡 내용 생성 (템플릿 변수 치환)
-      const content = this.replaceTemplateVariables(params);
+      const content = this.getTemplateContent(templateCode);
 
       // 대체문자 내용
-      const altContent = '알림톡 대체 문자';
+      const altContent = this.getTemplateAltContent(templateCode, params);
 
       // 대체문자 유형 [공백-미전송, C-알림톡내용, A-대체문자내용]
       const altSendType = 'C';
@@ -115,35 +166,46 @@ export class NotificationService {
 
   /**
    * 템플릿 변수를 실제 값으로 치환합니다.
-   * 이 함수는 실제 템플릿에 맞게 수정이 필요합니다.
    */
-  private replaceTemplateVariables(params: Record<string, any>): string {
-    // 예시 템플릿 내용 - 실제 승인된 템플릿 내용으로 변경 필요
-    let content = '안녕하세요. ELTA입니다.\n';
+  private getTemplateContent(templateCode: string): string {
+    // 입금계좌 알림 템플릿 (025050000987)
+    if (templateCode === this.depositAccountTemplate) {
+      return `[입금계좌 알림]
 
-    if (params.orderNumber) {
-      content += `주문번호: ${params.orderNumber}\n`;
+#{이름}님!
+주문하신 #{상품명}에 대한 입금 
+계좌를 안내드립니다.
+#{계좌은행} #{계좌번호} 
+#{계좌주}로 #{금액}을 
+#{입금마감날짜}까지 무통장입금 
+결제를 해주세요.
+입금이 확인되면 다시 안내해드릴게요!`;
     }
+    throw new NotImplementedException('Not implemented');
+  }
 
-    if (params.totalAmount) {
-      content += `주문금액: ${params.totalAmount}원\n`;
+  private getTemplateAltContent(templateCode: string, params: Record<string, any>): string {
+    // 입금계좌 알림 템플릿 (025050000987)
+    if (templateCode === this.depositAccountTemplate) {
+      return `[입금계좌 알림]
+
+#{이름}님!
+주문하신 #{상품명}에 대한 입금 
+계좌를 안내드립니다.
+#{계좌은행} #{계좌번호} 
+#{계좌주}로 #{금액}을 
+#{입금마감날짜}까지 무통장입금 
+결제를 해주세요.
+입금이 확인되면 다시 안내해드릴게요!`
+        .replace(/#{이름}/g, params.이름 || '')
+        .replace(/#{상품명}/g, params.상품명 || '')
+        .replace(/#{계좌은행}/g, params.계좌은행 || '')
+        .replace(/#{계좌번호}/g, params.계좌번호 || '')
+        .replace(/#{계좌주}/g, params.계좌주 || '')
+        .replace(/#{금액}/g, params.금액 || '')
+        .replace(/#{입금마감날짜}/g, params.입금마감날짜 || '');
     }
-
-    if (params.productNames) {
-      content += `상품명: ${params.productNames}\n`;
-    }
-
-    if (params.buyerName) {
-      content += `구매자: ${params.buyerName}\n`;
-    }
-
-    if (params.orderDate) {
-      content += `주문일시: ${params.orderDate}\n`;
-    }
-
-    content += '\n감사합니다.';
-
-    return content;
+    throw new NotImplementedException('Not implemented');
   }
 
   /**

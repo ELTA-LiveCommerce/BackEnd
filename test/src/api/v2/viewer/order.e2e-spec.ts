@@ -189,7 +189,7 @@ describe('Viewer Order API (e2e)', () => {
           },
         ],
         totalAmount: 50000,
-        paymentMethod: '무통장입금',
+        paymentMethod: '계좌이체',
         shippingAddress: '서울시 강남구 테스트동 123',
         createdAt: new Date(),
         updatedAt: new Date(),

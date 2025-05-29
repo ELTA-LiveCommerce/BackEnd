@@ -43,7 +43,7 @@ export class PaymentService {
     payment.seller = seller;
     payment.status = PaymentStatus.PENDING;
     payment.amount = createPaymentAutoDto.amount;
-    payment.paymentMethod = createPaymentAutoDto.paymentMethod || '무통장입금';
+    payment.paymentMethod = createPaymentAutoDto.paymentMethod || '계좌이체';
     payment.transactionId = createPaymentAutoDto.transactionId || `TR-${order.orderNumber}-${Date.now()}`;
 
     await this.entityManager.persistAndFlush(payment);

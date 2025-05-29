@@ -106,7 +106,6 @@ describe('AdminUserController', () => {
         name: '홍길동',
         email: 'test@example.com',
         password: 'password123',
-        nickname: 'gildong',
         role: UserRole.VIEWER,
         phoneNumber: '01012345678',
       };
