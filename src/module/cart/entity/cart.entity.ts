@@ -1,6 +1,7 @@
-import { Entity, ManyToOne, OneToMany, Property, Cascade, Index } from '@mikro-orm/core';
+import { Entity, ManyToOne, OneToMany, Property, Cascade, Index, Collection } from '@mikro-orm/core';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { User } from '@/module/user/entity/user.entity';
+import { CartItem } from './cart-item.entity';
 
 @Entity()
 @Index({ properties: ['user'] })
@@ -12,7 +13,7 @@ export class Cart extends BaseEntity {
     cascade: [Cascade.ALL],
     orphanRemoval: true,
   })
-  items: any[] = [];
+  items = new Collection<CartItem>(this);
 
   @Property()
   createdAt: Date = new Date();

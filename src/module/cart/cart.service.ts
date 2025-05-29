@@ -75,7 +75,7 @@ export class CartService {
       cartItem.cart = cart;
       cartItem.product = product;
       cartItem.quantity = quantity;
-      cart.items.push(cartItem);
+      this.em.persist(cartItem);
     }
 
     await this.em.flush();
@@ -142,7 +142,8 @@ export class CartService {
     const cart = await this.getCart(userId);
 
     // 장바구니의 모든 아이템 삭제
-    cart.items = [];
+    const cartItems = await this.cartItemRepository.find({ cart: { id: cart.id } });
+    cartItems.forEach((item) => this.em.remove(item));
     await this.em.flush();
 
     return cart;

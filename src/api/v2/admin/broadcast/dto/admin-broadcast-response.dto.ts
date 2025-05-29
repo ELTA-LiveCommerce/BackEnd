@@ -76,7 +76,9 @@ export class AdminBroadcastResponseBody {
       isLive: broadcast.isLive,
       maxViewers: broadcast.maxViewers || 0,
       currentViewers: 0, // 실시간 시청자 수는 별도 API (GET /admin/broadcasts/:id/viewers)로 조회
-      products: broadcast.products ? broadcast.products.map(AdminBroadcastProductResponse.fromBroadcastProduct) : [],
+      products: broadcast.products
+        ? broadcast.products.getItems().map(AdminBroadcastProductResponse.fromBroadcastProduct)
+        : [],
     };
   }
 }

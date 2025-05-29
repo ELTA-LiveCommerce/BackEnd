@@ -10,6 +10,7 @@ import {
   Unique,
   Filter,
   DecimalType,
+  Collection,
 } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
@@ -69,13 +70,13 @@ export class User extends BaseEntity {
   deletedAt?: Date;
 
   @OneToMany(() => Login, (login) => login.user)
-  logins: Login[] = [];
+  logins = new Collection<Login>(this);
 
   @OneToMany(() => Follow, (follow) => follow.follower)
-  following: Follow[] = [];
+  following = new Collection<Follow>(this);
 
   @OneToMany(() => Follow, (follow) => follow.following)
-  followers: Follow[] = [];
+  followers = new Collection<Follow>(this);
 
   @OneToOne(() => SellerInfo, (sellerInfo) => sellerInfo.user, {
     cascade: [Cascade.ALL],
@@ -86,9 +87,9 @@ export class User extends BaseEntity {
   sellerInfo?: SellerInfo;
 
   @OneToMany(() => SellerUserBlock, (block) => block.seller, { cascade: [Cascade.ALL] })
-  blockedUsersByMe: SellerUserBlock[] = [];
+  blockedUsersByMe = new Collection<SellerUserBlock>(this);
 
   @OneToMany(() => SellerUserBlock, (block) => block.blockedUser, { cascade: [Cascade.ALL] })
-  blockingSellersOfMe: SellerUserBlock[] = [];
+  blockingSellersOfMe = new Collection<SellerUserBlock>(this);
 }
 

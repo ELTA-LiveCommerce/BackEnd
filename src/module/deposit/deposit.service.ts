@@ -92,7 +92,7 @@ export class DepositService {
     const orders = await qb.getResultList();
 
     const depositListItems = orders.flatMap((order) =>
-      order.items.map((orderItem) => {
+      order.items.getItems().map((orderItem) => {
         const item = new DepositListItemDto();
         item.orderId = order.id;
         item.productMainImage = orderItem.product?.mainImage ?? null;
@@ -224,7 +224,7 @@ export class DepositService {
     const orders = await qb.getResultList();
 
     const deposits = orders.flatMap((order) =>
-      order.items.map((orderItem) => {
+      order.items.getItems().map((orderItem) => {
         return {
           id: order.id,
           quantity: orderItem.quantity,

@@ -1,4 +1,4 @@
-import { Entity, Enum, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
+import { Collection, Entity, Enum, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { OrderItem } from '@/module/order/entity/order-item.entity';
@@ -21,7 +21,7 @@ export class Order extends BaseEntity {
   status: OrderStatus = OrderStatus.PENDING;
 
   @OneToMany(() => OrderItem, (item) => item.order, { eager: true, orphanRemoval: true })
-  items: OrderItem[] = [];
+  items = new Collection<OrderItem>(this);
 
   @Property({ type: 'number' })
   totalAmount: number;

@@ -59,19 +59,19 @@ export class BroadcastService {
           throw new BadRequestException(`Following product IDs not found: ${notFoundProductIds.join(', ')}`);
         }
 
-        broadcast.products = [];
+        broadcast.products.removeAll();
         for (let i = 0; i < products.length; i++) {
           const product = products[i];
           const broadcastProduct = new BroadcastProduct();
           broadcastProduct.broadcast = broadcast;
           broadcastProduct.product = product;
           broadcastProduct.sortOrder = i;
-          broadcast.products.push(broadcastProduct);
+          broadcast.products.add(broadcastProduct);
           em.persist(broadcastProduct);
         }
       }
 
-      const productInfos = broadcast.products.map((bp) => ({
+      const productInfos = broadcast.products.getItems().map((bp) => ({
         id: bp.product.id,
         name: bp.product.name,
       }));
@@ -154,10 +154,17 @@ export class BroadcastService {
           description: b.description,
           thumbnailUrl: b.thumbnailUrl,
           scheduledAt: b.scheduledAt,
-          products: b.products?.map((bp) => ({
-            id: bp.product.id,
-            name: bp.product.name,
-          })),
+          products: b.products
+            ? Array.isArray(b.products)
+              ? b.products.map((bp) => ({
+                  id: bp.product.id,
+                  name: bp.product.name,
+                }))
+              : b.products.getItems().map((bp) => ({
+                  id: bp.product.id,
+                  name: bp.product.name,
+                }))
+            : [],
           isLive: b.isLive,
         }),
     );
@@ -210,10 +217,17 @@ export class BroadcastService {
           description: b.description,
           thumbnailUrl: b.thumbnailUrl,
           scheduledAt: b.scheduledAt,
-          products: b.products?.map((bp) => ({
-            id: bp.product.id,
-            name: bp.product.name,
-          })),
+          products: b.products
+            ? Array.isArray(b.products)
+              ? b.products.map((bp) => ({
+                  id: bp.product.id,
+                  name: bp.product.name,
+                }))
+              : b.products.getItems().map((bp) => ({
+                  id: bp.product.id,
+                  name: bp.product.name,
+                }))
+            : [],
           isLive: b.isLive,
         }),
     );

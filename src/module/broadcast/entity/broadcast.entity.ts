@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, OneToMany, OneToOne, PrimaryKey, Property, ManyToMany } from '@mikro-orm/core';
+import { Entity, ManyToOne, OneToMany, OneToOne, PrimaryKey, Property, ManyToMany, Collection } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { BroadcastProduct } from '@/module/product/entity/broadcast-product.entity';
@@ -51,7 +51,7 @@ export class Broadcast extends BaseEntity {
     orphanRemoval: true,
     eager: true,
   })
-  products: BroadcastProduct[] = [];
+  products = new Collection<BroadcastProduct>(this);
 
   constructor(seller: User, title: string, description: string, scheduledAt: Date, thumbnailUrl?: string) {
     super();

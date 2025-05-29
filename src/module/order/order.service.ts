@@ -94,7 +94,8 @@ export class OrderService {
       }
 
       const orderItem = new OrderItem(order, product, itemDto.quantity, product.price /*, itemDto.attributes*/);
-      order.items.push(orderItem);
+      order.items.add(orderItem);
+      this.entityManager.persist(orderItem);
       order.totalAmount += orderItem.totalPrice;
       product.stockQuantity -= itemDto.quantity;
       this.entityManager.persist(product);
@@ -162,7 +163,7 @@ export class OrderService {
         dueDate.setDate(dueDate.getDate() + 3);
 
         // 상품명들을 합쳐서 하나의 문자열로 만들기 (너무 길면 첫 번째 상품명만 사용)
-        const productNames = savedOrder.items.map((item) => item.product.name);
+        const productNames = savedOrder.items.getItems().map((item) => item.product.name);
         const productName =
           productNames.length === 1 ? productNames[0] : `${productNames[0]} 외 ${productNames.length - 1}건`;
 
@@ -174,6 +175,7 @@ export class OrderService {
           accountHolder: this.configService.get<string>('DEPOSIT_ACCOUNT_HOLDER', 'ELTA'),
           amount: `${order.totalAmount.toLocaleString()}원`,
           dueDate: dueDate.toLocaleDateString('ko-KR'),
+          sellerPhoneNumber: '임시 전화번호',
         };
 
         await this.notificationService.sendDepositAccountNotification(user.phoneNumber, depositParams);
@@ -183,7 +185,7 @@ export class OrderService {
       }
     }
 
-    const orderItemsData: OrderItemResponseDto[] = savedOrder.items.map((item) => ({
+    const orderItemsData: OrderItemResponseDto[] = savedOrder.items.getItems().map((item) => ({
       id: item.id,
       productId: item.product.id,
       productName: item.product.name,
@@ -357,7 +359,7 @@ export class OrderService {
       throw new NotFoundException('주문을 찾을 수 없습니다.');
     }
 
-    const isSellerProductInOrder = order.items.some((item) => item.product.seller?.id === sellerId);
+    const isSellerProductInOrder = order.items.getItems().some((item) => item.product.seller?.id === sellerId);
 
     if (!isSellerProductInOrder) {
       throw new ForbiddenException('해당 주문에 대한 배송 정보를 업데이트할 권한이 없습니다.');
@@ -391,7 +393,7 @@ export class OrderService {
    * @param order 주문 Entity
    */
   private mapToOrderResponseDto(order: Order): OrderResponseDto {
-    const itemDtos: OrderItemResponseDto[] = order.items.map((item) => ({
+    const orderItemsData: OrderItemResponseDto[] = order.items.getItems().map((item) => ({
       id: item.id,
       productId: item.product.id,
       productName: item.product.name,
@@ -407,7 +409,7 @@ export class OrderService {
       orderNumber: order.orderNumber,
       userId: order.user.id,
       status: order.status,
-      items: itemDtos,
+      items: orderItemsData,
       totalAmount: order.totalAmount,
       paymentMethod: order.paymentMethod,
       paymentId: order.paymentId,
@@ -432,15 +434,16 @@ export class OrderService {
     return {
       id: order.id,
       orderNumber: order.orderNumber,
-      products: order.items.map((item) => ({
+      products: order.items.getItems().map((item) => ({
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
         price: item.price,
+        totalPrice: item.totalPrice,
       })),
       status: order.status,
       totalAmount: order.totalAmount,
-      itemCount: order.items.length,
+      itemCount: order.items.getItems().length,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       shippingAddress: order.shippingAddress,

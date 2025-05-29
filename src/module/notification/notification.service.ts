@@ -18,6 +18,7 @@ export interface PaymentNotificationParams {
   accountHolder: string;
   amount: string;
   dueDate: string;
+  sellerPhoneNumber: string;
 }
 
 @Injectable()
@@ -38,7 +39,7 @@ export class NotificationService {
     this.secretKey = this.configService.get<string>('POPBILL_SECRET_KEY', '');
     this.testCorpNum = this.configService.get<string>('POPBILL_TEST_CORP_NUM', '');
     this.userId = this.configService.get<string>('POPBILL_USER_ID', '');
-    this.isTest = this.configService.get<string>('POPBILL_IS_TEST', 'true') === 'true';
+    this.isTest = this.configService.get<boolean>('POPBILL_IS_TEST', true);
     this.senderNumber = this.configService.get<string>('POPBILL_SENDER_NUMBER', '');
     this.isProduction = this.configService.get<string>('NODE_ENV', 'development') === 'production';
     this.depositAccountTemplate = this.configService.get<string>('POPBILL_DEPOSIT_TEMPLATE_CODE', '025050000987');
@@ -77,6 +78,7 @@ export class NotificationService {
       계좌주: params.accountHolder,
       금액: params.amount,
       입금마감날짜: params.dueDate,
+      셀러전화번호: params.sellerPhoneNumber,
     };
 
     await this.sendKakaoTalkWithTemplate(this.depositAccountTemplate, recipientPhoneNumber, templateParams);
@@ -104,15 +106,9 @@ export class NotificationService {
       `Sending KakaoTalk to ${recipientPhoneNumber} with template ${templateCode} and params ${JSON.stringify(params)}`,
     );
 
-    // 개발 환경에서는 실제로 API를 호출하지 않고 로그만 출력
-    if (!this.isProduction) {
-      this.logger.log('Development mode: Not sending actual KakaoTalk message');
-      return Promise.resolve();
-    }
-
     try {
       // 알림톡 내용 생성 (템플릿 변수 치환)
-      const content = this.getTemplateContent(templateCode);
+      const content = this.getTemplateContent(templateCode, params);
 
       // 대체문자 내용
       const altContent = this.getTemplateAltContent(templateCode, params);
@@ -134,6 +130,13 @@ export class NotificationService {
       const btns = null;
 
       // 팝빌 카카오 알림톡 전송
+      Logger.debug(this.testCorpNum);
+      Logger.debug(templateCode);
+      Logger.debug(this.senderNumber);
+      Logger.debug(content);
+      Logger.debug(altContent);
+      Logger.debug(altSendType);
+      Logger.debug(sndDT);
       const receiptNum = await new Promise((resolve, reject) => {
         this.kakaoService.sendATS_one(
           this.testCorpNum,
@@ -167,7 +170,7 @@ export class NotificationService {
   /**
    * 템플릿 변수를 실제 값으로 치환합니다.
    */
-  private getTemplateContent(templateCode: string): string {
+  private getTemplateContent(templateCode: string, params: Record<string, any>): string {
     // 입금계좌 알림 템플릿 (025050000987)
     if (templateCode === this.depositAccountTemplate) {
       return `[입금계좌 알림]
@@ -179,7 +182,16 @@ export class NotificationService {
 #{계좌주}로 #{금액}을 
 #{입금마감날짜}까지 무통장입금 
 결제를 해주세요.
-입금이 확인되면 다시 안내해드릴게요!`;
+입금이 확인되면 다시 안내해드릴게요!
+판매자 상담은 #{셀러전화번호}으로 해주세요.`
+        .replace(/#{이름}/g, params.이름 || '')
+        .replace(/#{상품명}/g, params.상품명 || '')
+        .replace(/#{계좌은행}/g, params.계좌은행 || '')
+        .replace(/#{계좌번호}/g, params.계좌번호 || '')
+        .replace(/#{계좌주}/g, params.계좌주 || '')
+        .replace(/#{금액}/g, params.금액 || '')
+        .replace(/#{입금마감날짜}/g, params.입금마감날짜 || '')
+        .replace(/#{셀러전화번호}/g, params.셀러전화번호 || '');
     }
     throw new NotImplementedException('Not implemented');
   }
@@ -196,14 +208,16 @@ export class NotificationService {
 #{계좌주}로 #{금액}을 
 #{입금마감날짜}까지 무통장입금 
 결제를 해주세요.
-입금이 확인되면 다시 안내해드릴게요!`
+입금이 확인되면 다시 안내해드릴게요!
+판매자 상담은 #{셀러전화번호}으로 해주세요.`
         .replace(/#{이름}/g, params.이름 || '')
         .replace(/#{상품명}/g, params.상품명 || '')
         .replace(/#{계좌은행}/g, params.계좌은행 || '')
         .replace(/#{계좌번호}/g, params.계좌번호 || '')
         .replace(/#{계좌주}/g, params.계좌주 || '')
         .replace(/#{금액}/g, params.금액 || '')
-        .replace(/#{입금마감날짜}/g, params.입금마감날짜 || '');
+        .replace(/#{입금마감날짜}/g, params.입금마감날짜 || '')
+        .replace(/#{셀러전화번호}/g, params.셀러전화번호 || '');
     }
     throw new NotImplementedException('Not implemented');
   }

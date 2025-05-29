@@ -199,7 +199,7 @@ export class DeliveryService {
     // 관리자가 아닌 경우, 자신의 주문 또는 판매한 상품의 배송만 볼 수 있음
     if (user.role !== UserRole.ADMIN) {
       const isBuyer = order.user?.id === user.id;
-      const isSeller = order.items.some((item) => item.product?.seller?.id === user.id);
+      const isSeller = order.items.getItems().some((item) => item.product?.seller?.id === user.id);
 
       if (!isBuyer && !isSeller) {
         throw new ForbiddenException('You do not have permission to view this delivery information');
@@ -252,7 +252,8 @@ export class DeliveryService {
 
     // 배송 정보와 관련 상품들을 매핑
     const deliveryData = deliveries.map((delivery) => {
-      const sellerOrderItems = order.items
+      const orderItems = Array.isArray(order.items) ? order.items : order.items.getItems();
+      const sellerOrderItems = orderItems
         .filter((item) => item.product?.seller?.id === delivery.seller.id)
         .map((item) => ({
           id: item.id,
@@ -558,7 +559,7 @@ export class DeliveryService {
       // delivery.order should be Loaded<Order, 'user' | 'items.product'>
       const order = delivery.order; // Direct access, no need for isInitialized or load
       // Find the first orderItem (assuming one item per delivery for now)
-      const orderItems = order.items;
+      const orderItems = order.items.getItems();
 
       return {
         delivery: delivery as Loaded<Delivery, 'order.user'>,
