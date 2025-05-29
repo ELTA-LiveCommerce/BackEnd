@@ -180,7 +180,7 @@ export class DepositService {
 
     const qb: QueryBuilder<Order> = this.orderRepository
       .createQueryBuilder('order')
-      .select(['order.*, user.*, oi.*, product.*', 'seller.*'])
+      .select(['order.*', 'user.*', 'seller.*'])
       .leftJoin('order.user', 'user')
       .leftJoin('order.items', 'oi')
       .leftJoin('oi.product', 'product')
@@ -222,6 +222,7 @@ export class DepositService {
     qb.offset(offset).limit(limit);
 
     const orders = await qb.getResultList();
+    await this.orderRepository.populate(orders, ['user', 'items', 'items.product', 'items.product.seller']);
 
     const deposits = orders.flatMap((order) =>
       order.items.getItems().map((orderItem) => {

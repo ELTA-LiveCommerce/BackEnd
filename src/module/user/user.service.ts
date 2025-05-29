@@ -821,7 +821,7 @@ export class UserService {
    */
   async getSellerInfo(
     sellerId: string,
-  ): Promise<{ businessName?: string; businessAddress?: string; businessNumber?: string }> {
+  ): Promise<{ businessName?: string; businessAddress?: string; businessNumber?: string; description?: string }> {
     const seller = await this.userRepository.findOne(
       { id: sellerId, role: UserRole.SELLER },
       { populate: ['sellerInfo'] },
@@ -839,6 +839,7 @@ export class UserService {
       businessName: seller.sellerInfo.businessName,
       businessAddress: seller.sellerInfo.businessAddress,
       businessNumber: seller.sellerInfo.businessNumber,
+      description: seller.sellerInfo.description,
     };
   }
 
@@ -877,6 +878,39 @@ export class UserService {
     seller.sellerInfo.businessName = businessInfoDto.businessName;
     seller.sellerInfo.businessAddress = businessInfoDto.businessAddress;
     seller.sellerInfo.businessNumber = businessInfoDto.businessNumber;
+    
+    await this.em.flush();
+    return seller.sellerInfo;
+  }
+
+  /**
+   * 셀러의 description을 업데이트합니다.
+   * @param sellerId 셀러 ID
+   * @param description 새로운 description
+   * @returns 업데이트된 셀러 정보
+   */
+  async updateSellerDescription(sellerId: string, description: string): Promise<SellerInfo> {
+    const seller = await this.userRepository.findOne(
+      { id: sellerId, role: UserRole.SELLER },
+      { populate: ['sellerInfo'] },
+    );
+
+    if (!seller) {
+      throw new NotFoundException(`판매자 ID ${sellerId}를 찾을 수 없습니다.`);
+    }
+
+    // SellerInfo가 없으면 생성
+    if (!seller.sellerInfo) {
+      const sellerInfo = new SellerInfo({
+        user: seller,
+        description,
+      });
+      await this.em.persistAndFlush(sellerInfo);
+      return sellerInfo;
+    }
+
+    // SellerInfo가 있으면 업데이트
+    seller.sellerInfo.description = description;
     
     await this.em.flush();
     return seller.sellerInfo;

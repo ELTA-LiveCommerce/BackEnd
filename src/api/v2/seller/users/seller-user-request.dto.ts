@@ -80,3 +80,9 @@ export class SellerBusinessInfoUpdateRequestDto {
   @IsString()
   businessNumber: string;
 }
+
+export class SellerDescriptionUpdateRequestDto {
+  @ApiProperty({ description: '셀러 소개' })
+  @IsString()
+  description: string;
+}

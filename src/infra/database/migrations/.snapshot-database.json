@@ -405,6 +405,15 @@
           "nullable": true,
           "default": "'09:00 - 18:00'",
           "mappedType": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "text"
         }
       },
       "name": "seller_infos",

@@ -95,7 +95,7 @@ export class SellerController {
     }
 
     // 셀러 비즈니스 정보 조회
-    let businessInfo: { businessName?: string; businessAddress?: string; businessNumber?: string } | null = null;
+    let businessInfo: { businessName?: string; businessAddress?: string; businessNumber?: string; description?: string } | null = null;
     try {
       businessInfo = await this.userService.getSellerInfo(sellerId);
     } catch (error) {
@@ -110,7 +110,7 @@ export class SellerController {
       loginId: seller.loginId,
       profileImage: seller.profileImage,
       bannerImage: seller.bannerImage,
-      description: '셀러 소개입니다.', // 실제 필드에 맞게 수정 필요
+      description: businessInfo?.description || '셀러 소개가 없습니다.',
       followers: followersCount,
       following: followingCount,
       isFollowing,

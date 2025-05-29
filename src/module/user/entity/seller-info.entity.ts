@@ -20,6 +20,9 @@ export class SellerInfo extends BaseEntity {
   @Property({ nullable: true, type: 'string', default: '09:00 - 18:00' })
   operatingHours?: string; // 운영시간
 
+  @Property({ nullable: true, type: 'text' })
+  description?: string; // 셀러 소개
+
   constructor(data?: Partial<SellerInfo>) {
     super();
     Object.assign(this, data);

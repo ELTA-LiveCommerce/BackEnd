@@ -9,7 +9,7 @@ import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { CurrentUser } from '@/shared/common/decorators/current-user.decorator';
 
-import { SellerUserListRequestDto, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto } from './seller-user-request.dto';
+import { SellerUserListRequestDto, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto, SellerDescriptionUpdateRequestDto } from './seller-user-request.dto';
 import {
   SellerUserListResponseDto,
   SellerUserStatusUpdateResponseDto,
@@ -150,6 +150,38 @@ export class SellerUserController {
         businessNumber: updatedInfo.businessNumber || '',
       },
       '사업자 정보가 성공적으로 업데이트되었습니다.',
+      HttpStatus.OK,
+    );
+  }
+
+  @Patch('description')
+  @ApiOperation({ summary: '판매자 소개 업데이트' })
+  @ApiOkResponse({ 
+    description: '판매자 소개가 성공적으로 업데이트되었습니다.',
+    schema: {
+      properties: {
+        message: { type: 'string', example: '판매자 소개가 성공적으로 업데이트되었습니다.' },
+        statusCode: { type: 'number', example: 200 },
+        data: {
+          type: 'object',
+          properties: {
+            description: { type: 'string', example: '안녕하세요, 저는 신뢰할 수 있는 판매자입니다.' }
+          }
+        }
+      }
+    }
+  })
+  async updateDescription(
+    @CurrentUser() seller: User,
+    @Body() descriptionDto: SellerDescriptionUpdateRequestDto,
+  ) {
+    const updatedInfo = await this.userService.updateSellerDescription(seller.id, descriptionDto.description);
+
+    return BaseResponseV2.success(
+      {
+        description: updatedInfo.description || '',
+      },
+      '판매자 소개가 성공적으로 업데이트되었습니다.',
       HttpStatus.OK,
     );
   }
