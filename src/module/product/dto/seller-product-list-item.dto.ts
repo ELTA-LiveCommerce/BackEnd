@@ -24,6 +24,9 @@ export class SellerProductListItemDto {
   @ApiProperty({ description: '상품 상태', example: '판매중' })
   status: string;
 
+  @ApiProperty({ description: '상품 상세설명', example: '상세 설명...' })
+  description: string;
+
   @ApiProperty({ description: '등록일시', example: '2023-12-01T10:00:00.000Z' })
   createdAt: Date;
 
@@ -39,6 +42,7 @@ export class SellerProductListItemDto {
     dto.price = product.price;
     dto.status = product.status; // Assuming status is a string
     dto.stockQuantity = product.stockQuantity;
+    dto.description = product.description;
     dto.createdAt = product.createdAt;
     dto.updatedAt = product.updatedAt;
     return dto;

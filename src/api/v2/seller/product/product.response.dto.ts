@@ -76,6 +76,9 @@ export class SellerProductListItemDto {
   @ApiProperty({ description: '판매가', example: 35000 })
   price: number;
 
+  @ApiProperty({ description: '상품 상세설명', example: '상세 설명...' })
+  description: string;
+
   static fromEntity(product: Product): SellerProductListItemDto {
     const dto = new SellerProductListItemDto();
     dto.id = product.id;
@@ -83,6 +86,7 @@ export class SellerProductListItemDto {
     dto.mainImage = product.mainImage;
     dto.stockQuantity = product.stockQuantity;
     dto.price = product.price;
+    dto.description = product.description;
     return dto;
   }
 }

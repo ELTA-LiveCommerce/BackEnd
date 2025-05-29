@@ -7,6 +7,7 @@ import { RefundControllerModule } from './refund/refund-controller.module';
 import { DepositControllerModule } from './deposit/deposit.controller.module';
 import { BroadcastControllerModule } from './lives/broadcast-controller.module';
 import { SellerUserControllerModule } from './users/seller-user-controller.module';
+import { SellerMessageControllerModule } from './message/message-controller.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SellerUserControllerModule } from './users/seller-user-controller.modul
     DepositControllerModule,
     BroadcastControllerModule,
     SellerUserControllerModule,
+    SellerMessageControllerModule,
   ],
 })
 export class SellerControllerModule {}

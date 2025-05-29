@@ -1,6 +1,4 @@
-'use strict';
-Object.defineProperty(exports, '__esModule', { value: true });
-const { Migration } = require('@mikro-orm/migrations');
+import { Migration } from '@mikro-orm/migrations';
 
 class Migration20250528200626 extends Migration {
 
@@ -13,4 +11,5 @@ class Migration20250528200626 extends Migration {
   }
 
 }
-exports.Migration20250528200626 = Migration20250528200626;
+
+export { Migration20250528200626 };

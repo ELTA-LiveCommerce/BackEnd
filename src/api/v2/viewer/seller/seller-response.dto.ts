@@ -111,6 +111,7 @@ export class SellerProductItemDto {
   name: string;
   price: number;
   thumbnailImage?: string;
+  shortDescription?: string;
   description?: string;
   stock: number;
   salesCount: number;
@@ -122,7 +123,8 @@ export class SellerProductItemDto {
     dto.name = product.name;
     dto.price = product.price;
     dto.thumbnailImage = product.mainImage;
-    dto.description = product.shortDescription;
+    dto.shortDescription = product.shortDescription;
+    dto.description = product.description;
     dto.stock = product.stockQuantity;
     dto.status = product.status;
 

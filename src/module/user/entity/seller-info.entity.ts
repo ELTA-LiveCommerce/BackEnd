@@ -17,6 +17,9 @@ export class SellerInfo extends BaseEntity {
   @Property({ nullable: true, type: 'string' })
   businessNumber?: string; // 사업자번호
 
+  @Property({ nullable: true, type: 'string', default: '09:00 - 18:00' })
+  operatingHours?: string; // 운영시간
+
   constructor(data?: Partial<SellerInfo>) {
     super();
     Object.assign(this, data);
