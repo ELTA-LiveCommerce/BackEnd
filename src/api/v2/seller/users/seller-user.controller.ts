@@ -9,7 +9,7 @@ import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { CurrentUser } from '@/shared/common/decorators/current-user.decorator';
 
-import { SellerUserListRequestDto, SellerUserStatusUpdateRequestDto } from './seller-user-request.dto';
+import { SellerUserListRequestDto, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto } from './seller-user-request.dto';
 import {
   SellerUserListResponseDto,
   SellerUserStatusUpdateResponseDto,
@@ -17,6 +17,7 @@ import {
   SellerUserDerivedStatus,
   UserPurchaseHistoryResponseDto,
 } from './seller-user-response.dto';
+import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 
 @ApiTags('v2/seller/users')
 @ApiBearerAuth()
@@ -113,6 +114,42 @@ export class SellerUserController {
     return SellerUserStatusUpdateResponseDto.success(
       { userId, status: updateStatusDto.status },
       '사용자 상태가 성공적으로 변경되었습니다.',
+      HttpStatus.OK,
+    );
+  }
+
+  @Patch('business-info')
+  @ApiOperation({ summary: '판매자 사업자 정보 업데이트' })
+  @ApiOkResponse({ 
+    description: '사업자 정보가 성공적으로 업데이트되었습니다.',
+    schema: {
+      properties: {
+        message: { type: 'string', example: '사업자 정보가 성공적으로 업데이트되었습니다.' },
+        statusCode: { type: 'number', example: 200 },
+        data: {
+          type: 'object',
+          properties: {
+            businessName: { type: 'string', example: '테스트 상호명' },
+            businessAddress: { type: 'string', example: '서울시 강남구 테스트로 123' },
+            businessNumber: { type: 'string', example: '123-45-67890' }
+          }
+        }
+      }
+    }
+  })
+  async updateBusinessInfo(
+    @CurrentUser() seller: User,
+    @Body() businessInfoDto: SellerBusinessInfoUpdateRequestDto,
+  ) {
+    const updatedInfo = await this.userService.updateSellerBusinessInfo(seller.id, businessInfoDto);
+
+    return BaseResponseV2.success(
+      {
+        businessName: updatedInfo.businessName || '',
+        businessAddress: updatedInfo.businessAddress || '',
+        businessNumber: updatedInfo.businessNumber || '',
+      },
+      '사업자 정보가 성공적으로 업데이트되었습니다.',
       HttpStatus.OK,
     );
   }

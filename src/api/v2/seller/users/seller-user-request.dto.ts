@@ -66,3 +66,17 @@ export class SellerUserStatusUpdateRequestDto {
   @IsString()
   reason?: string;
 }
+
+export class SellerBusinessInfoUpdateRequestDto {
+  @ApiProperty({ description: '사업자명(상호명)' })
+  @IsString()
+  businessName: string;
+
+  @ApiProperty({ description: '사업자 주소' })
+  @IsString()
+  businessAddress: string;
+
+  @ApiProperty({ description: '사업자 번호' })
+  @IsString()
+  businessNumber: string;
+}

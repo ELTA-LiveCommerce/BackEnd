@@ -77,11 +77,6 @@ export class AdminCreateUserRequest {
   @IsString()
   name: string;
 
-  @ApiProperty({ description: '사용자 닉네임', example: 'gildong' })
-  @IsNotEmpty()
-  @IsString()
-  nickname: string;
-
   @ApiProperty({ enum: UserRole, description: '사용자 역할', example: UserRole.VIEWER })
   @IsNotEmpty()
   @IsEnum(UserRole)

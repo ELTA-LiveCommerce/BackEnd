@@ -119,6 +119,9 @@ importers:
       passport-kakao:
         specifier: 1.0.1
         version: 1.0.1
+      popbill:
+        specifier: ^1.60.6
+        version: 1.60.6(@types/node@18.19.100)(keyv@5.3.3)(nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2))(pg@8.7.3)
       reflect-metadata:
         specifier: 0.1.13
         version: 0.1.13
@@ -2756,6 +2759,9 @@ packages:
   electron-to-chromium@1.5.151:
     resolution: {integrity: sha512-Rl6uugut2l9sLojjS4H4SAr3A4IgACMLgpuEMPYCVcKydzfyPrn5absNRju38IhQOf/NwjJY8OGWjlteqYeBCA==}
 
+  'elta-backend@file:':
+    resolution: {directory: '', type: directory}
+
   emittery@0.10.2:
     resolution: {integrity: sha512-aITqOwnLanpHLNXZJENbOgjUBeHocD+xsSJmNrjovKBW5HbSpW3d1pEls7GFQPUWXiwG9+0P4GtHfEqC/4M0Iw==}
     engines: {node: '>=12'}
@@ -3867,6 +3873,10 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
+  linkhub@1.8.2:
+    resolution: {integrity: sha512-7f5uedgRpdacfZpg+R+A9iNpmDvwL9qn97GAiuG6rUGPKMykDjyDPIF7gyG2mzt3+ey+iXQtzYWzRNfTp4WIGQ==}
+    engines: {node: '>= 0.10.0'}
+
   loader-runner@4.3.0:
     resolution: {integrity: sha512-3R/1M+yS3j5ou80Me59j7F9IMs4PXs3VqRrm0TU3AbKPxlmpoY1TNscJV/oGJXo8qCatFGTfDbY6W6ipGOYXfg==}
     engines: {node: '>=6.11.5'}
@@ -4406,6 +4416,10 @@ packages:
   pony-cause@1.1.1:
     resolution: {integrity: sha512-PxkIc/2ZpLiEzQXu5YRDOUgBlfGYBY8156HY5ZcRAwwonMk5W/MrJP2LLkG/hF7GEQzaHo2aS7ho6ZLCOvf+6g==}
     engines: {node: '>=12.0.0'}
+
+  popbill@1.60.6:
+    resolution: {integrity: sha512-teL0lBp19jHNvqqJnQ17jjqSoKiJodP8cinWD3Uz9mXrhZHzD5NPCwbO/9fmhf6KxLSvaoY7Uo6licVgze/7uw==}
+    engines: {node: '>= 0.10.0'}
 
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
@@ -5280,6 +5294,10 @@ packages:
   write-file-atomic@4.0.2:
     resolution: {integrity: sha512-7KxauUdBmSdWnmpaGFg+ppNjKF8uNLry8LyzjauQDOVONfFLNKrKvQOxZ/VuTIcS/gge/YNahf5RIIQWTSarlg==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
+
+  xmlhttprequest@1.8.0:
+    resolution: {integrity: sha512-58Im/U0mlVBLM38NdZjHyhuMtCqa61469k2YP/AaPbvCoV9aQGUpbJBj1QRm2ytRiVQBD/fsw7L2bJGDVQswBA==}
+    engines: {node: '>=0.4.0'}
 
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
@@ -8551,6 +8569,76 @@ snapshots:
 
   electron-to-chromium@1.5.151: {}
 
+  elta-backend@file:(@types/node@18.19.100)(keyv@5.3.3)(nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2))(pg@8.7.3):
+    dependencies:
+      '@aws-sdk/client-s3': 3.817.0
+      '@aws-sdk/s3-request-presigner': 3.817.0
+      '@mikro-orm/core': 5.1.5(@mikro-orm/migrations@5.1.5)(@mikro-orm/postgresql@5.1.5)(@mikro-orm/seeder@5.1.5)
+      '@mikro-orm/knex': 5.1.5(@mikro-orm/core@5.1.5)(@mikro-orm/migrations@5.1.5)(pg@8.7.3)
+      '@mikro-orm/migrations': 5.1.5(@mikro-orm/core@5.1.5)(@types/node@18.19.100)(pg@8.7.3)
+      '@mikro-orm/nestjs': 5.1.8(@mikro-orm/core@5.1.5)(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)
+      '@mikro-orm/postgresql': 5.1.5(@mikro-orm/core@5.1.5)(@mikro-orm/migrations@5.1.5)(@mikro-orm/seeder@5.1.5)
+      '@mikro-orm/seeder': 5.1.5(@mikro-orm/core@5.1.5)
+      '@mikro-orm/sql-highlighter': 1.0.1
+      '@nestjs-cls/transactional': 2.7.0(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2))(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      '@nestjs/axios': 4.0.0(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(axios@1.9.0)(rxjs@7.8.2)
+      '@nestjs/cache-manager': 3.0.1(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(cache-manager@6.4.3)(keyv@5.3.3)(rxjs@7.8.2)
+      '@nestjs/common': 9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      '@nestjs/config': 2.3.4(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      '@nestjs/core': 9.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/platform-express@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2)
+      '@nestjs/jwt': 9.0.0(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))
+      '@nestjs/passport': 9.0.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(passport@0.7.0)
+      '@nestjs/platform-express': 9.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)
+      '@nestjs/swagger': 6.3.0(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)
+      '@types/multer': 1.4.12
+      '@types/passport-jwt': 4.0.1
+      agora-token: 2.0.4
+      axios: 1.9.0
+      bcrypt: 5.1.1
+      cache-manager: 6.4.3
+      class-transformer: 0.5.1
+      class-validator: 0.14.2
+      cookie-parser: 1.4.7
+      date-fns: 4.1.0
+      express: 5.1.0
+      joi: 17.13.3
+      jsonwebtoken: 9.0.2
+      jwks-rsa: 3.2.0
+      multer: 1.4.5-lts.2
+      passport: 0.7.0
+      passport-jwt: 4.0.1
+      passport-kakao: 1.0.1
+      popbill: 1.60.6(@types/node@18.19.100)(keyv@5.3.3)(nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2))(pg@8.7.3)
+      reflect-metadata: 0.1.13
+      rxjs: 7.8.2
+      solapi: 5.4.0
+      uuid: 11.1.0
+    transitivePeerDependencies:
+      - '@fastify/static'
+      - '@mikro-orm/better-sqlite'
+      - '@mikro-orm/entity-generator'
+      - '@mikro-orm/mariadb'
+      - '@mikro-orm/mongodb'
+      - '@mikro-orm/mysql'
+      - '@mikro-orm/sqlite'
+      - '@nestjs/microservices'
+      - '@nestjs/websockets'
+      - '@types/node'
+      - aws-crt
+      - better-sqlite3
+      - debug
+      - encoding
+      - keyv
+      - mssql
+      - mysql
+      - mysql2
+      - nestjs-cls
+      - pg
+      - pg-native
+      - sqlite3
+      - supports-color
+      - tedious
+
   emittery@0.10.2: {}
 
   emittery@0.13.1: {}
@@ -10022,6 +10110,10 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
+  linkhub@1.8.2:
+    dependencies:
+      xmlhttprequest: 1.8.0
+
   loader-runner@4.3.0: {}
 
   locate-path@5.0.0:
@@ -10493,6 +10585,36 @@ snapshots:
   pluralize@8.0.0: {}
 
   pony-cause@1.1.1: {}
+
+  popbill@1.60.6(@types/node@18.19.100)(keyv@5.3.3)(nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2))(pg@8.7.3):
+    dependencies:
+      linkhub: 1.8.2
+      popbill: elta-backend@file:(@types/node@18.19.100)(keyv@5.3.3)(nestjs-cls@5.4.3(@nestjs/common@9.4.3(cache-manager@6.4.3)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.13)(rxjs@7.8.2))(@nestjs/core@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.2))(pg@8.7.3)
+    transitivePeerDependencies:
+      - '@fastify/static'
+      - '@mikro-orm/better-sqlite'
+      - '@mikro-orm/entity-generator'
+      - '@mikro-orm/mariadb'
+      - '@mikro-orm/mongodb'
+      - '@mikro-orm/mysql'
+      - '@mikro-orm/sqlite'
+      - '@nestjs/microservices'
+      - '@nestjs/websockets'
+      - '@types/node'
+      - aws-crt
+      - better-sqlite3
+      - debug
+      - encoding
+      - keyv
+      - mssql
+      - mysql
+      - mysql2
+      - nestjs-cls
+      - pg
+      - pg-native
+      - sqlite3
+      - supports-color
+      - tedious
 
   possible-typed-array-names@1.1.0: {}
 
@@ -11484,6 +11606,8 @@ snapshots:
     dependencies:
       imurmurhash: 0.1.4
       signal-exit: 3.0.7
+
+  xmlhttprequest@1.8.0: {}
 
   xtend@4.0.2: {}
 

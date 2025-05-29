@@ -56,11 +56,10 @@ export class AdminUserController {
   @Post()
   async createUser(@Body() dto: AdminCreateUserRequest): Promise<AdminUserResponse> {
     const createUserDto = {
-      loginId: dto.email.split('@')[0],
+      loginId: dto.email,
       email: dto.email,
       password: dto.password,
       name: dto.name,
-      nickname: dto.nickname,
       role: dto.role,
       phoneNumber: dto.phoneNumber,
     };

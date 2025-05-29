@@ -71,7 +71,8 @@ export class AwsS3Service {
       const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn });
 
       // 업로드 완료 후 접근할 수 있는 파일 URL
-      const fileUrl = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+      // const fileUrl = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+      const fileUrl = `https://static.elta.kr/${key}`;
 
       this.logger.log(`Presigned URL 생성 완료: ${key}`);
 

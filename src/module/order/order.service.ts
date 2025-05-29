@@ -107,6 +107,12 @@ export class OrderService {
 
     await this.entityManager.persistAndFlush(order);
 
+    // Reload the order with items populated
+    const savedOrder = await this.entityManager.findOne(Order, { id: order.id }, { populate: ['items', 'items.product'] });
+    if (!savedOrder) {
+      throw new Error('Failed to reload order');
+    }
+
     // 판매자별로 결제 정보만 생성 (배송은 입금 완료 후 생성)
     for (const [sellerId, { seller, products }] of sellerProductMap.entries()) {
       // 판매자별 결제 정보 생성
@@ -160,7 +166,7 @@ export class OrderService {
       }
     }
 
-    const orderItemsData: OrderItemResponseDto[] = order.items.map((item) => ({
+    const orderItemsData: OrderItemResponseDto[] = savedOrder.items.map((item) => ({
       id: item.id,
       productId: item.product.id,
       productName: item.product.name,
@@ -172,24 +178,24 @@ export class OrderService {
     }));
 
     return {
-      id: order.id,
-      orderNumber: order.orderNumber,
-      userId: order.user.id,
-      status: order.status,
+      id: savedOrder.id,
+      orderNumber: savedOrder.orderNumber,
+      userId: savedOrder.user.id,
+      status: savedOrder.status,
       items: orderItemsData,
-      totalAmount: order.totalAmount,
-      paymentMethod: order.paymentMethod,
-      paymentId: order.paymentId,
-      shippingAddress: order.shippingAddress,
-      shippingCode: order.shippingCode,
-      notes: order.notes,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-      paidAt: order.paidAt,
-      shippedAt: order.shippedAt,
-      deliveredAt: order.deliveredAt,
-      cancelledAt: order.cancelledAt,
-      refundedAt: order.refundedAt,
+      totalAmount: savedOrder.totalAmount,
+      paymentMethod: savedOrder.paymentMethod,
+      paymentId: savedOrder.paymentId,
+      shippingAddress: savedOrder.shippingAddress,
+      shippingCode: savedOrder.shippingCode,
+      notes: savedOrder.notes,
+      createdAt: savedOrder.createdAt,
+      updatedAt: savedOrder.updatedAt,
+      paidAt: savedOrder.paidAt,
+      shippedAt: savedOrder.shippedAt,
+      deliveredAt: savedOrder.deliveredAt,
+      cancelledAt: savedOrder.cancelledAt,
+      refundedAt: savedOrder.refundedAt,
     };
   }
 

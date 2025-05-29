@@ -12,7 +12,7 @@ import { UserSearchDto } from '@/module/user/dto/user-search.dto';
 import { User } from '@/module/user/entity/user.entity';
 import { UserFollowService } from '@/module/user/user-follow.service';
 import { UserRole } from '@/shared/enum/user-role.enum';
-import { SellerUserStatus, SellerUserStatusUpdateRequestDto } from '@/api/v2/seller/users/seller-user-request.dto';
+import { SellerUserStatus, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto } from '@/api/v2/seller/users/seller-user-request.dto';
 import { SellerUserBlock, BlockType } from './entity/seller-user-block.entity';
 import { SellerInfo } from './entity/seller-info.entity';
 import { Transactional } from '@nestjs-cls/transactional';
@@ -840,6 +840,46 @@ export class UserService {
       businessAddress: seller.sellerInfo.businessAddress,
       businessNumber: seller.sellerInfo.businessNumber,
     };
+  }
+
+  /**
+   * 셀러의 사업자 정보를 업데이트합니다.
+   * @param sellerId 셀러 ID
+   * @param businessInfoDto 사업자 정보 DTO
+   * @returns 업데이트된 셀러 정보
+   */
+  async updateSellerBusinessInfo(
+    sellerId: string,
+    businessInfoDto: SellerBusinessInfoUpdateRequestDto,
+  ): Promise<SellerInfo> {
+    const seller = await this.userRepository.findOne(
+      { id: sellerId, role: UserRole.SELLER },
+      { populate: ['sellerInfo'] },
+    );
+
+    if (!seller) {
+      throw new NotFoundException(`판매자 ID ${sellerId}를 찾을 수 없습니다.`);
+    }
+
+    // SellerInfo가 없으면 생성
+    if (!seller.sellerInfo) {
+      const sellerInfo = new SellerInfo({
+        user: seller,
+        businessName: businessInfoDto.businessName,
+        businessAddress: businessInfoDto.businessAddress,
+        businessNumber: businessInfoDto.businessNumber,
+      });
+      await this.em.persistAndFlush(sellerInfo);
+      return sellerInfo;
+    }
+
+    // SellerInfo가 있으면 업데이트
+    seller.sellerInfo.businessName = businessInfoDto.businessName;
+    seller.sellerInfo.businessAddress = businessInfoDto.businessAddress;
+    seller.sellerInfo.businessNumber = businessInfoDto.businessNumber;
+    
+    await this.em.flush();
+    return seller.sellerInfo;
   }
 }
 
