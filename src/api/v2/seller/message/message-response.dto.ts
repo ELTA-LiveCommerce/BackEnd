@@ -16,6 +16,9 @@ export class ConversationListItemDto {
   @ApiProperty({ description: '뷰어 이름', example: '김철수' })
   viewerName: string;
 
+  @ApiProperty({ description: '뷰어 전화번호', example: '010-1234-5678' })
+  viewerPhoneNumber?: string;
+
   @ApiProperty({ description: '뷰어 프로필 이미지', example: 'https://example.com/profile.jpg' })
   viewerProfileImage?: string;
 
@@ -33,6 +36,7 @@ export class ConversationListItemDto {
     dto.id = conversation.id;
     dto.viewerId = conversation.viewer.id;
     dto.viewerName = conversation.viewer.name;
+    dto.viewerPhoneNumber = conversation.viewer.phoneNumber;
     dto.viewerProfileImage = conversation.viewer.profileImage;
     dto.lastMessageAt = conversation.lastMessageAt;
     dto.lastMessageText = conversation.lastMessageText;
