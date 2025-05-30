@@ -298,6 +298,25 @@ export class NotificationService {
    * 템플릿 변수를 실제 값으로 치환합니다.
    */
   private getTemplateContent(templateCode: string, params: Record<string, any>): string {
+    return `[입금계좌 알림]
+
+#{이름}님!
+주문하신 #{상품명}에 대한 입금 
+계좌를 안내드립니다.
+#{계좌은행} #{계좌번호} 
+#{계좌주}로 #{금액}을 
+#{입금마감날짜}까지 무통장입금 
+결제를 해주세요.
+입금이 확인되면 다시 안내해드릴게요!
+판매자 상담은 #{셀러전화번호}으로 해주세요.`
+      .replace(/#{이름}/g, params.이름 || '')
+      .replace(/#{상품명}/g, params.상품명 || '')
+      .replace(/#{계좌은행}/g, params.계좌은행 || '')
+      .replace(/#{계좌번호}/g, params.계좌번호 || '')
+      .replace(/#{계좌주}/g, params.계좌주 || '')
+      .replace(/#{금액}/g, params.금액 || '')
+      .replace(/#{입금마감날짜}/g, params.입금마감날짜 || '')
+      .replace(/#{셀러전화번호}/g, params.셀러전화번호 || '');
     // 입금계좌 알림 템플릿 (025050000987)
     if (templateCode === this.depositAccountTemplate) {
       return `[입금계좌 알림]

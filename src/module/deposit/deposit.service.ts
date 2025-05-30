@@ -288,7 +288,6 @@ export class DepositService {
     };
   }
 
-  @Transactional()
   async updateStatus(id: string, status: DepositStatus) {
     const order = await this.orderRepository.findOne(
       { id },

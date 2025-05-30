@@ -39,7 +39,7 @@ export class BroadcastService {
   ) {}
 
   async createBroadcast(dto: BroadcastCreateRequestDto, sellerId: string): Promise<BroadcastListItemDto> {
-    return this.em.transactional(async (em) => {
+    const result = await this.em.transactional(async (em) => {
       const seller = await em.findOne(User, { id: sellerId });
       if (!seller) {
         throw new NotFoundException(`Seller with ID ${sellerId} not found.`);
@@ -75,25 +75,32 @@ export class BroadcastService {
         }
       }
 
-      // 방송 예약 알림톡을 팔로워들에게 발송 (비동기로 처리)
-      this.sendBroadcastReservationNotifications(seller, broadcast).catch((error) => {
-        console.error('방송 예약 알림톡 발송 실패:', error);
-      });
-
       const productInfos = broadcast.products.getItems().map((bp) => ({
         id: bp.product.id,
         name: bp.product.name,
       }));
 
-      return new BroadcastListItemDto({
-        id: broadcast.id,
-        title: broadcast.title,
-        status: 'SCHEDULED',
-        thumbnailUrl: broadcast.thumbnailUrl,
-        scheduledAt: broadcast.scheduledAt,
-        products: productInfos,
-      });
+      return {
+        broadcast,
+        seller,
+        productInfos,
+        broadcastListItem: new BroadcastListItemDto({
+          id: broadcast.id,
+          title: broadcast.title,
+          status: 'SCHEDULED',
+          thumbnailUrl: broadcast.thumbnailUrl,
+          scheduledAt: broadcast.scheduledAt,
+          products: productInfos,
+        }),
+      };
     });
+
+    // 트랜잭션 완료 후 알림톡 발송 (비동기로 처리)
+    this.sendBroadcastReservationNotifications(result.seller, result.broadcast).catch((error) => {
+      console.error('방송 예약 알림톡 발송 실패:', error);
+    });
+
+    return result.broadcastListItem;
   }
 
   async findAll(): Promise<Broadcast[]> {
@@ -247,14 +254,14 @@ export class BroadcastService {
   // TODO: Update, Delete 메서드 추가
   // TODO: 방송 시작/종료, 상품 연동 등의 메서드 추가
   async start(hostUserId: string, broadcastId: string) {
-    return this.em.transactional(async (em) => {
-      /* ── 1. 방송·권한 체크 (변동 없음) ─────────────── */
-      const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
-      if (!broadcast) throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
-      if (broadcast.seller.id !== hostUserId) throw new ForbiddenException('이 방송을 시작할 권한이 없습니다.');
-      if (broadcast.isLive) throw new BadRequestException('이미 라이브 중인 방송입니다.');
-      if (broadcast.stream) throw new BadRequestException('이미 스트림이 생성되어 있는 방송입니다.');
+    /* ── 1. 방송·권한 체크 (변동 없음) ─────────────── */
+    const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
+    if (!broadcast) throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+    if (broadcast.seller.id !== hostUserId) throw new ForbiddenException('이 방송을 시작할 권한이 없습니다.');
+    if (broadcast.isLive) throw new BadRequestException('이미 라이브 중인 방송입니다.');
+    if (broadcast.stream) throw new BadRequestException('이미 스트림이 생성되어 있는 방송입니다.');
 
+    const result = await this.em.transactional(async (em) => {
       /* ── 2. 방송 상태 → LIVE ──────────────────────── */
       broadcast.startLive();
       em.persist(broadcast);
@@ -275,11 +282,6 @@ export class BroadcastService {
       stream.chatRoomId = chatRoomId; // DB 저장
       em.persist(stream); // flush later by txn
 
-      // 방송 시작 알림톡을 팔로워들에게 발송 (비동기로 처리)
-      this.sendBroadcastStartNotifications(broadcast.seller, broadcast).catch((error) => {
-        console.error('방송 시작 알림톡 발송 실패:', error);
-      });
-
       /* ── 6. 토큰 발급 ───────────────────────────── */
       const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'publisher');
       const chatToken = this.agora.chatUserToken(uidChat); // 내부에서 uidChat 로 변환
@@ -297,6 +299,12 @@ export class BroadcastService {
         expireIn: 3600,
       };
     });
+
+    // 방송 시작 알림톡을 팔로워들에게 발송 (비동기로 처리)
+    this.sendBroadcastStartNotifications(broadcast.seller, broadcast).catch((error) => {
+      console.error('방송 시작 알림톡 발송 실패:', error);
+    });
+    return result;
   }
 
   /** 방송 입장(시청자) ------------------------------------------------------- */
