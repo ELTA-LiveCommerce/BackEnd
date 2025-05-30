@@ -175,10 +175,12 @@ export class BroadcastService {
               ? b.products.map((bp) => ({
                   id: bp.product.id,
                   name: bp.product.name,
+                  productImageUrl: bp.product.mainImage,
                 }))
               : b.products.getItems().map((bp) => ({
                   id: bp.product.id,
                   name: bp.product.name,
+                  productImageUrl: bp.product.mainImage,
                 }))
             : [],
           isLive: b.isLive,
@@ -288,6 +290,7 @@ export class BroadcastService {
       console.log('Agora tokens:', { rtcToken, chatToken });
       /* ── 7. 응답 ─────────────────────────────────── */
       return {
+        broadcastTitle: broadcast.title,
         broadcastId: broadcast.id,
         channelId: rtcChannelId,
         chatRoomId: chatRoomId, // ← 프런트가 addUser 때 필요
@@ -363,6 +366,7 @@ export class BroadcastService {
     console.log(chatToken);
     console.log('Agora tokens:', { rtcToken, chatToken });
     return {
+      broadcastTitle: broadcast.title,
       broadcastId: broadcast.id,
       channelId: rtcChannelId,
       chatRoomId,
@@ -370,6 +374,7 @@ export class BroadcastService {
       uid: uidChat,
       rtcToken,
       chatToken,
+      sellerId: broadcast.seller.id,
       appId: process.env.AGORA_APP_ID,
       expireIn: 3600,
     };
