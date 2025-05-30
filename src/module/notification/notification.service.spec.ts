@@ -1,6 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { NotificationService, PaymentNotificationParams } from './notification.service';
+import {
+  NotificationService,
+  PaymentNotificationParams,
+  BroadcastReservationNotificationParams,
+  BroadcastStartNotificationParams,
+} from './notification.service';
 
 // 팝빌 SDK 모킹
 jest.mock('popbill', () => {
@@ -30,6 +35,8 @@ describe('NotificationService', () => {
         POPBILL_SENDER_NUMBER: '010-1234-5678',
         NODE_ENV: 'development',
         POPBILL_DEPOSIT_TEMPLATE_CODE: '025050000987',
+        POPBILL_BROADCAST_RESERVATION_TEMPLATE_CODE: 'BROADCAST_RESERVATION_TEMPLATE',
+        POPBILL_BROADCAST_START_TEMPLATE_CODE: 'BROADCAST_START_TEMPLATE',
       };
       return config[key] || defaultValue;
     }),
@@ -284,6 +291,298 @@ describe('NotificationService', () => {
       const params = {};
 
       expect(() => service['getTemplateAltContent'](templateCode, params)).toThrow('Not implemented');
+    });
+  });
+
+  describe('sendBroadcastReservationNotification', () => {
+    it('should send broadcast reservation notification with correct template variables', async () => {
+      const recipientPhoneNumber = '010-9876-5432';
+      const params: BroadcastReservationNotificationParams = {
+        customerName: '김팔로워',
+        sellerName: '김판매자',
+        broadcastScheduledTime: '12월 25일 오후 3시',
+        broadcastTitle: '크리스마스 특가 방송',
+        sellerProfileLink: 'https://elta.com/sellers/seller-123',
+      };
+
+      const sendKakaoTalkSpy = jest.spyOn(service as any, 'sendKakaoTalkWithTemplate').mockResolvedValue(undefined);
+
+      await service.sendBroadcastReservationNotification(recipientPhoneNumber, params);
+
+      expect(sendKakaoTalkSpy).toHaveBeenCalledWith('BROADCAST_RESERVATION_TEMPLATE', recipientPhoneNumber, {
+        이름: '김팔로워',
+        셀러이름: '김판매자',
+        방송예약시간: '12월 25일 오후 3시',
+        방송제목: '크리스마스 특가 방송',
+        셀러프로필링크: 'https://elta.com/sellers/seller-123',
+      });
+    });
+
+    it('should log the broadcast reservation notification process', async () => {
+      const loggerSpy = jest.spyOn((service as any).logger, 'log');
+      jest.spyOn(service as any, 'sendKakaoTalkWithTemplate').mockResolvedValue(undefined);
+
+      const params: BroadcastReservationNotificationParams = {
+        customerName: '김팔로워',
+        sellerName: '김판매자',
+        broadcastScheduledTime: '12월 25일 오후 3시',
+        broadcastTitle: '크리스마스 특가 방송',
+        sellerProfileLink: 'https://elta.com/sellers/seller-123',
+      };
+
+      await service.sendBroadcastReservationNotification('010-9876-5432', params);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Sending broadcast reservation notification to 010-9876-5432 for 크리스마스 특가 방송',
+      );
+    });
+  });
+
+  describe('sendBroadcastStartNotification', () => {
+    it('should send broadcast start notification with correct template variables', async () => {
+      const recipientPhoneNumber = '010-9876-5432';
+      const params: BroadcastStartNotificationParams = {
+        customerName: '김팔로워',
+        sellerName: '김판매자',
+        broadcastTitle: '크리스마스 특가 방송',
+        sellerProfileLink: 'https://elta.com/sellers/seller-123',
+      };
+
+      const sendKakaoTalkSpy = jest.spyOn(service as any, 'sendKakaoTalkWithTemplate').mockResolvedValue(undefined);
+
+      await service.sendBroadcastStartNotification(recipientPhoneNumber, params);
+
+      expect(sendKakaoTalkSpy).toHaveBeenCalledWith('BROADCAST_START_TEMPLATE', recipientPhoneNumber, {
+        이름: '김팔로워',
+        셀러이름: '김판매자',
+        방송제목: '크리스마스 특가 방송',
+        셀러프로필링크: 'https://elta.com/sellers/seller-123',
+      });
+    });
+
+    it('should log the broadcast start notification process', async () => {
+      const loggerSpy = jest.spyOn((service as any).logger, 'log');
+      jest.spyOn(service as any, 'sendKakaoTalkWithTemplate').mockResolvedValue(undefined);
+
+      const params: BroadcastStartNotificationParams = {
+        customerName: '김팔로워',
+        sellerName: '김판매자',
+        broadcastTitle: '크리스마스 특가 방송',
+        sellerProfileLink: 'https://elta.com/sellers/seller-123',
+      };
+
+      await service.sendBroadcastStartNotification('010-9876-5432', params);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Sending broadcast start notification to 010-9876-5432 for 크리스마스 특가 방송',
+      );
+    });
+  });
+
+  describe('sendBroadcastReservationNotificationToFollowers', () => {
+    it('should send broadcast reservation notifications to multiple followers', async () => {
+      const followerPhoneNumbers = ['010-1111-1111', '010-2222-2222', '010-3333-3333'];
+      const params = {
+        sellerName: '김판매자',
+        broadcastScheduledTime: '12월 25일 오후 3시',
+        broadcastTitle: '크리스마스 특가 방송',
+        sellerProfileLink: 'https://elta.com/sellers/seller-123',
+      };
+
+      const sendBroadcastReservationSpy = jest
+        .spyOn(service, 'sendBroadcastReservationNotification')
+        .mockResolvedValue(undefined);
+
+      const loggerSpy = jest.spyOn((service as any).logger, 'log');
+
+      await service.sendBroadcastReservationNotificationToFollowers(followerPhoneNumbers, params);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Sending broadcast reservation notification to 3 followers for 크리스마스 특가 방송',
+      );
+
+      expect(sendBroadcastReservationSpy).toHaveBeenCalledTimes(3);
+
+      // 각 팔로워에게 올바른 파라미터로 호출되었는지 확인
+      expect(sendBroadcastReservationSpy).toHaveBeenCalledWith('010-1111-1111', {
+        ...params,
+        customerName: '고객',
+      });
+      expect(sendBroadcastReservationSpy).toHaveBeenCalledWith('010-2222-2222', {
+        ...params,
+        customerName: '고객',
+      });
+      expect(sendBroadcastReservationSpy).toHaveBeenCalledWith('010-3333-3333', {
+        ...params,
+        customerName: '고객',
+      });
+    });
+
+    it('should handle individual notification failures gracefully', async () => {
+      const followerPhoneNumbers = ['010-1111-1111', '010-2222-2222'];
+      const params = {
+        sellerName: '김판매자',
+        broadcastScheduledTime: '12월 25일 오후 3시',
+        broadcastTitle: '크리스마스 특가 방송',
+        sellerProfileLink: 'https://elta.com/sellers/seller-123',
+      };
+
+      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+
+      jest
+        .spyOn(service, 'sendBroadcastReservationNotification')
+        .mockResolvedValueOnce(undefined) // 첫 번째 호출은 성공
+        .mockRejectedValueOnce(new Error('네트워크 오류')); // 두 번째 호출은 실패
+
+      // 전체 프로세스는 실패하지 않아야 함
+      await expect(
+        service.sendBroadcastReservationNotificationToFollowers(followerPhoneNumbers, params),
+      ).resolves.not.toThrow();
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        'Failed to send broadcast reservation notification to 010-2222-2222: 네트워크 오류',
+      );
+    });
+  });
+
+  describe('sendBroadcastStartNotificationToFollowers', () => {
+    it('should send broadcast start notifications to multiple followers', async () => {
+      const followerPhoneNumbers = ['010-1111-1111', '010-2222-2222'];
+      const params = {
+        sellerName: '김판매자',
+        broadcastTitle: '크리스마스 특가 방송',
+        sellerProfileLink: 'https://elta.com/sellers/seller-123',
+      };
+
+      const sendBroadcastStartSpy = jest.spyOn(service, 'sendBroadcastStartNotification').mockResolvedValue(undefined);
+
+      const loggerSpy = jest.spyOn((service as any).logger, 'log');
+
+      await service.sendBroadcastStartNotificationToFollowers(followerPhoneNumbers, params);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Sending broadcast start notification to 2 followers for 크리스마스 특가 방송',
+      );
+
+      expect(sendBroadcastStartSpy).toHaveBeenCalledTimes(2);
+
+      expect(sendBroadcastStartSpy).toHaveBeenCalledWith('010-1111-1111', {
+        ...params,
+        customerName: '고객',
+      });
+      expect(sendBroadcastStartSpy).toHaveBeenCalledWith('010-2222-2222', {
+        ...params,
+        customerName: '고객',
+      });
+    });
+
+    it('should handle individual notification failures gracefully', async () => {
+      const followerPhoneNumbers = ['010-1111-1111', '010-2222-2222'];
+      const params = {
+        sellerName: '김판매자',
+        broadcastTitle: '크리스마스 특가 방송',
+        sellerProfileLink: 'https://elta.com/sellers/seller-123',
+      };
+
+      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+
+      jest
+        .spyOn(service, 'sendBroadcastStartNotification')
+        .mockRejectedValueOnce(new Error('네트워크 오류'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.sendBroadcastStartNotificationToFollowers(followerPhoneNumbers, params),
+      ).resolves.not.toThrow();
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        'Failed to send broadcast start notification to 010-1111-1111: 네트워크 오류',
+      );
+    });
+  });
+
+  describe('Broadcast Template Content Generation', () => {
+    describe('getTemplateContent for broadcast reservation', () => {
+      it('should generate correct broadcast reservation template content', () => {
+        const templateCode = 'BROADCAST_RESERVATION_TEMPLATE';
+        const params = {
+          이름: '김팔로워',
+          셀러이름: '김판매자',
+          방송예약시간: '12월 25일 오후 3시',
+          방송제목: '크리스마스 특가 방송',
+          셀러프로필링크: 'https://elta.com/sellers/seller-123',
+        };
+
+        // MockConfigService가 'BROADCAST_RESERVATION_TEMPLATE'를 반환하도록 설정되어 있음
+        (service as any).broadcastReservationTemplate = 'BROADCAST_RESERVATION_TEMPLATE';
+
+        const result = service['getTemplateContent'](templateCode, params);
+
+        expect(result).toContain('[방송예약 알림]');
+        expect(result).toContain('김팔로워님!');
+        expect(result).toContain('김판매자님이 12월 25일 오후 3시에 크리스마스 특가 방송 방송을 시작해요!');
+        expect(result).toContain('https://elta.com/sellers/seller-123에서 팔로우 후');
+      });
+    });
+
+    describe('getTemplateContent for broadcast start', () => {
+      it('should generate correct broadcast start template content', () => {
+        const templateCode = 'BROADCAST_START_TEMPLATE';
+        const params = {
+          이름: '김팔로워',
+          셀러이름: '김판매자',
+          방송제목: '크리스마스 특가 방송',
+          셀러프로필링크: 'https://elta.com/sellers/seller-123',
+        };
+
+        (service as any).broadcastStartTemplate = 'BROADCAST_START_TEMPLATE';
+
+        const result = service['getTemplateContent'](templateCode, params);
+
+        expect(result).toContain('[방송시작 알림]');
+        expect(result).toContain('김팔로워님!');
+        expect(result).toContain('김판매자님이 크리스마스 특가 방송 방송을 시작했어요!');
+        expect(result).toContain('https://elta.com/sellers/seller-123에서 팔로우 후');
+      });
+    });
+
+    describe('getTemplateAltContent for broadcast templates', () => {
+      it('should generate correct broadcast reservation alt template content', () => {
+        const templateCode = 'BROADCAST_RESERVATION_TEMPLATE';
+        const params = {
+          이름: '김팔로워',
+          셀러이름: '김판매자',
+          방송예약시간: '12월 25일 오후 3시',
+          방송제목: '크리스마스 특가 방송',
+          셀러프로필링크: 'https://elta.com/sellers/seller-123',
+        };
+
+        (service as any).broadcastReservationTemplate = 'BROADCAST_RESERVATION_TEMPLATE';
+
+        const result = service['getTemplateAltContent'](templateCode, params);
+
+        expect(result).toContain('[방송예약 알림]');
+        expect(result).toContain('김팔로워님!');
+        expect(result).toContain('김판매자님이 12월 25일 오후 3시에 크리스마스 특가 방송 방송을 시작해요!');
+      });
+
+      it('should generate correct broadcast start alt template content', () => {
+        const templateCode = 'BROADCAST_START_TEMPLATE';
+        const params = {
+          이름: '김팔로워',
+          셀러이름: '김판매자',
+          방송제목: '크리스마스 특가 방송',
+          셀러프로필링크: 'https://elta.com/sellers/seller-123',
+        };
+
+        (service as any).broadcastStartTemplate = 'BROADCAST_START_TEMPLATE';
+
+        const result = service['getTemplateAltContent'](templateCode, params);
+
+        expect(result).toContain('[방송시작 알림]');
+        expect(result).toContain('김팔로워님!');
+        expect(result).toContain('김판매자님이 크리스마스 특가 방송 방송을 시작했어요!');
+      });
     });
   });
 });

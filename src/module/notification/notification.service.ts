@@ -21,6 +21,21 @@ export interface PaymentNotificationParams {
   sellerPhoneNumber: string;
 }
 
+export interface BroadcastReservationNotificationParams {
+  customerName: string;
+  sellerName: string;
+  broadcastScheduledTime: string;
+  broadcastTitle: string;
+  sellerProfileLink: string;
+}
+
+export interface BroadcastStartNotificationParams {
+  customerName: string;
+  sellerName: string;
+  broadcastTitle: string;
+  sellerProfileLink: string;
+}
+
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
@@ -33,16 +48,23 @@ export class NotificationService {
   private readonly isProduction: boolean;
   private readonly kakaoService: any;
   private readonly depositAccountTemplate: string;
+  private readonly broadcastReservationTemplate: string;
+  private readonly broadcastStartTemplate: string;
 
   constructor(private readonly configService: ConfigService) {
     this.linkId = this.configService.get<string>('POPBILL_LINK_ID', '');
     this.secretKey = this.configService.get<string>('POPBILL_SECRET_KEY', '');
     this.testCorpNum = this.configService.get<string>('POPBILL_TEST_CORP_NUM', '');
     this.userId = this.configService.get<string>('POPBILL_USER_ID', '');
-    this.isTest = this.configService.get<boolean>('POPBILL_IS_TEST', true);
+    this.isTest = this.configService.get<boolean>('POPBILL_IS_TEST', false);
     this.senderNumber = this.configService.get<string>('POPBILL_SENDER_NUMBER', '');
     this.isProduction = this.configService.get<string>('NODE_ENV', 'development') === 'production';
     this.depositAccountTemplate = this.configService.get<string>('POPBILL_DEPOSIT_TEMPLATE_CODE', '025050000987');
+    this.broadcastReservationTemplate = this.configService.get<string>(
+      'POPBILL_BROADCAST_RESERVATION_TEMPLATE_CODE',
+      '',
+    );
+    this.broadcastStartTemplate = this.configService.get<string>('POPBILL_BROADCAST_START_TEMPLATE_CODE', '');
 
     // 팝빌 SDK 설정
     popbill.config({
@@ -82,6 +104,111 @@ export class NotificationService {
     };
 
     await this.sendKakaoTalkWithTemplate(this.depositAccountTemplate, recipientPhoneNumber, templateParams);
+  }
+
+  /**
+   * 방송 예약 알림톡을 발송합니다.
+   * @param recipientPhoneNumber 수신자 전화번호
+   * @param params 방송 예약 알림 파라미터
+   */
+  async sendBroadcastReservationNotification(
+    recipientPhoneNumber: string,
+    params: BroadcastReservationNotificationParams,
+  ): Promise<void> {
+    this.logger.log(
+      `Sending broadcast reservation notification to ${recipientPhoneNumber} for ${params.broadcastTitle}`,
+    );
+
+    // 템플릿 변수 치환
+    const templateParams = {
+      이름: params.customerName,
+      셀러이름: params.sellerName,
+      방송예약시간: params.broadcastScheduledTime,
+      방송제목: params.broadcastTitle,
+      셀러프로필링크: params.sellerProfileLink,
+    };
+
+    await this.sendKakaoTalkWithTemplate(this.broadcastReservationTemplate, recipientPhoneNumber, templateParams);
+  }
+
+  /**
+   * 방송 시작 알림톡을 발송합니다.
+   * @param recipientPhoneNumber 수신자 전화번호
+   * @param params 방송 시작 알림 파라미터
+   */
+  async sendBroadcastStartNotification(
+    recipientPhoneNumber: string,
+    params: BroadcastStartNotificationParams,
+  ): Promise<void> {
+    this.logger.log(`Sending broadcast start notification to ${recipientPhoneNumber} for ${params.broadcastTitle}`);
+
+    // 템플릿 변수 치환
+    const templateParams = {
+      이름: params.customerName,
+      셀러이름: params.sellerName,
+      방송제목: params.broadcastTitle,
+      셀러프로필링크: params.sellerProfileLink,
+    };
+
+    await this.sendKakaoTalkWithTemplate(this.broadcastStartTemplate, recipientPhoneNumber, templateParams);
+  }
+
+  /**
+   * 팔로워들에게 방송 예약 알림톡을 일괄 발송합니다.
+   * @param followerPhoneNumbers 팔로워 전화번호 목록
+   * @param params 방송 예약 알림 파라미터
+   */
+  async sendBroadcastReservationNotificationToFollowers(
+    followerPhoneNumbers: string[],
+    params: Omit<BroadcastReservationNotificationParams, 'customerName'>,
+  ): Promise<void> {
+    this.logger.log(
+      `Sending broadcast reservation notification to ${followerPhoneNumbers.length} followers for ${params.broadcastTitle}`,
+    );
+
+    const promises = followerPhoneNumbers.map(async (phoneNumber) => {
+      const notificationParams: BroadcastReservationNotificationParams = {
+        ...params,
+        customerName: '고객', // 팔로워의 실제 이름이 있다면 해당 값으로 대체
+      };
+
+      try {
+        await this.sendBroadcastReservationNotification(phoneNumber, notificationParams);
+      } catch (error) {
+        this.logger.error(`Failed to send broadcast reservation notification to ${phoneNumber}: ${error.message}`);
+      }
+    });
+
+    await Promise.allSettled(promises);
+  }
+
+  /**
+   * 팔로워들에게 방송 시작 알림톡을 일괄 발송합니다.
+   * @param followerPhoneNumbers 팔로워 전화번호 목록
+   * @param params 방송 시작 알림 파라미터
+   */
+  async sendBroadcastStartNotificationToFollowers(
+    followerPhoneNumbers: string[],
+    params: Omit<BroadcastStartNotificationParams, 'customerName'>,
+  ): Promise<void> {
+    this.logger.log(
+      `Sending broadcast start notification to ${followerPhoneNumbers.length} followers for ${params.broadcastTitle}`,
+    );
+
+    const promises = followerPhoneNumbers.map(async (phoneNumber) => {
+      const notificationParams: BroadcastStartNotificationParams = {
+        ...params,
+        customerName: '고객', // 팔로워의 실제 이름이 있다면 해당 값으로 대체
+      };
+
+      try {
+        await this.sendBroadcastStartNotification(phoneNumber, notificationParams);
+      } catch (error) {
+        this.logger.error(`Failed to send broadcast start notification to ${phoneNumber}: ${error.message}`);
+      }
+    });
+
+    await Promise.allSettled(promises);
   }
 
   /**
@@ -193,6 +320,36 @@ export class NotificationService {
         .replace(/#{입금마감날짜}/g, params.입금마감날짜 || '')
         .replace(/#{셀러전화번호}/g, params.셀러전화번호 || '');
     }
+
+    // 방송 예약 알림 템플릿
+    if (templateCode === this.broadcastReservationTemplate) {
+      return `[방송예약 알림]
+
+#{이름}님!
+#{셀러이름}님이 #{방송예약시간}에 #{방송제목} 방송을 시작해요!
+좋은 물건이 품절되기 전에 입장해 주세요!
+판매자 상담은 #{셀러프로필링크}에서 팔로우 후 '문의하기'로 해주세요!`
+        .replace(/#{이름}/g, params.이름 || '')
+        .replace(/#{셀러이름}/g, params.셀러이름 || '')
+        .replace(/#{방송예약시간}/g, params.방송예약시간 || '')
+        .replace(/#{방송제목}/g, params.방송제목 || '')
+        .replace(/#{셀러프로필링크}/g, params.셀러프로필링크 || '');
+    }
+
+    // 방송 시작 알림 템플릿
+    if (templateCode === this.broadcastStartTemplate) {
+      return `[방송시작 알림]
+
+#{이름}님!
+#{셀러이름}님이 #{방송제목} 방송을 시작했어요!
+좋은 물건이 품절되기 전에 입장해 주세요!
+판매자 상담은 #{셀러프로필링크}에서 팔로우 후 '문의하기'로 해주세요!`
+        .replace(/#{이름}/g, params.이름 || '')
+        .replace(/#{셀러이름}/g, params.셀러이름 || '')
+        .replace(/#{방송제목}/g, params.방송제목 || '')
+        .replace(/#{셀러프로필링크}/g, params.셀러프로필링크 || '');
+    }
+
     throw new NotImplementedException('Not implemented');
   }
 
@@ -219,6 +376,36 @@ export class NotificationService {
         .replace(/#{입금마감날짜}/g, params.입금마감날짜 || '')
         .replace(/#{셀러전화번호}/g, params.셀러전화번호 || '');
     }
+
+    // 방송 예약 알림 템플릿
+    if (templateCode === this.broadcastReservationTemplate) {
+      return `[방송예약 알림]
+
+#{이름}님!
+#{셀러이름}님이 #{방송예약시간}에 #{방송제목} 방송을 시작해요!
+좋은 물건이 품절되기 전에 입장해 주세요!
+판매자 상담은 #{셀러프로필링크}에서 팔로우 후 '문의하기'로 해주세요!`
+        .replace(/#{이름}/g, params.이름 || '')
+        .replace(/#{셀러이름}/g, params.셀러이름 || '')
+        .replace(/#{방송예약시간}/g, params.방송예약시간 || '')
+        .replace(/#{방송제목}/g, params.방송제목 || '')
+        .replace(/#{셀러프로필링크}/g, params.셀러프로필링크 || '');
+    }
+
+    // 방송 시작 알림 템플릿
+    if (templateCode === this.broadcastStartTemplate) {
+      return `[방송시작 알림]
+
+#{이름}님!
+#{셀러이름}님이 #{방송제목} 방송을 시작했어요!
+좋은 물건이 품절되기 전에 입장해 주세요!
+판매자 상담은 #{셀러프로필링크}에서 팔로우 후 '문의하기'로 해주세요!`
+        .replace(/#{이름}/g, params.이름 || '')
+        .replace(/#{셀러이름}/g, params.셀러이름 || '')
+        .replace(/#{방송제목}/g, params.방송제목 || '')
+        .replace(/#{셀러프로필링크}/g, params.셀러프로필링크 || '');
+    }
+
     throw new NotImplementedException('Not implemented');
   }
 

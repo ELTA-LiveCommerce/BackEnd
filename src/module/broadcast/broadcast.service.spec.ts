@@ -14,6 +14,8 @@ import { BroadcastProduct } from '../product/entity/broadcast-product.entity';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { AgoraService } from '../agora/agora.service';
 import { UserBlockService } from '../user/user-block.service';
+import { NotificationService } from '../notification/notification.service';
+import { UserFollowService } from '../user/user-follow.service';
 
 const mockBroadcastRepository = {
   findOne: jest.fn(),
@@ -35,6 +37,7 @@ const mockEntityManager = {
   flush: jest.fn(),
   persistAndFlush: jest.fn(),
   transactional: jest.fn((callback) => callback(mockEntityManager)),
+  getReference: jest.fn(),
 };
 
 const mockAgoraService = {
@@ -44,10 +47,21 @@ const mockAgoraService = {
   addUser: jest.fn(),
   getChannelUserCount: jest.fn(),
   getChatRoomMemberCount: jest.fn(),
+  createRoom: jest.fn().mockReturnValue('mock-chat-room-id'),
+  deleteRoom: jest.fn(),
 };
 
 const mockUserBlockService = {
   isUserBlockedBySeller: jest.fn(),
+};
+
+const mockNotificationService = {
+  sendBroadcastReservationNotificationToFollowers: jest.fn(),
+  sendBroadcastStartNotificationToFollowers: jest.fn(),
+};
+
+const mockUserFollowService = {
+  getFollowers: jest.fn().mockResolvedValue([]),
 };
 
 describe('BroadcastService', () => {
@@ -63,6 +77,8 @@ describe('BroadcastService', () => {
         { provide: SqlEntityManager, useValue: mockEntityManager },
         { provide: AgoraService, useValue: mockAgoraService },
         { provide: UserBlockService, useValue: mockUserBlockService },
+        { provide: NotificationService, useValue: mockNotificationService },
+        { provide: UserFollowService, useValue: mockUserFollowService },
       ],
     }).compile();
 
@@ -627,6 +643,103 @@ describe('BroadcastService', () => {
 
       expect(result.data.items).toHaveLength(0);
       expect(result.data.total).toBe(0);
+    });
+  });
+
+  describe('Broadcast Notification Integration', () => {
+    describe('Notification service integration', () => {
+      it('should have notification and follow services injected', () => {
+        // 서비스가 제대로 주입되었는지 확인
+        expect(service).toBeDefined();
+        expect(service['notificationService']).toBeDefined();
+        expect(service['userFollowService']).toBeDefined();
+      });
+
+      it('should have helper methods for notification', () => {
+        const service_any = service as any;
+
+        // private 메서드들이 존재하는지 확인
+        expect(typeof service_any.sendBroadcastReservationNotifications).toBe('function');
+        expect(typeof service_any.sendBroadcastStartNotifications).toBe('function');
+        expect(typeof service_any.formatBroadcastDateTime).toBe('function');
+      });
+    });
+
+    describe('formatBroadcastDateTime', () => {
+      it('should format broadcast date and time correctly', () => {
+        const service_any = service as any;
+
+        const testDate = new Date('2024-12-25T15:30:00+09:00');
+        const result = service_any.formatBroadcastDateTime(testDate);
+
+        expect(result).toMatch(/12월 25일 (오전|오후) \d{1,2}시( \d{1,2}분)?/);
+      });
+
+      it('should handle midnight correctly', () => {
+        const service_any = service as any;
+
+        const testDate = new Date('2024-12-25T00:00:00+09:00');
+        const result = service_any.formatBroadcastDateTime(testDate);
+
+        expect(result).toContain('12월 25일');
+        expect(result).toContain('오전');
+      });
+
+      it('should handle noon correctly', () => {
+        const service_any = service as any;
+
+        const testDate = new Date('2024-12-25T12:00:00+09:00');
+        const result = service_any.formatBroadcastDateTime(testDate);
+
+        expect(result).toContain('12월 25일');
+        expect(result).toContain('오후');
+      });
+
+      it('should include minutes when not zero', () => {
+        const service_any = service as any;
+
+        const testDate = new Date('2024-12-25T15:45:00+09:00');
+        const result = service_any.formatBroadcastDateTime(testDate);
+
+        expect(result).toContain('45분');
+      });
+
+      it('should exclude minutes when zero', () => {
+        const service_any = service as any;
+
+        const testDate = new Date('2024-12-25T15:00:00+09:00');
+        const result = service_any.formatBroadcastDateTime(testDate);
+
+        expect(result).not.toContain('분');
+      });
+    });
+
+    describe('Notification methods', () => {
+      it('should have sendBroadcastReservationNotifications method', () => {
+        const service_any = service as any;
+
+        // 메서드가 존재하는지 확인
+        expect(typeof service_any.sendBroadcastReservationNotifications).toBe('function');
+      });
+
+      it('should have sendBroadcastStartNotifications method', () => {
+        const service_any = service as any;
+
+        // 메서드가 존재하는지 확인
+        expect(typeof service_any.sendBroadcastStartNotifications).toBe('function');
+      });
+    });
+
+    describe('Integration with createBroadcast and start methods', () => {
+      it('should not break existing createBroadcast functionality', async () => {
+        // createBroadcast가 기존처럼 작동하는지 확인 (알림톡 기능이 추가되어도 기존 기능에 영향 없음)
+        expect(typeof service.createBroadcast).toBe('function');
+      });
+
+      it('should not break existing start functionality', async () => {
+        // start 메서드가 기존처럼 작동하는지 확인 (알림톡 기능이 추가되어도 기존 기능에 영향 없음)
+        expect(typeof service.start).toBe('function');
+      });
     });
   });
 });

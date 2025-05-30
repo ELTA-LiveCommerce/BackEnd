@@ -11,6 +11,7 @@ import { UserModule } from '../user/user.module';
 import { ViewLog } from './entity/view-log.entity';
 import { PurchaseLog } from '../order/entity/purchase-log.entity';
 import { LogService } from './log.service';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   // Register Broadcast, Product, and BroadcastProduct entities
@@ -18,6 +19,7 @@ import { LogService } from './log.service';
     MikroOrmModule.forFeature([Broadcast, Product, BroadcastProduct, Stream, ViewLog, PurchaseLog]),
     UserModule,
     AgoraModule,
+    NotificationModule,
   ],
   providers: [BroadcastService, LogService],
   exports: [BroadcastService, LogService],

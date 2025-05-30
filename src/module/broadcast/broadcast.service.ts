@@ -20,6 +20,8 @@ import { v4 as uuid } from 'uuid';
 import { Transactional } from '@nestjs-cls/transactional';
 import axios from 'axios';
 import { UserBlockService } from '../user/user-block.service';
+import { NotificationService } from '../notification/notification.service';
+import { UserFollowService } from '../user/user-follow.service';
 
 @Injectable()
 export class BroadcastService {
@@ -32,6 +34,8 @@ export class BroadcastService {
     @InjectRepository(Stream) private readonly streamRepository: EntityRepository<Stream>,
     private readonly agora: AgoraService,
     private readonly userBlockService: UserBlockService,
+    private readonly notificationService: NotificationService,
+    private readonly userFollowService: UserFollowService,
   ) {}
 
   async createBroadcast(dto: BroadcastCreateRequestDto, sellerId: string): Promise<BroadcastListItemDto> {
@@ -70,6 +74,11 @@ export class BroadcastService {
           em.persist(broadcastProduct);
         }
       }
+
+      // 방송 예약 알림톡을 팔로워들에게 발송 (비동기로 처리)
+      this.sendBroadcastReservationNotifications(seller, broadcast).catch((error) => {
+        console.error('방송 예약 알림톡 발송 실패:', error);
+      });
 
       const productInfos = broadcast.products.getItems().map((bp) => ({
         id: bp.product.id,
@@ -265,6 +274,11 @@ export class BroadcastService {
       const chatRoomId = await this.agora.createRoom(uidChat, `live_${rtcChannelId}`);
       stream.chatRoomId = chatRoomId; // DB 저장
       em.persist(stream); // flush later by txn
+
+      // 방송 시작 알림톡을 팔로워들에게 발송 (비동기로 처리)
+      this.sendBroadcastStartNotifications(broadcast.seller, broadcast).catch((error) => {
+        console.error('방송 시작 알림톡 발송 실패:', error);
+      });
 
       /* ── 6. 토큰 발급 ───────────────────────────── */
       const rtcToken = this.agora.rtcTokenWithAccount(rtcChannelId, uidChat, 'publisher');
@@ -718,6 +732,126 @@ export class BroadcastService {
       broadcastId,
       maxViewers,
     };
+  }
+
+  /**
+   * 방송 예약 알림톡을 팔로워들에게 발송합니다.
+   * @param seller 판매자
+   * @param broadcast 방송 정보
+   */
+  private async sendBroadcastReservationNotifications(seller: User, broadcast: Broadcast): Promise<void> {
+    try {
+      // 판매자의 팔로워 목록 조회
+      const followers = await this.userFollowService.getFollowers(seller.id);
+
+      if (followers.length === 0) {
+        console.log(`판매자 ${seller.name}의 팔로워가 없어 방송 예약 알림톡을 발송하지 않습니다.`);
+        return;
+      }
+
+      // 팔로워들의 전화번호 추출 (실제로는 User 엔티티에서 전화번호를 가져와야 함)
+      const followerIds = followers.map((follower) => follower.id);
+      const followerUsers = await this.em.find(User, { id: { $in: followerIds } });
+      const followerPhoneNumbers = followerUsers
+        .filter((user) => user.phoneNumber) // 전화번호가 있는 팔로워만
+        .map((user) => user.phoneNumber!);
+
+      if (followerPhoneNumbers.length === 0) {
+        console.log(`팔로워들 중 전화번호가 등록된 사용자가 없어 방송 예약 알림톡을 발송하지 않습니다.`);
+        return;
+      }
+
+      // 방송 예약시간을 읽기 쉬운 형태로 포맷
+      const formattedScheduledTime = this.formatBroadcastDateTime(broadcast.scheduledAt);
+
+      // 알림톡 발송 파라미터 준비
+      const notificationParams = {
+        sellerName: seller.name,
+        broadcastScheduledTime: formattedScheduledTime,
+        broadcastTitle: broadcast.title,
+        sellerProfileLink: `https://elta.kr/#/sellers/${seller.id}`, // 판매자 프로필 링크
+      };
+
+      // 팔로워들에게 일괄 방송 예약 알림톡 발송
+      await this.notificationService.sendBroadcastReservationNotificationToFollowers(
+        followerPhoneNumbers,
+        notificationParams,
+      );
+
+      console.log(
+        `방송 예약 알림톡을 ${followerPhoneNumbers.length}명의 팔로워에게 발송했습니다. (방송: ${broadcast.title})`,
+      );
+    } catch (error) {
+      console.error('방송 예약 알림톡 발송 중 오류 발생:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 방송 시작 알림톡을 팔로워들에게 발송합니다.
+   * @param seller 판매자
+   * @param broadcast 방송 정보
+   */
+  private async sendBroadcastStartNotifications(seller: User, broadcast: Broadcast): Promise<void> {
+    try {
+      // 판매자의 팔로워 목록 조회
+      const followers = await this.userFollowService.getFollowers(seller.id);
+
+      if (followers.length === 0) {
+        console.log(`판매자 ${seller.name}의 팔로워가 없어 방송 시작 알림톡을 발송하지 않습니다.`);
+        return;
+      }
+
+      // 팔로워들의 전화번호 추출
+      const followerIds = followers.map((follower) => follower.id);
+      const followerUsers = await this.em.find(User, { id: { $in: followerIds } });
+      const followerPhoneNumbers = followerUsers
+        .filter((user) => user.phoneNumber) // 전화번호가 있는 팔로워만
+        .map((user) => user.phoneNumber!);
+
+      if (followerPhoneNumbers.length === 0) {
+        console.log(`팔로워들 중 전화번호가 등록된 사용자가 없어 방송 시작 알림톡을 발송하지 않습니다.`);
+        return;
+      }
+
+      // 알림톡 발송 파라미터 준비
+      const notificationParams = {
+        sellerName: seller.name,
+        broadcastTitle: broadcast.title,
+        sellerProfileLink: ` https://elta.kr/#/sellers/${seller.id}`, // 판매자 프로필 링크
+      };
+
+      // 팔로워들에게 일괄 방송 시작 알림톡 발송
+      await this.notificationService.sendBroadcastStartNotificationToFollowers(
+        followerPhoneNumbers,
+        notificationParams,
+      );
+
+      console.log(
+        `방송 시작 알림톡을 ${followerPhoneNumbers.length}명의 팔로워에게 발송했습니다. (방송: ${broadcast.title})`,
+      );
+    } catch (error) {
+      console.error('방송 시작 알림톡 발송 중 오류 발생:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 방송 날짜와 시간을 읽기 쉬운 형태로 포맷합니다.
+   * @param date 방송 예약 날짜
+   * @returns 포맷된 날짜 문자열 (예: "12월 25일 오후 3시")
+   */
+  private formatBroadcastDateTime(date: Date): string {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+
+    const period = hour < 12 ? '오전' : '오후';
+    const displayHour = hour <= 12 ? hour : hour - 12;
+    const displayMinute = minute > 0 ? ` ${minute}분` : '';
+
+    return `${month}월 ${day}일 ${period} ${displayHour}시${displayMinute}`;
   }
 }
 

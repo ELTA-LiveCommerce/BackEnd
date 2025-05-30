@@ -11,6 +11,8 @@ import { Product } from '@/module/product/entity/product.entity';
 import { AgoraService } from '@/module/agora/agora.service';
 import { User } from '@/module/user/entity/user.entity';
 import { UserBlockService } from '@/module/user/user-block.service';
+import { NotificationService } from '@/module/notification/notification.service';
+import { UserFollowService } from '@/module/user/user-follow.service';
 
 // @Transactional 데코레이터 모킹 - 단순히 함수를 통과시키는 빈 데코레이터로 만듦
 jest.mock('@nestjs-cls/transactional', () => ({
@@ -121,6 +123,14 @@ describe('BroadcastService', () => {
         {
           provide: SqlEntityManager,
           useValue: mockEntityManager,
+        },
+        {
+          provide: NotificationService,
+          useValue: {},
+        },
+        {
+          provide: UserFollowService,
+          useValue: {},
         },
       ],
     }).compile();
