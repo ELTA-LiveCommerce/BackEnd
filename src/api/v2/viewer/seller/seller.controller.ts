@@ -180,7 +180,8 @@ export class SellerController {
     @Param('sellerId') sellerId: string,
     @Query() query: SellerProductRequestDto,
   ): Promise<SellerProductResponseDto> {
-    const products = await this.productService.findProductsBySeller(sellerId);
+    // 뷰어용 엔드포인트이므로 공개 상품만 조회
+    const products = await this.productService.findPublicProductsBySeller(sellerId);
 
     const items: SellerProductItemDto[] = [];
     for (const product of products) {

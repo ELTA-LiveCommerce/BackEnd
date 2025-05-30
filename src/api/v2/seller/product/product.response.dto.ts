@@ -36,6 +36,9 @@ export class SellerProductResponseBodyDto {
   @ApiProperty({ description: '수정일시' })
   updatedAt: Date;
 
+  @ApiProperty({ description: '상품 공개 여부', example: true })
+  isPublic: boolean;
+
   static fromEntity(product: Product): SellerProductResponseBodyDto {
     const dto = new SellerProductResponseBodyDto();
     dto.id = product.id;
@@ -49,6 +52,7 @@ export class SellerProductResponseBodyDto {
     dto.sellerId = product.seller.id; // seller가 로드되었다고 가정
     dto.createdAt = product.createdAt;
     dto.updatedAt = product.updatedAt;
+    dto.isPublic = product.isPublic;
     return dto;
   }
 }
@@ -79,6 +83,9 @@ export class SellerProductListItemDto {
   @ApiProperty({ description: '상품 상세설명', example: '상세 설명...' })
   description: string;
 
+  @ApiProperty({ description: '상품 공개 여부', example: true })
+  isPublic: boolean;
+
   static fromEntity(product: Product): SellerProductListItemDto {
     const dto = new SellerProductListItemDto();
     dto.id = product.id;
@@ -87,6 +94,7 @@ export class SellerProductListItemDto {
     dto.stockQuantity = product.stockQuantity;
     dto.price = product.price;
     dto.description = product.description;
+    dto.isPublic = product.isPublic;
     return dto;
   }
 }

@@ -9,6 +9,7 @@ import {
   IsArray,
   ArrayNotEmpty,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { IsDateString, IsInt } from 'class-validator';
@@ -56,6 +57,11 @@ export class SellerProductCreateRequestDto {
   @IsUrl({}, { each: true })
   @IsOptional()
   images?: string[];
+
+  @ApiProperty({ description: '상품 공개 여부', example: true, required: false, default: true })
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean = true;
 }
 
 export class SellerProductUpdateRequestDto {
@@ -107,6 +113,11 @@ export class SellerProductUpdateRequestDto {
   @IsUrl({}, { each: true })
   @IsOptional()
   images?: string[];
+
+  @ApiProperty({ description: '상품 공개 여부', example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
 }
 
 export class SellerProductListRequestDto {

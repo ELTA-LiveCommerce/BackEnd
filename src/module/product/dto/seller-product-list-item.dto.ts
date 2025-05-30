@@ -33,6 +33,9 @@ export class SellerProductListItemDto {
   @ApiProperty({ description: '수정일시', example: '2023-12-05T15:30:00.000Z' })
   updatedAt: Date;
 
+  @ApiProperty({ description: '상품 공개 여부', example: true })
+  isPublic: boolean;
+
   static fromEntity(product: Product): SellerProductListItemDto {
     const dto = new SellerProductListItemDto();
     dto.id = product.id;
@@ -45,6 +48,7 @@ export class SellerProductListItemDto {
     dto.description = product.description;
     dto.createdAt = product.createdAt;
     dto.updatedAt = product.updatedAt;
+    dto.isPublic = product.isPublic;
     return dto;
   }
 }

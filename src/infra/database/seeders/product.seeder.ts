@@ -114,6 +114,7 @@ export class ProductSeeder extends Seeder {
         mainImage: productData.mainImage,
         images: productData.images,
         seller: seller,
+        isPublic: true, // All test products are public by default
         createdAt: new Date(),
         updatedAt: new Date(),
       });

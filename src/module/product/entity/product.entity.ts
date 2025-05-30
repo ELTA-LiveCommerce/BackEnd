@@ -78,5 +78,11 @@ export class Product extends BaseEntity {
    */
   @ManyToOne(() => User)
   seller: User;
+
+  /**
+   * 상품 공개 여부
+   */
+  @Property({ type: 'boolean', default: true })
+  isPublic: boolean = true;
 }
 

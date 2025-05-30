@@ -414,6 +414,16 @@
           "primary": false,
           "nullable": true,
           "mappedType": "text"
+        },
+        "is_profile_public": {
+          "name": "is_profile_public",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "true",
+          "mappedType": "boolean"
         }
       },
       "name": "seller_infos",
@@ -699,6 +709,16 @@
           "primary": false,
           "nullable": false,
           "mappedType": "string"
+        },
+        "is_public": {
+          "name": "is_public",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "true",
+          "mappedType": "boolean"
         }
       },
       "name": "products",

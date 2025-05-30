@@ -241,6 +241,22 @@ export class ProductService {
   }
 
   /**
+   * 특정 판매자의 공개 상품 목록을 조회합니다 (뷰어용).
+   * @param sellerId 판매자 ID
+   * @returns 공개 상품 목록
+   */
+  async findPublicProductsBySeller(sellerId: string): Promise<Product[]> {
+    await this.userService.findOne(sellerId);
+    return await this.productRepository.find(
+      { 
+        seller: { id: sellerId },
+        isPublic: true 
+      }, 
+      { populate: ['seller'] }
+    );
+  }
+
+  /**
    * ID로 상품을 조회합니다.
    * @param id 상품 ID
    * @returns 상품 정보
@@ -376,7 +392,11 @@ export class ProductService {
     const limit = query.limit ?? 10;
     const offset = (page - 1) * limit;
 
-    const qb = this.em.createQueryBuilder(Product, 'p').select(['p.*']).leftJoinAndSelect('p.seller', 's');
+    const qb = this.em.createQueryBuilder(Product, 'p')
+      .select(['p.*'])
+      .leftJoinAndSelect('p.seller', 's')
+      .leftJoinAndSelect('s.sellerInfo', 'si')
+      .andWhere({ isPublic: true }); // 공개된 상품만 조회
 
     if (query.searchQuery) {
       qb.andWhere({ name: { $like: `%${query.searchQuery}%` } });
@@ -410,10 +430,13 @@ export class ProductService {
    * @returns 상품 정보
    */
   async findOneForViewer(id: string): Promise<Product> {
-    const product = await this.productRepository.findOne({ id }, { populate: ['seller'] });
+    const product = await this.productRepository.findOne(
+      { id, isPublic: true }, 
+      { populate: ['seller', 'seller.sellerInfo'] }
+    );
 
     if (!product) {
-      throw new NotFoundException(`상품 ID ${id}를 찾을 수 없습니다.`);
+      throw new NotFoundException(`상품을 찾을 수 없거나 비공개 상품입니다.`);
     }
 
     return product;
@@ -438,6 +461,7 @@ export class ProductService {
     if (createDto.shortDescription) product.shortDescription = createDto.shortDescription;
     if (createDto.mainImage) product.mainImage = createDto.mainImage;
     if (createDto.images) product.images = createDto.images;
+    if (createDto.isPublic !== undefined) product.isPublic = createDto.isPublic;
 
     await this.productRepository.persistAndFlush(product);
     return product;
@@ -465,6 +489,7 @@ export class ProductService {
     if (updateDto.mainImage !== undefined) product.mainImage = updateDto.mainImage;
     if (updateDto.images !== undefined) product.images = updateDto.images;
     if (updateDto.status !== undefined) product.status = updateDto.status;
+    if (updateDto.isPublic !== undefined) product.isPublic = updateDto.isPublic;
 
     await this.productRepository.persistAndFlush(product);
     return product;
