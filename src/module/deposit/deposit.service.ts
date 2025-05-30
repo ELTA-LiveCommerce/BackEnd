@@ -95,17 +95,15 @@ export class DepositService {
     const depositListItems = orderItems.map((orderItem) => {
       const item = new DepositListItemDto();
       const order = orderItem.order;
+      item.id = orderItem.id; // OrderItem의 ID를 입금 ID로 사용
       item.orderId = order.id;
-      item.productMainImage = orderItem.product?.mainImage ?? null;
+      item.orderNumber = order.orderNumber;
+      item.amount = orderItem.totalPrice;
+      item.status = order.status;
+      item.customerName = order.user?.name ?? '고객명 없음';
       item.productName = orderItem.product?.name ?? '상품명 없음';
-      item.quantity = orderItem.quantity;
-      item.buyerBankName = order.user?.bankName ?? null;
-      item.buyerAccount = order.user?.accountNumber ?? null;
-      item.buyerLoginId = order.user?.loginId ?? '아이디 없음';
-      item.buyerPhoneNumber = order.user?.phoneNumber ?? null;
-      item.buyerAddress = order.shippingAddress ?? '주소 정보 없음';
-      item.orderStatus = order.status;
-      item.createdAt = order.createdAt;
+      item.createdAt = order.createdAt.toISOString();
+      item.updatedAt = order.updatedAt.toISOString();
       return item;
     });
 
@@ -140,13 +138,13 @@ export class DepositService {
           throw new ForbiddenException(`주문 ID ${orderId}에 대한 권한이 없습니다.`);
         }
 
-        if (order.status !== OrderStatus.PAID) {
-          throw new BadRequestException(
-            `주문 ID ${orderId}는 'PAID' 상태가 아니므로 입금 확인할 수 없습니다. 현재 상태: ${order.status}`,
-          );
-        }
+        // if (order.status !== OrderStatus.PAID) {
+        //   throw new BadRequestException(
+        //     `주문 ID ${orderId}는 'PAID' 상태가 아니므로 입금 확인할 수 없습니다. 현재 상태: ${order.status}`,
+        //   );
+        // }
 
-        await this.orderService._updateStatus(order, OrderStatus.PROCESSING);
+        await this.orderService._updateStatus(order, OrderStatus.PAID);
       } catch (error) {
         errors.push({ orderId, message: error.message || 'Unknown error' });
       }

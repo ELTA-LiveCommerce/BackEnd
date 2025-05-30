@@ -51,20 +51,30 @@ export class SellerController {
   @ApiOperation({ summary: '판매자 검색' })
   @ApiOkResponse({ type: SellerSearchResponseDto })
   async searchSellers(@Query() query: SellerSearchRequestDto): Promise<SellerSearchResponseDto> {
-    const { keyword, limit = 10 } = query;
+    try {
+      const { keyword, limit = 10 } = query;
 
-    // 판매자 역할을 가진 사용자들 중에서 검색
-    const sellers = await this.userService.findByUsernameContaining(keyword, UserRole.SELLER, limit);
+      // keyword가 없으면 빈 배열 반환
+      if (!keyword || keyword.trim() === '') {
+        return BaseResponseV2.success([], '검색어를 입력해주세요.');
+      }
 
-    // 응답 데이터 변환
-    const searchResults: SellerSearchItemDto[] = sellers.map((seller) => ({
-      id: seller.id,
-      username: seller.loginId,
-      name: seller.name || seller.loginId,
-      profileImage: seller.profileImage,
-    }));
+      // 판매자 역할을 가진 사용자들 중에서 검색
+      const sellers = await this.userService.findByUsernameContaining(keyword, UserRole.SELLER, limit);
 
-    return BaseResponseV2.success(searchResults, '판매자 검색 결과입니다.');
+      // 응답 데이터 변환
+      const searchResults: SellerSearchItemDto[] = sellers.map((seller) => ({
+        id: seller.id,
+        username: seller.loginId,
+        name: seller.name || seller.loginId,
+        profileImage: seller.profileImage,
+      }));
+
+      return BaseResponseV2.success(searchResults, '판매자 검색 결과입니다.');
+    } catch (error) {
+      console.error('Seller search error:', error);
+      throw error;
+    }
   }
 
   /**

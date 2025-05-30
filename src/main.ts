@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -46,6 +46,21 @@ async function bootstrap() {
       transform: true,
       transformOptions: {
         enableImplicitConversion: true,
+      },
+      exceptionFactory: (errors) => {
+        const messages = errors.map(error => {
+          const constraints = error.constraints || {};
+          return {
+            field: error.property,
+            errors: Object.values(constraints),
+          };
+        });
+        
+        return new BadRequestException({
+          statusCode: 400,
+          message: 'Validation failed',
+          errors: messages,
+        });
       },
     }),
   );
