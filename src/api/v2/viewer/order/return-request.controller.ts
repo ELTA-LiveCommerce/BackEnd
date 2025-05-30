@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '@/module/auth/guards/jwt-auth.guard';
@@ -8,7 +8,7 @@ import { ReturnRequestService } from '@/module/order/return-request.service';
 import { CreateReturnRequestDto } from '@/module/order/dto/create-return-request.dto';
 import { BaseResponseV2 } from '@/api/v2/common/base-response.dto';
 
-import { CreateReturnRequestRequest } from './return-request-request.dto';
+import { CreateReturnRequestRequest, GetReturnRequestsQueryDto } from './return-request-request.dto';
 import {
   ReturnRequestResponse,
   ReturnRequestListResponse,
@@ -68,7 +68,7 @@ export class ReturnRequestController {
   @Get()
   @ApiOperation({ summary: '내 반품 요청 목록 조회' })
   @ApiResponse({ status: 200, description: '반품 요청 목록 조회 성공', type: ReturnRequestListResponse })
-  async findAll(@GetUser() user: User): Promise<ReturnRequestListResponse> {
+  async findAll(@Query() query: GetReturnRequestsQueryDto, @GetUser() user: User): Promise<ReturnRequestListResponse> {
     const returnRequests = await this.returnRequestService.findByUserId(user.id);
 
     const responseBody = returnRequests.map((request) => ({

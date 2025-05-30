@@ -20,6 +20,9 @@ export class SellerDeliveryListItemDto {
   @ApiProperty({ description: '구매자 아이디', example: 'buyer123' })
   buyerLoginId: string;
 
+  @ApiProperty({ description: '구매자 이름', example: '김구매' })
+  buyerName: string;
+
   @ApiProperty({ description: '구매자 이름 (수령인)', example: '김배송' })
   recipientName: string;
 
@@ -52,6 +55,7 @@ export class SellerDeliveryListItemDto {
 
     dto.trackingNumber = delivery.trackingNumber;
     dto.buyerLoginId = order.user?.loginId || '구매자 정보 없음';
+    dto.buyerName = order.user?.name || '구매자 정보 없음';
     dto.recipientName = delivery.recipientName;
     dto.recipientPhoneNumber = delivery.recipientPhoneNumber;
     dto.address = delivery.address;

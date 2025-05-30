@@ -5,6 +5,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReturnRequestDto } from './dto/create-return-request.dto';
 import { Order } from './entity/order.entity';
 import { ReturnRequest } from './entity/return-request.entity';
+import { RefundService } from '../payment/refund.service';
+import { RefundReason } from '../payment/entity/refund.entity';
+import { PaymentService } from '../payment/payment.service';
 
 @Injectable()
 export class ReturnRequestService {
@@ -14,6 +17,8 @@ export class ReturnRequestService {
     @InjectRepository(Order)
     private readonly orderRepository: EntityRepository<Order>,
     private readonly em: EntityManager,
+    private readonly refundService: RefundService,
+    private readonly paymentService: PaymentService,
   ) {}
 
   async create(createReturnRequestDto: CreateReturnRequestDto, userId: string): Promise<ReturnRequest> {
@@ -42,6 +47,35 @@ export class ReturnRequestService {
     });
 
     await this.em.persistAndFlush(returnRequest);
+
+    // 주문과 연결된 결제 정보 찾기
+    try {
+      const payments = await this.paymentService.findByOrder(order.id, user);
+      if (payments && payments.length > 0) {
+        // 가장 최근의 완료된 결제 선택
+        const completedPayment = payments.find(p => p.status === 'COMPLETED') || payments[0];
+        
+        if (completedPayment) {
+          try {
+            // 자동으로 환불 요청 생성
+            await this.refundService.create({
+              orderId: order.id,
+              paymentId: completedPayment.id,
+              reason: RefundReason.CUSTOMER_REQUEST,
+              amount: order.totalAmount,
+              description: `반품 요청 사유: ${createReturnRequestDto.reasonCategory} - ${createReturnRequestDto.reasonDetail}`,
+            }, user);
+          } catch (error) {
+            // 환불 생성 실패 시 로그만 남기고 반품 요청은 정상적으로 처리
+            console.error('Failed to create refund automatically:', error);
+          }
+        }
+      }
+    } catch (error) {
+      // 결제 정보 조회 실패 시에도 반품 요청은 정상적으로 처리
+      console.error('Failed to find payments for order:', error);
+    }
+
     return returnRequest;
   }
 

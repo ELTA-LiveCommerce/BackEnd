@@ -91,7 +91,7 @@ describe('ReturnRequestController', () => {
     it('should return a list of return requests', async () => {
       returnRequestService.findByUserId.mockResolvedValue([mockReturnRequest]);
 
-      const result = await controller.findAll(mockUser);
+      const result = await controller.findAll({}, mockUser);
 
       expect(returnRequestService.findByUserId).toHaveBeenCalledWith(mockUser.id);
       expect(result.data).toHaveLength(1);

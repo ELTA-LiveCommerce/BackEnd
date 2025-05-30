@@ -25,18 +25,28 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (errorResponse instanceof BaseResponse) {
       resBody = errorResponse;
     } else {
+      const errorMessage = typeof errorResponse === 'string'
+        ? errorResponse
+        : errorResponse && typeof errorResponse === 'object' && 'message' in errorResponse
+          ? (errorResponse as any).message
+          : String(errorResponse);
+
       resBody = {
         success: false,
         error: {
-          message:
-            typeof errorResponse === 'string'
-              ? errorResponse
-              : 'message' in errorResponse
-                ? errorResponse.message
-                : errorResponse,
+          message: errorMessage,
           code: customStatusCode,
         },
       };
+
+      // 토큰 만료 오류에 대한 특별 처리
+      if (status === HttpStatus.UNAUTHORIZED && 
+          typeof errorMessage === 'string' &&
+          (errorMessage.includes('토큰이 만료되었습니다') || 
+           errorMessage.includes('token expired'))) {
+        resBody.error.type = 'TOKEN_EXPIRED';
+        resBody.error.hint = '리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받으세요. POST /v2/auth/refresh';
+      }
     }
 
     const errorDetails = {
