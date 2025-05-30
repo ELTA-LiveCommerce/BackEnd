@@ -144,10 +144,17 @@ export class UserFollowService {
    * @param followingId 팔로잉 ID
    */
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    console.log('isFollowing Debug:', {
+      followerId,
+      followingId,
+    });
+    
     const follow = await this.followRepository.findOne({
       follower: { id: followerId },
       following: { id: followingId },
     });
+    
+    console.log('Follow query result:', follow);
 
     return !!follow;
   }

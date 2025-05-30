@@ -14,6 +14,7 @@ import { LoginService } from './login.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { KakaoStrategy } from './strategies/kakao.strategy';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { TokenBlacklistService } from './token-blacklist.service';
     MikroOrmModule.forFeature([Login, TokenBlacklist]),
     UserModule,
   ],
-  providers: [AuthService, LoginService, TokenBlacklistService, KakaoStrategy, JwtStrategy],
-  exports: [AuthService, LoginService, TokenBlacklistService],
+  providers: [AuthService, LoginService, TokenBlacklistService, KakaoStrategy, JwtStrategy, OptionalJwtAuthGuard],
+  exports: [AuthService, LoginService, TokenBlacklistService, OptionalJwtAuthGuard],
 })
 export class AuthModule {}

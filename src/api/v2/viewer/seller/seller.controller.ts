@@ -12,6 +12,7 @@ import { User } from '@/module/user/entity/user.entity';
 import { Broadcast } from '@/module/broadcast/entity/broadcast.entity';
 import { UserFollowService } from '@/module/user/user-follow.service';
 import { GetUser } from '@/shared/common/decorators/get-user.decorator';
+import { OptionalJwtAuthGuard } from '@/module/auth/guards/optional-jwt-auth.guard';
 
 import {
   SellerSearchRequestDto,
@@ -70,6 +71,7 @@ export class SellerController {
    * 셀러 정보를 조회합니다.
    */
   @Get(':sellerId')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: '판매자 정보 조회' })
   @ApiOkResponse({ type: SellerInfoResponseDto })
   async getSellerInfo(
@@ -92,6 +94,7 @@ export class SellerController {
     let isFollowing = false;
     if (currentUser) {
       isFollowing = await this.userFollowService.isFollowing(currentUser.id, sellerId);
+      console.log('isFollowing result:', isFollowing);
     }
 
     // 셀러 비즈니스 정보 조회

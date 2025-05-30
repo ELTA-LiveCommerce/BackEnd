@@ -28,6 +28,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(req: Request, payload: JwtPayload): Promise<User> {
+    console.log('JWT Strategy validate called');
+    console.log('Payload:', payload);
+    console.log('Headers:', req.headers);
+    
     // 토큰 추출 (req.headers.authorization에서 'Bearer ' 제거)
     const token = req.headers['authorization']?.split(' ')[1];
 
@@ -45,6 +49,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
     }
+    
+    console.log('JWT Strategy returning user:', user.id, user.loginId);
 
     return user;
   }
