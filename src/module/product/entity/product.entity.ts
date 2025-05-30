@@ -29,7 +29,7 @@ export class Product extends BaseEntity {
    * 상품 간략설명
    */
   @Property({ type: 'text', nullable: true })
-  shortDescription?: string;
+  shortDescription: string;
 
   /**
    * 상품 상세설명
