@@ -55,8 +55,8 @@ interface KakaoTokenResponse {
 @Injectable()
 export class AuthService {
   public readonly logger = new Logger(AuthService.name);
-  private readonly ACCESS_TOKEN_EXPIRATION = '1h'; // 액세스 토큰 만료 시간
-  private readonly REFRESH_TOKEN_EXPIRATION = '7d'; // 리프레시 토큰 만료 시간
+  private readonly ACCESS_TOKEN_EXPIRATION = '7d'; // 액세스 토큰 만료 시간 (7일)
+  private readonly REFRESH_TOKEN_EXPIRATION = '30d'; // 리프레시 토큰 만료 시간 (30일)
   private readonly APP_REFRESH_TOKEN_EXPIRATION = null; // 앱 리프레시 토큰 만료 시간 (무제한)
   private jwksClient: JwksClient;
 

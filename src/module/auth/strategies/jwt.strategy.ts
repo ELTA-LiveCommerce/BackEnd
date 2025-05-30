@@ -9,8 +9,11 @@ import { TokenBlacklistService } from '../token-blacklist.service';
 
 interface JwtPayload {
   sub: string;
-  email: string;
+  loginId?: string;  // v2 로그인에서 사용
+  email?: string;    // 기존 호환성을 위해 유지
   role: string;
+  iat?: number;
+  exp?: number;
 }
 
 @Injectable()
