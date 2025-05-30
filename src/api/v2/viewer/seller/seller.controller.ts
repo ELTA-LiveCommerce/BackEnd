@@ -108,7 +108,12 @@ export class SellerController {
     }
 
     // 셀러 비즈니스 정보 조회
-    let businessInfo: { businessName?: string; businessAddress?: string; businessNumber?: string; description?: string } | null = null;
+    let businessInfo: {
+      businessName?: string;
+      businessAddress?: string;
+      businessNumber?: string;
+      description?: string;
+    } | null = null;
     try {
       businessInfo = await this.userService.getSellerInfo(sellerId);
     } catch (error) {
@@ -127,10 +132,9 @@ export class SellerController {
       followers: followersCount,
       following: followingCount,
       isFollowing,
-      // 비즈니스 정보 추가
-      businessName: businessInfo?.businessName,
-      businessAddress: businessInfo?.businessAddress,
-      businessNumber: businessInfo?.businessNumber,
+      businessName: businessInfo?.businessName || '',
+      businessAddress: businessInfo?.businessAddress || '',
+      businessNumber: businessInfo?.businessNumber || '',
     };
 
     return SellerInfoResponseDto.success(sellerInfo);
