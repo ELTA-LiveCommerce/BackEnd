@@ -49,7 +49,13 @@ export class MessageService {
    * 셀러 정보와 대화방 정보를 조회합니다.
    */
   async getSellerInfoForMessage(viewerId: string, sellerId: string) {
-    const seller = await this.userService.findOne(sellerId);
+    // 셀러를 sellerInfo와 함께 조회
+    const seller = await this.em.findOne(
+      User,
+      { id: sellerId },
+      { populate: ['sellerInfo'] }
+    );
+    
     if (!seller) {
       throw new NotFoundException('Seller not found');
     }
@@ -61,7 +67,8 @@ export class MessageService {
         id: seller.id,
         name: seller.name,
         profileImage: seller.profileImage,
-        operatingHours: seller.sellerInfo?.operatingHours || '09:00 - 18:00', // 운영시간은 sellerInfo에서 가져옴
+        operatingStartTime: seller.sellerInfo?.operatingStartTime || '09:00',
+        operatingEndTime: seller.sellerInfo?.operatingEndTime || '18:00',
       },
       conversationId: conversation.id,
     };
@@ -215,5 +222,30 @@ export class MessageService {
     }
 
     return message;
+  }
+
+  /**
+   * 뷰어의 대화방 목록을 조회합니다 (문의 내역).
+   */
+  async getViewerConversations(viewerId: string, page: number = 1, limit: number = 20) {
+    const offset = (page - 1) * limit;
+
+    const [conversations, total] = await this.conversationRepository.findAndCount(
+      { viewer: { id: viewerId } },
+      {
+        populate: ['seller', 'seller.sellerInfo'],
+        orderBy: { lastMessageAt: 'DESC' },
+        limit,
+        offset,
+      },
+    );
+
+    return {
+      items: conversations,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

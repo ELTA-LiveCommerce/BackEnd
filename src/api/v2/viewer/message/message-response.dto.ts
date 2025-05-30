@@ -16,8 +16,11 @@ export class SellerInfoForMessageDto {
   @ApiProperty({ description: '프로필 이미지 URL', example: 'https://example.com/profile.jpg' })
   profileImage?: string;
 
-  @ApiProperty({ description: '운영시간', example: '09:00 - 18:00' })
-  operatingHours: string;
+  @ApiProperty({ description: '운영 시작 시간', example: '09:00' })
+  operatingStartTime: string;
+
+  @ApiProperty({ description: '운영 종료 시간', example: '18:00' })
+  operatingEndTime: string;
 }
 
 /**
@@ -75,3 +78,54 @@ export class SendMessageResponseDto extends BaseResponseV2<MessageDto> {}
  * 메시지 목록 조회 응답 DTO
  */
 export class GetMessagesResponseDto extends BaseResponseV2<MessageDto[]> {}
+
+/**
+ * 문의 내역 아이템 DTO
+ */
+export class ConversationListItemDto {
+  @ApiProperty({ description: '대화방 ID', example: 'conv-uuid-123' })
+  conversationId: string;
+
+  @ApiProperty({ description: '셀러 ID', example: 'seller-uuid-123' })
+  sellerId: string;
+
+  @ApiProperty({ description: '셀러명', example: '판매자1' })
+  sellerName: string;
+
+  @ApiProperty({ description: '셀러 프로필 이미지 URL', example: 'https://example.com/profile.jpg', required: false })
+  sellerProfileImage?: string;
+
+  @ApiProperty({ description: '셀러 운영 시작 시간', example: '09:00', required: false })
+  sellerOperatingStartTime?: string;
+
+  @ApiProperty({ description: '셀러 운영 종료 시간', example: '18:00', required: false })
+  sellerOperatingEndTime?: string;
+
+  @ApiProperty({ description: '최근 대화 텍스트', example: '안녕하세요, 문의 드립니다.', required: false })
+  lastMessageText?: string;
+
+  @ApiProperty({ description: '최근 대화 일시', example: '2024-01-01T12:00:00.000Z', required: false })
+  lastMessageAt?: Date;
+
+  @ApiProperty({ description: '안읽은 메시지 개수', example: 3 })
+  unreadCount: number;
+
+  static fromConversation(conversation: Conversation): ConversationListItemDto {
+    const dto = new ConversationListItemDto();
+    dto.conversationId = conversation.id;
+    dto.sellerId = conversation.seller.id;
+    dto.sellerName = conversation.seller.name;
+    dto.sellerProfileImage = conversation.seller.profileImage;
+    dto.sellerOperatingStartTime = conversation.seller.sellerInfo?.operatingStartTime;
+    dto.sellerOperatingEndTime = conversation.seller.sellerInfo?.operatingEndTime;
+    dto.lastMessageText = conversation.lastMessageText;
+    dto.lastMessageAt = conversation.lastMessageAt;
+    dto.unreadCount = conversation.viewerUnreadCount;
+    return dto;
+  }
+}
+
+/**
+ * 문의 내역 목록 응답 DTO
+ */
+export class GetConversationListResponseDto extends PagedResponseV2<ConversationListItemDto> {}

@@ -86,3 +86,13 @@ export class SellerDescriptionUpdateRequestDto {
   @IsString()
   description: string;
 }
+
+export class SellerOperatingHoursUpdateRequestDto {
+  @ApiProperty({ description: '운영 시작 시간', example: '09:00' })
+  @IsString()
+  operatingStartTime: string;
+
+  @ApiProperty({ description: '운영 종료 시간', example: '18:00' })
+  @IsString()
+  operatingEndTime: string;
+}

@@ -7,12 +7,14 @@ RUN npm install -g pnpm@9.12.3
 
 # 패키지 설치에 필요한 파일 복사
 COPY package.json pnpm-lock.yaml ./
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
 
 # 의존성 설치
 RUN pnpm install
 
 # 소스코드 복사
-COPY . .
+COPY src ./src
 
 # 애플리케이션 빌드
 RUN pnpm build
@@ -29,10 +31,13 @@ RUN npm install -g pnpm@9.12.3
 COPY package.json pnpm-lock.yaml ./
 
 # 프로덕션 의존성만 설치
-RUN pnpm install --prod
+RUN pnpm install --prod --frozen-lockfile
 
 # 빌드된 파일 복사
 COPY --from=builder /app/dist ./dist
+
+# mikro-orm 설정 파일 복사 (필요한 경우)
+COPY mikro-orm.config.js ./
 
 # 환경 변수 설정
 ENV NODE_ENV=production
@@ -42,4 +47,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # 애플리케이션 실행
-CMD ["node", "dist/main"] 
+CMD ["node", "dist/main.js"] 

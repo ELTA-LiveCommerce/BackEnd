@@ -915,5 +915,45 @@ export class UserService {
     await this.em.flush();
     return seller.sellerInfo;
   }
+
+  /**
+   * 판매자의 운영시간을 업데이트합니다.
+   * @param sellerId 판매자 ID
+   * @param operatingStartTime 운영 시작 시간
+   * @param operatingEndTime 운영 종료 시간
+   * @returns 업데이트된 셀러 정보
+   */
+  async updateSellerOperatingHours(
+    sellerId: string, 
+    operatingStartTime: string, 
+    operatingEndTime: string
+  ): Promise<SellerInfo> {
+    const seller = await this.userRepository.findOne(
+      { id: sellerId, role: UserRole.SELLER },
+      { populate: ['sellerInfo'] },
+    );
+
+    if (!seller) {
+      throw new NotFoundException(`판매자 ID ${sellerId}를 찾을 수 없습니다.`);
+    }
+
+    // SellerInfo가 없으면 생성
+    if (!seller.sellerInfo) {
+      const sellerInfo = new SellerInfo({
+        user: seller,
+        operatingStartTime,
+        operatingEndTime,
+      });
+      await this.em.persistAndFlush(sellerInfo);
+      return sellerInfo;
+    }
+
+    // 기존 SellerInfo 업데이트
+    seller.sellerInfo.operatingStartTime = operatingStartTime;
+    seller.sellerInfo.operatingEndTime = operatingEndTime;
+
+    await this.em.flush();
+    return seller.sellerInfo;
+  }
 }
 

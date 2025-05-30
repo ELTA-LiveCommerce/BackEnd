@@ -9,7 +9,7 @@ import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { CurrentUser } from '@/shared/common/decorators/current-user.decorator';
 
-import { SellerUserListRequestDto, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto, SellerDescriptionUpdateRequestDto } from './seller-user-request.dto';
+import { SellerUserListRequestDto, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto, SellerDescriptionUpdateRequestDto, SellerOperatingHoursUpdateRequestDto } from './seller-user-request.dto';
 import {
   SellerUserListResponseDto,
   SellerUserStatusUpdateResponseDto,
@@ -182,6 +182,44 @@ export class SellerUserController {
         description: updatedInfo.description || '',
       },
       '판매자 소개가 성공적으로 업데이트되었습니다.',
+      HttpStatus.OK,
+    );
+  }
+
+  @Patch('operating-hours')
+  @ApiOperation({ summary: '판매자 운영시간 업데이트' })
+  @ApiOkResponse({ 
+    description: '운영시간이 성공적으로 업데이트되었습니다.',
+    schema: {
+      properties: {
+        message: { type: 'string', example: '운영시간이 성공적으로 업데이트되었습니다.' },
+        statusCode: { type: 'number', example: 200 },
+        data: {
+          type: 'object',
+          properties: {
+            operatingStartTime: { type: 'string', example: '09:00' },
+            operatingEndTime: { type: 'string', example: '18:00' }
+          }
+        }
+      }
+    }
+  })
+  async updateOperatingHours(
+    @CurrentUser() seller: User,
+    @Body() operatingHoursDto: SellerOperatingHoursUpdateRequestDto,
+  ) {
+    const updatedInfo = await this.userService.updateSellerOperatingHours(
+      seller.id, 
+      operatingHoursDto.operatingStartTime,
+      operatingHoursDto.operatingEndTime
+    );
+
+    return BaseResponseV2.success(
+      {
+        operatingStartTime: updatedInfo.operatingStartTime || '09:00',
+        operatingEndTime: updatedInfo.operatingEndTime || '18:00',
+      },
+      '운영시간이 성공적으로 업데이트되었습니다.',
       HttpStatus.OK,
     );
   }

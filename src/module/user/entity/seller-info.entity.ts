@@ -17,8 +17,11 @@ export class SellerInfo extends BaseEntity {
   @Property({ nullable: true, type: 'string' })
   businessNumber?: string; // 사업자번호
 
-  @Property({ nullable: true, type: 'string', default: '09:00 - 18:00' })
-  operatingHours?: string; // 운영시간
+  @Property({ nullable: true, type: 'string', default: '09:00' })
+  operatingStartTime?: string; // 운영 시작 시간
+
+  @Property({ nullable: true, type: 'string', default: '18:00' })
+  operatingEndTime?: string; // 운영 종료 시간
 
   @Property({ nullable: true, type: 'text' })
   description?: string; // 셀러 소개

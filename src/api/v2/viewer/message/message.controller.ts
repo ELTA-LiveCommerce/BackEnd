@@ -7,6 +7,8 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
 
@@ -22,6 +24,8 @@ import {
   SendMessageResponseDto,
   GetMessagesResponseDto,
   MessageDto,
+  GetConversationListResponseDto,
+  ConversationListItemDto,
 } from './message-response.dto';
 
 @ApiTags('v2/viewer/messages')
@@ -30,6 +34,32 @@ import {
 @UseGuards(JwtAuthGuard)
 export class MessageController {
   constructor(private readonly messageService: MessageService) {}
+
+  /**
+   * 내 문의 내역 목록 조회
+   */
+  @Get('conversations')
+  @ApiOperation({ summary: '내 문의 내역 목록 조회' })
+  @ApiOkResponse({ type: GetConversationListResponseDto })
+  async getConversations(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @GetUser() user: User,
+  ): Promise<GetConversationListResponseDto> {
+    const result = await this.messageService.getViewerConversations(user.id, page, limit);
+    
+    const items = result.items.map(conversation => 
+      ConversationListItemDto.fromConversation(conversation)
+    );
+    
+    return GetConversationListResponseDto.create(
+      items,
+      result.total,
+      result.page,
+      result.limit,
+      '문의 내역을 조회했습니다.'
+    );
+  }
 
   /**
    * 셀러 정보 조회 (쪽지창 열 때)
