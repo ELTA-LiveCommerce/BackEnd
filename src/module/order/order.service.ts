@@ -5,6 +5,7 @@ import { BadRequestException, Injectable, NotFoundException, ForbiddenException,
 import { ConfigService } from '@nestjs/config';
 
 import { DeliveryService } from '@/module/delivery/delivery.service';
+import { Delivery } from '@/module/delivery/entity/delivery.entity';
 import { CreateOrderDto } from '@/module/order/dto/create-order.dto';
 import { GetOrdersDto } from '@/module/order/dto/get-orders.dto';
 import {
@@ -170,12 +171,13 @@ export class OrderService {
         // 첫 번째 상품의 판매자 정보를 가져옴 (여러 판매자가 있을 수 있으므로 추후 개선 필요)
         const firstItem = savedOrder.items.getItems()[0];
         const seller = firstItem.product.seller;
-        
+
         const depositParams: PaymentNotificationParams = {
           customerName: user.name || '고객',
           productName: productName,
           bankName: seller.bankName || this.configService.get<string>('DEPOSIT_BANK_NAME', '농협은행'),
-          accountNumber: seller.accountNumber || this.configService.get<string>('DEPOSIT_ACCOUNT_NUMBER', '123-456-789012'),
+          accountNumber:
+            seller.accountNumber || this.configService.get<string>('DEPOSIT_ACCOUNT_NUMBER', '123-456-789012'),
           accountHolder: seller.name || this.configService.get<string>('DEPOSIT_ACCOUNT_HOLDER', 'ELTA'),
           amount: `${order.totalAmount.toLocaleString()}원`,
           dueDate: dueDate.toLocaleDateString('ko-KR'),
@@ -610,8 +612,11 @@ export class OrderService {
    * @internal
    */
   async _findOrderById(orderId: string): Promise<Order | null> {
-    // Populate necessary relations if needed later, but keep it simple for now
-    return this.orderRepository.findOne({ id: orderId });
+    // 배송 정보 생성에 필요한 연관 관계를 로드
+    return this.orderRepository.findOne(
+      { id: orderId },
+      { populate: ['items', 'items.product', 'items.product.seller', 'user'] },
+    );
   }
 
   /**
@@ -633,8 +638,8 @@ export class OrderService {
         await this.createDeliveryForOrder(order);
         break;
       case OrderStatus.PROCESSING:
-        // paidAt should be set when payment is confirmed, maybe move this logic?
-        // For now, let's assume paidAt is already set when status becomes PAID.
+        // 입금 확인 시 배송 정보 생성 (아직 생성되지 않은 경우)
+        await this.createDeliveryForOrderIfNotExists(order);
         break;
       case OrderStatus.SHIPPED:
         order.shippedAt = new Date();
@@ -719,6 +724,24 @@ export class OrderService {
         // 배송 생성 실패 시에도 주문 상태 업데이트는 계속 진행
       }
     }
+  }
+
+  /**
+   * 주문에 대한 배송 정보를 생성합니다 (아직 생성되지 않은 경우에만).
+   * @param order 주문 엔티티
+   * @private
+   */
+  private async createDeliveryForOrderIfNotExists(order: Order): Promise<void> {
+    // 이미 배송 정보가 생성되어 있는지 확인
+    const existingDeliveries = await this.entityManager.find(Delivery, { order: order.id }, { limit: 1 });
+
+    if (existingDeliveries.length > 0) {
+      // 이미 배송 정보가 존재하면 생성하지 않음
+      return;
+    }
+
+    // 배송 정보가 없는 경우에만 생성
+    await this.createDeliveryForOrder(order);
   }
 }
 
