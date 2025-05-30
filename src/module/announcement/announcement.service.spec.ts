@@ -4,7 +4,8 @@ import { EntityManager, EntityRepository, QueryOrder } from '@mikro-orm/core';
 import { NotFoundException } from '@nestjs/common';
 
 import { AnnouncementService } from './announcement.service';
-import { Announcement, AnnouncementTargetPlatform } from './entity/announcement.entity';
+import { Announcement } from './entity/announcement.entity';
+import { AnnouncementTargetPlatform } from '@/shared/enum/announcement-target-platform.enum';
 import { CreateAnnouncementDto, UpdateAnnouncementDto, GetAnnouncementsQueryDto } from './dto/announcement.dto';
 import { User } from '@/module/user/entity/user.entity';
 import { UserRole } from '@/shared/enum/user-role.enum';

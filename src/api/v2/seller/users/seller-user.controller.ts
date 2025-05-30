@@ -9,7 +9,7 @@ import { RolesGuard } from '@/module/auth/guards/roles.guard';
 import { UserRole } from '@/shared/enum/user-role.enum';
 import { CurrentUser } from '@/shared/common/decorators/current-user.decorator';
 
-import { SellerUserListRequestDto, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto, SellerDescriptionUpdateRequestDto, SellerOperatingHoursUpdateRequestDto } from './seller-user-request.dto';
+import { SellerUserListRequestDto, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto, SellerDescriptionUpdateRequestDto, SellerOperatingHoursUpdateRequestDto, SellerInfoUpdateRequestDto } from './seller-user-request.dto';
 import {
   SellerUserListResponseDto,
   SellerUserStatusUpdateResponseDto,
@@ -118,8 +118,90 @@ export class SellerUserController {
     );
   }
 
+  @Get('info')
+  @ApiOperation({ summary: '판매자 정보 조회' })
+  @ApiOkResponse({ 
+    description: '판매자 정보 조회 성공',
+    schema: {
+      properties: {
+        message: { type: 'string', example: '판매자 정보 조회 성공' },
+        statusCode: { type: 'number', example: 200 },
+        data: {
+          type: 'object',
+          properties: {
+            businessName: { type: 'string', example: '테스트 상호명', nullable: true },
+            businessAddress: { type: 'string', example: '서울시 강남구 테스트로 123', nullable: true },
+            businessNumber: { type: 'string', example: '123-45-67890', nullable: true },
+            description: { type: 'string', example: '안녕하세요, 저는 신뢰할 수 있는 판매자입니다.', nullable: true },
+            operatingStartTime: { type: 'string', example: '09:00' },
+            operatingEndTime: { type: 'string', example: '18:00' }
+          }
+        }
+      }
+    }
+  })
+  async getSellerInfo(@CurrentUser() seller: User) {
+    const sellerInfo = await this.userService.getSellerInfo(seller.id);
+    
+    return BaseResponseV2.success(
+      {
+        businessName: sellerInfo.businessName ?? null,
+        businessAddress: sellerInfo.businessAddress ?? null,
+        businessNumber: sellerInfo.businessNumber ?? null,
+        description: sellerInfo.description ?? null,
+        operatingStartTime: sellerInfo.operatingStartTime || '09:00',
+        operatingEndTime: sellerInfo.operatingEndTime || '18:00',
+      },
+      '판매자 정보 조회 성공',
+      HttpStatus.OK,
+    );
+  }
+
+  @Patch('info')
+  @ApiOperation({ summary: '판매자 정보 통합 업데이트 (없으면 생성, 있으면 수정)' })
+  @ApiOkResponse({ 
+    description: '판매자 정보가 성공적으로 업데이트되었습니다.',
+    schema: {
+      properties: {
+        message: { type: 'string', example: '판매자 정보가 성공적으로 업데이트되었습니다.' },
+        statusCode: { type: 'number', example: 200 },
+        data: {
+          type: 'object',
+          properties: {
+            businessName: { type: 'string', example: '테스트 상호명' },
+            businessAddress: { type: 'string', example: '서울시 강남구 테스트로 123' },
+            businessNumber: { type: 'string', example: '123-45-67890' },
+            description: { type: 'string', example: '안녕하세요, 저는 신뢰할 수 있는 판매자입니다.' },
+            operatingStartTime: { type: 'string', example: '09:00' },
+            operatingEndTime: { type: 'string', example: '18:00' }
+          }
+        }
+      }
+    }
+  })
+  async updateSellerInfo(
+    @CurrentUser() seller: User,
+    @Body() sellerInfoDto: SellerInfoUpdateRequestDto,
+  ) {
+    const updatedInfo = await this.userService.updateSellerInfo(seller.id, sellerInfoDto);
+
+    return BaseResponseV2.success(
+      {
+        businessName: updatedInfo.businessName || '',
+        businessAddress: updatedInfo.businessAddress || '',
+        businessNumber: updatedInfo.businessNumber || '',
+        description: updatedInfo.description || '',
+        operatingStartTime: updatedInfo.operatingStartTime || '09:00',
+        operatingEndTime: updatedInfo.operatingEndTime || '18:00',
+      },
+      '판매자 정보가 성공적으로 업데이트되었습니다.',
+      HttpStatus.OK,
+    );
+  }
+
+  /** @deprecated Use updateSellerInfo instead */
   @Patch('business-info')
-  @ApiOperation({ summary: '판매자 사업자 정보 업데이트' })
+  @ApiOperation({ summary: '판매자 사업자 정보 업데이트', deprecated: true })
   @ApiOkResponse({ 
     description: '사업자 정보가 성공적으로 업데이트되었습니다.',
     schema: {
@@ -154,6 +236,35 @@ export class SellerUserController {
     );
   }
 
+  @Get('description')
+  @ApiOperation({ summary: '판매자 소개 조회' })
+  @ApiOkResponse({ 
+    description: '판매자 소개 조회 성공',
+    schema: {
+      properties: {
+        message: { type: 'string', example: '판매자 소개 조회 성공' },
+        statusCode: { type: 'number', example: 200 },
+        data: {
+          type: 'object',
+          properties: {
+            description: { type: 'string', example: '안녕하세요, 저는 신뢰할 수 있는 판매자입니다.', nullable: true }
+          }
+        }
+      }
+    }
+  })
+  async getDescription(@CurrentUser() seller: User) {
+    const sellerInfo = await this.userService.getSellerInfo(seller.id);
+    
+    return BaseResponseV2.success(
+      {
+        description: sellerInfo.description ?? null,
+      },
+      '판매자 소개 조회 성공',
+      HttpStatus.OK,
+    );
+  }
+
   @Patch('description')
   @ApiOperation({ summary: '판매자 소개 업데이트' })
   @ApiOkResponse({ 
@@ -175,7 +286,10 @@ export class SellerUserController {
     @CurrentUser() seller: User,
     @Body() descriptionDto: SellerDescriptionUpdateRequestDto,
   ) {
-    const updatedInfo = await this.userService.updateSellerDescription(seller.id, descriptionDto.description);
+    // seller_infos가 없으면 생성하고, 있으면 수정하도록 updateSellerInfo 사용
+    const updatedInfo = await this.userService.updateSellerInfo(seller.id, {
+      description: descriptionDto.description
+    });
 
     return BaseResponseV2.success(
       {
@@ -186,8 +300,9 @@ export class SellerUserController {
     );
   }
 
+  /** @deprecated Use updateSellerInfo instead */
   @Patch('operating-hours')
-  @ApiOperation({ summary: '판매자 운영시간 업데이트' })
+  @ApiOperation({ summary: '판매자 운영시간 업데이트', deprecated: true })
   @ApiOkResponse({ 
     description: '운영시간이 성공적으로 업데이트되었습니다.',
     schema: {

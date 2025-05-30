@@ -1,18 +1,25 @@
 require('dotenv').config();
-require('ts-node/register');
-require('tsconfig-paths/register');
+
+// 프로덕션 환경에서는 ts-node와 tsconfig-paths를 로드하지 않음
+if (process.env.NODE_ENV !== 'production') {
+  require('ts-node/register');
+  require('tsconfig-paths/register');
+}
 
 const { JSMigrationGenerator } = require('@mikro-orm/migrations');
 const { PostgreSqlDriver } = require('@mikro-orm/postgresql');
 const { SqlHighlighter } = require('@mikro-orm/sql-highlighter');
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 module.exports = {
   driver: PostgreSqlDriver,
   entities: ['./dist/**/*.entity.js', '!./dist/shared/**/*.entity.js'],
-  entitiesTs: ['./src/**/*.entity.ts', '!./src/shared/**/*.entity.ts'],
+  // 프로덕션에서는 entitiesTs를 사용하지 않음
+  ...(isProduction ? {} : { entitiesTs: ['./src/**/*.entity.ts', '!./src/shared/**/*.entity.ts'] }),
   strict: true,
   allowGlobalContext: process.env.MIKRO_ORM_ALLOW_GLOBAL_CONTEXT === 'true',
-  debug: true,
+  debug: !isProduction,
   highlighter: new SqlHighlighter(),
   migrations: {
     path: './src/infra/database/migrations',

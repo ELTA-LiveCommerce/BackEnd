@@ -38,6 +38,7 @@ COPY --from=builder /app/dist ./dist
 
 # mikro-orm 설정 파일 복사 (필요한 경우)
 COPY mikro-orm.config.js ./
+COPY mikro-orm-prod.config.js ./
 
 # 환경 변수 설정
 ENV NODE_ENV=production

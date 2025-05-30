@@ -13,7 +13,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { AnnouncementTargetPlatform } from '../entity/announcement.entity';
+import { AnnouncementTargetPlatform } from '@/shared/enum/announcement-target-platform.enum';
 
 export class CreateAnnouncementDto {
   @ApiProperty({ description: '공지사항 제목', example: '새로운 기능 업데이트 안내' })

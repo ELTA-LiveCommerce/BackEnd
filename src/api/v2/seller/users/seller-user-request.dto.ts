@@ -96,3 +96,35 @@ export class SellerOperatingHoursUpdateRequestDto {
   @IsString()
   operatingEndTime: string;
 }
+
+export class SellerInfoUpdateRequestDto {
+  @ApiProperty({ description: '사업자명(상호명)', required: false })
+  @IsOptional()
+  @IsString()
+  businessName?: string;
+
+  @ApiProperty({ description: '사업자 주소', required: false })
+  @IsOptional()
+  @IsString()
+  businessAddress?: string;
+
+  @ApiProperty({ description: '사업자 번호', required: false })
+  @IsOptional()
+  @IsString()
+  businessNumber?: string;
+
+  @ApiProperty({ description: '셀러 소개', required: false })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ description: '운영 시작 시간', example: '09:00', required: false })
+  @IsOptional()
+  @IsString()
+  operatingStartTime?: string;
+
+  @ApiProperty({ description: '운영 종료 시간', example: '18:00', required: false })
+  @IsOptional()
+  @IsString()
+  operatingEndTime?: string;
+}

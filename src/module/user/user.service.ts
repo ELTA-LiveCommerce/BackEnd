@@ -15,7 +15,6 @@ import { UserRole } from '@/shared/enum/user-role.enum';
 import { SellerUserStatus, SellerUserStatusUpdateRequestDto, SellerBusinessInfoUpdateRequestDto } from '@/api/v2/seller/users/seller-user-request.dto';
 import { SellerUserBlock, BlockType } from './entity/seller-user-block.entity';
 import { SellerInfo } from './entity/seller-info.entity';
-import { Transactional } from '@nestjs-cls/transactional';
 import { Order } from '@/module/order/entity/order.entity';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 import { OrderStatus } from '@/shared/enum/order-status.enum';
@@ -816,12 +815,20 @@ export class UserService {
 
   /**
    * 셀러의 기본 정보(상호명, 사업자주소, 사업자번호)를 조회합니다.
+   * seller_infos가 없는 경우도 처리합니다.
    * @param sellerId 셀러 ID
    * @returns 셀러 정보
    */
   async getSellerInfo(
     sellerId: string,
-  ): Promise<{ businessName?: string; businessAddress?: string; businessNumber?: string; description?: string }> {
+  ): Promise<{ 
+    businessName?: string; 
+    businessAddress?: string; 
+    businessNumber?: string; 
+    description?: string;
+    operatingStartTime?: string;
+    operatingEndTime?: string;
+  }> {
     const seller = await this.userRepository.findOne(
       { id: sellerId, role: UserRole.SELLER },
       { populate: ['sellerInfo'] },
@@ -831,8 +838,16 @@ export class UserService {
       throw new NotFoundException(`판매자 ID ${sellerId}를 찾을 수 없습니다.`);
     }
 
+    // seller_infos가 없는 경우 기본값 반환
     if (!seller.sellerInfo) {
-      throw new NotFoundException(`판매자 ID ${sellerId}의 상세 정보를 찾을 수 없습니다.`);
+      return {
+        businessName: undefined,
+        businessAddress: undefined,
+        businessNumber: undefined,
+        description: undefined,
+        operatingStartTime: '09:00',
+        operatingEndTime: '18:00',
+      };
     }
 
     return {
@@ -840,6 +855,8 @@ export class UserService {
       businessAddress: seller.sellerInfo.businessAddress,
       businessNumber: seller.sellerInfo.businessNumber,
       description: seller.sellerInfo.description,
+      operatingStartTime: seller.sellerInfo.operatingStartTime || '09:00',
+      operatingEndTime: seller.sellerInfo.operatingEndTime || '18:00',
     };
   }
 
@@ -951,6 +968,73 @@ export class UserService {
     // 기존 SellerInfo 업데이트
     seller.sellerInfo.operatingStartTime = operatingStartTime;
     seller.sellerInfo.operatingEndTime = operatingEndTime;
+
+    await this.em.flush();
+    return seller.sellerInfo;
+  }
+
+  /**
+   * 판매자의 모든 정보를 통합 업데이트합니다.
+   * seller_infos 데이터가 없으면 생성하고, 있으면 수정합니다.
+   * @param sellerId 판매자 ID
+   * @param updateDto 업데이트할 정보
+   * @returns 업데이트된 셀러 정보
+   */
+  async updateSellerInfo(
+    sellerId: string,
+    updateDto: {
+      businessName?: string;
+      businessAddress?: string;
+      businessNumber?: string;
+      description?: string;
+      operatingStartTime?: string;
+      operatingEndTime?: string;
+    }
+  ): Promise<SellerInfo> {
+    const seller = await this.userRepository.findOne(
+      { id: sellerId, role: UserRole.SELLER },
+      { populate: ['sellerInfo'] },
+    );
+
+    if (!seller) {
+      throw new NotFoundException(`판매자 ID ${sellerId}를 찾을 수 없습니다.`);
+    }
+
+    // SellerInfo가 없으면 생성
+    if (!seller.sellerInfo) {
+      const sellerInfo = new SellerInfo({
+        user: seller,
+        businessName: updateDto.businessName || undefined,
+        businessAddress: updateDto.businessAddress || undefined,
+        businessNumber: updateDto.businessNumber || undefined,
+        description: updateDto.description || undefined,
+        operatingStartTime: updateDto.operatingStartTime || '09:00',
+        operatingEndTime: updateDto.operatingEndTime || '18:00',
+      });
+      seller.sellerInfo = sellerInfo;
+      await this.em.persistAndFlush([sellerInfo, seller]);
+      return sellerInfo;
+    }
+
+    // 기존 SellerInfo 업데이트 (빈 문자열은 undefined로 처리)
+    if (updateDto.businessName !== undefined) {
+      seller.sellerInfo.businessName = updateDto.businessName || undefined;
+    }
+    if (updateDto.businessAddress !== undefined) {
+      seller.sellerInfo.businessAddress = updateDto.businessAddress || undefined;
+    }
+    if (updateDto.businessNumber !== undefined) {
+      seller.sellerInfo.businessNumber = updateDto.businessNumber || undefined;
+    }
+    if (updateDto.description !== undefined) {
+      seller.sellerInfo.description = updateDto.description || undefined;
+    }
+    if (updateDto.operatingStartTime !== undefined) {
+      seller.sellerInfo.operatingStartTime = updateDto.operatingStartTime || '09:00';
+    }
+    if (updateDto.operatingEndTime !== undefined) {
+      seller.sellerInfo.operatingEndTime = updateDto.operatingEndTime || '18:00';
+    }
 
     await this.em.flush();
     return seller.sellerInfo;

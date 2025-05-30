@@ -23,6 +23,15 @@ import { User } from '@/module/user/entity/user.entity';
 import { SellerInfo } from '@/module/user/entity/seller-info.entity';
 import { SellerUserBlock } from '@/module/user/entity/seller-user-block.entity';
 import { Announcement } from '@/module/announcement/entity/announcement.entity';
+import { CartItem } from '@/module/cart/entity/cart-item.entity';
+import { Cart } from '@/module/cart/entity/cart.entity';
+import { Conversation } from '@/module/message/entity/conversation.entity';
+import { Message } from '@/module/message/entity/message.entity';
+import { Stream } from '@/module/broadcast/entity/stream.entity';
+import { ViewLog } from '@/module/broadcast/entity/view-log.entity';
+import { PurchaseLog } from '@/module/order/entity/purchase-log.entity';
+import { RefundStatusHistoryEntity } from '@/module/refund/entity/refund-status-history.entity';
+import { RefundEntity } from '@/module/refund/entity/refund.entity';
 // import { UserFollow } from '@/module/user/entity/user-follow.entity'; // Remove unintended import
 // import { UserBlock } from '@/module/user/entity/user-block.entity'; // Remove unintended import
 
@@ -31,28 +40,73 @@ import { Announcement } from '@/module/announcement/entity/announcement.entity';
 // CustomMikroOrmLogger 클래스 임시 주석
 // class CustomMikroOrmLogger extends MikroOrmLogger { ... }
 
+// Entity 배열 정의
+const entities = [
+  User,
+  SellerInfo,
+  SellerUserBlock,
+  Login,
+  TokenBlacklist,
+  Product,
+  BroadcastProduct,
+  Broadcast,
+  Stream,
+  ViewLog,
+  Order,
+  OrderItem,
+  PurchaseLog,
+  ReturnRequest,
+  Payment,
+  Refund,
+  RefundEntity,
+  RefundStatusHistoryEntity,
+  Delivery,
+  Follow,
+  Announcement,
+  Cart,
+  CartItem,
+  Conversation,
+  Message,
+];
+
+// entities를 export하여 다른 곳에서도 사용 가능하도록 함
+export { entities };
+
 // 반환 타입을 다시 any로 변경
 const createMikroOrmConfig = (configService?: ConfigService): any => {
   const environment = process.env.NODE_ENV || 'development';
+  const isProduction = environment === 'production';
 
   // config 객체의 타입도 다시 any로 변경
   const config: any = {
     driver: PostgreSqlDriver,
-    entities: ['./dist/**/*.entity.js', '!./dist/shared/**/*.entity.js'],
+    // 항상 entity 배열 사용
+    entities: entities,
     strict: true,
     allowGlobalContext: process.env.MIKRO_ORM_ALLOW_GLOBAL_CONTEXT === 'true',
-    tsNode: true,
-    debug: true,
+    tsNode: !isProduction,
+    debug: !isProduction,
     highlighter: new SqlHighlighter(),
+    // 프로덕션에서는 discovery를 비활성화
+    discovery: {
+      disableDynamicFileAccess: true,
+      warnWhenNoEntities: false,
+    },
+    // 메타데이터 캐시 활성화
+    cache: {
+      enabled: isProduction,
+      pretty: false,
+    },
     migrations: {
-      path: './dist/migrations',
+      path: isProduction ? './dist/infra/database/migrations' : './src/infra/database/migrations',
+      pathTs: './src/infra/database/migrations',
       generator: JSMigrationGenerator,
       glob: '!(*.d).{js,ts}',
     },
     // extensions: [SeedManager], // 주석 처리 또는 seeder 객체로 변경
     seeder: {
       // seeder 속성 추가 (MikroORM v5 방식)
-      path: './src/infra/database/seeders', // 시더 파일 경로
+      path: isProduction ? './dist/infra/database/seeders' : './src/infra/database/seeders', // 시더 파일 경로
       pathTs: './src/infra/database/seeders', // TypeScript 시더 파일 경로 (tsNode: true 일 때)
       defaultSeeder: 'DatabaseSeeder', // 기본 시더 (필요시)
       glob: '!(*.d).{js,ts}', // 시더 파일 확장자

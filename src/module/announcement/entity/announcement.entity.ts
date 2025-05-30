@@ -2,12 +2,7 @@ import { Entity, Enum, PrimaryKey, Property } from '@mikro-orm/core';
 import { v4 } from 'uuid';
 
 import { BaseEntity } from '@/shared/entity/base.entity';
-
-export enum AnnouncementTargetPlatform {
-  ALL = 'ALL',
-  WEB = 'WEB',
-  MOBILE = 'MOBILE',
-}
+import { AnnouncementTargetPlatform } from '@/shared/enum/announcement-target-platform.enum';
 
 @Entity({ tableName: 'announcements' })
 export class Announcement extends BaseEntity {
