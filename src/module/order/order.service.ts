@@ -167,15 +167,19 @@ export class OrderService {
         const productName =
           productNames.length === 1 ? productNames[0] : `${productNames[0]} 외 ${productNames.length - 1}건`;
 
+        // 첫 번째 상품의 판매자 정보를 가져옴 (여러 판매자가 있을 수 있으므로 추후 개선 필요)
+        const firstItem = savedOrder.items.getItems()[0];
+        const seller = firstItem.product.seller;
+        
         const depositParams: PaymentNotificationParams = {
           customerName: user.name || '고객',
           productName: productName,
-          bankName: this.configService.get<string>('DEPOSIT_BANK_NAME', '농협은행'),
-          accountNumber: this.configService.get<string>('DEPOSIT_ACCOUNT_NUMBER', '123-456-789012'),
-          accountHolder: this.configService.get<string>('DEPOSIT_ACCOUNT_HOLDER', 'ELTA'),
+          bankName: seller.bankName || this.configService.get<string>('DEPOSIT_BANK_NAME', '농협은행'),
+          accountNumber: seller.accountNumber || this.configService.get<string>('DEPOSIT_ACCOUNT_NUMBER', '123-456-789012'),
+          accountHolder: seller.name || this.configService.get<string>('DEPOSIT_ACCOUNT_HOLDER', 'ELTA'),
           amount: `${order.totalAmount.toLocaleString()}원`,
           dueDate: dueDate.toLocaleDateString('ko-KR'),
-          sellerPhoneNumber: '임시 전화번호',
+          sellerPhoneNumber: seller.phoneNumber || '임시 전화번호',
         };
 
         await this.notificationService.sendDepositAccountNotification(user.phoneNumber, depositParams);

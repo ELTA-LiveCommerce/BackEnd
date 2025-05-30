@@ -52,14 +52,15 @@ export class DepositService {
       OrderStatus.DELIVERED,
     ];
 
-    const qb: QueryBuilder<Order> = this.orderRepository
-      .createQueryBuilder('order')
-      .select(['order.*', 'user.*', 'oi.*', 'product.*', 'seller.*'])
-      .leftJoin('order.user', 'user')
-      .leftJoin('order.items', 'oi')
-      .leftJoin('oi.product', 'product')
-      .leftJoin('product.seller', 'seller')
-      .where({ status: { $in: depositCompletedStatuses } })
+    // OrderItem 기반으로 쿼리를 시작하여 해당 셀러의 상품만 조회
+    const qb: QueryBuilder<OrderItem> = this.orderItemRepository
+      .createQueryBuilder('oi')
+      .select(['oi.*'])
+      .leftJoinAndSelect('oi.order', 'order')
+      .leftJoinAndSelect('order.user', 'user')
+      .leftJoinAndSelect('oi.product', 'product')
+      .leftJoinAndSelect('product.seller', 'seller')
+      .where({ 'order.status': { $in: depositCompletedStatuses } })
       .andWhere({ 'seller.id': sellerId });
 
     if (searchField && searchKeyword) {
@@ -83,31 +84,30 @@ export class DepositService {
       qb.andWhere({ createdAt: { $gte: new Date(startDate), $lte: endOfDay } });
     }
 
-    const total = await qb.clone().count('order.id', true);
+    const total = await qb.clone().count();
 
-    qb.orderBy({ createdAt: sortOrder.toUpperCase() as 'ASC' | 'DESC' })
+    qb.orderBy({ 'order.createdAt': sortOrder.toUpperCase() as 'ASC' | 'DESC' })
       .offset(offset)
       .limit(limit);
 
-    const orders = await qb.getResultList();
+    const orderItems = await qb.getResultList();
 
-    const depositListItems = orders.flatMap((order) =>
-      order.items.getItems().map((orderItem) => {
-        const item = new DepositListItemDto();
-        item.orderId = order.id;
-        item.productMainImage = orderItem.product?.mainImage ?? null;
-        item.productName = orderItem.product?.name ?? '상품명 없음';
-        item.quantity = orderItem.quantity;
-        item.buyerBankName = order.user?.bankName ?? null;
-        item.buyerAccount = order.user?.accountNumber ?? null;
-        item.buyerLoginId = order.user?.loginId ?? '아이디 없음';
-        item.buyerPhoneNumber = order.user?.phoneNumber ?? null;
-        item.buyerAddress = order.shippingAddress ?? '주소 정보 없음';
-        item.orderStatus = order.status;
-        item.createdAt = order.createdAt;
-        return item;
-      }),
-    );
+    const depositListItems = orderItems.map((orderItem) => {
+      const item = new DepositListItemDto();
+      const order = orderItem.order;
+      item.orderId = order.id;
+      item.productMainImage = orderItem.product?.mainImage ?? null;
+      item.productName = orderItem.product?.name ?? '상품명 없음';
+      item.quantity = orderItem.quantity;
+      item.buyerBankName = order.user?.bankName ?? null;
+      item.buyerAccount = order.user?.accountNumber ?? null;
+      item.buyerLoginId = order.user?.loginId ?? '아이디 없음';
+      item.buyerPhoneNumber = order.user?.phoneNumber ?? null;
+      item.buyerAddress = order.shippingAddress ?? '주소 정보 없음';
+      item.orderStatus = order.status;
+      item.createdAt = order.createdAt;
+      return item;
+    });
 
     return PagedResponseV2.create(depositListItems, total, page, limit);
   }
@@ -172,6 +172,7 @@ export class DepositService {
     const offset = (page - 1) * limit;
 
     const depositCompletedStatuses = [
+      OrderStatus.PENDING,
       OrderStatus.PAID,
       OrderStatus.PROCESSING,
       OrderStatus.SHIPPED,
