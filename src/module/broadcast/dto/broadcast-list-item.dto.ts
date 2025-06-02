@@ -8,6 +8,19 @@ class ProductInfo {
 
   @ApiProperty({ description: 'Product Name' })
   name: string;
+
+  @ApiProperty({ description: 'Product Image URL', required: false })
+  productImageUrl?: string;
+
+  @ApiProperty({ 
+    description: 'Product Options',
+    example: [{ name: '사이즈 - L', stockQuantity: 10 }],
+    required: false
+  })
+  options?: Array<{
+    name: string;
+    stockQuantity: number;
+  }>;
 }
 
 export class BroadcastListItemDto {
@@ -59,6 +72,8 @@ export class BroadcastListItemDto {
       products: items.map((bp: any) => ({
         id: bp.product?.id ?? bp.id, // BroadcastProduct → Product
         name: bp.product?.name ?? bp.name,
+        productImageUrl: bp.product?.mainImage ?? bp.mainImage,
+        options: bp.product?.options ?? bp.options,
       })),
     });
   }

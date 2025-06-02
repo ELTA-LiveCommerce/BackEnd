@@ -12,11 +12,12 @@ import { ViewLog } from './entity/view-log.entity';
 import { PurchaseLog } from '../order/entity/purchase-log.entity';
 import { LogService } from './log.service';
 import { NotificationModule } from '../notification/notification.module';
+import { Order } from '../order/entity/order.entity';
 
 @Module({
   // Register Broadcast, Product, and BroadcastProduct entities
   imports: [
-    MikroOrmModule.forFeature([Broadcast, Product, BroadcastProduct, Stream, ViewLog, PurchaseLog]),
+    MikroOrmModule.forFeature([Broadcast, Product, BroadcastProduct, Stream, ViewLog, PurchaseLog, Order]),
     UserModule,
     AgoraModule,
     NotificationModule,

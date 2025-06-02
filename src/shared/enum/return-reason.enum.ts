@@ -15,6 +15,6 @@ export enum ReturnReasonDetail {
   // 상품 문제 사유
   MISSING_COMPONENTS = 'MISSING_COMPONENTS', // 상품의 구성품/부속품이 들어있지 않음
   DIFFERENT_FROM_DESCRIPTION = 'DIFFERENT_FROM_DESCRIPTION', // 상품이 설명과 다름
-  DAMAGED_PRODUCT = 'DAMAGED_PRODUCT', // 상품이 파손되어 배송됨
+  DAMAGE_ON_DELIVERY = 'DAMAGE_ON_DELIVERY', // 상품이 파손되어 배송됨
   DEFECTIVE_PRODUCT = 'DEFECTIVE_PRODUCT', // 상품 결함/기능에 이상이 있음
 }

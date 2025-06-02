@@ -4,6 +4,14 @@ import { User } from '@/module/user/entity/user.entity';
 import { Delivery, DeliveryStatus } from '@/module/delivery/entity/delivery.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
+export class ProductOptionDto {
+  @ApiProperty({ description: '옵션명', example: '사이즈 - L' })
+  name: string;
+
+  @ApiProperty({ description: '옵션별 재고 수량', example: 10 })
+  stockQuantity: number;
+}
+
 // 판매자 정보 (간략)
 class ProductSellerInfo {
   id!: string;
@@ -74,6 +82,18 @@ export class ViewerProductResponseBodyDto {
   @ApiProperty({ description: '수정일시' })
   updatedAt: Date;
 
+  @ApiProperty({
+    description: '상품 옵션 목록',
+    type: [ProductOptionDto],
+    required: false,
+    example: [
+      { name: '사이즈 - S', stockQuantity: 10 },
+      { name: '사이즈 - M', stockQuantity: 20 },
+      { name: '사이즈 - L', stockQuantity: 15 },
+    ],
+  })
+  options?: ProductOptionDto[];
+
   static fromEntity(product: Product): ViewerProductResponseBodyDto {
     return {
       id: product.id,
@@ -87,6 +107,7 @@ export class ViewerProductResponseBodyDto {
       images: product.images,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
+      options: product.options,
     };
   }
 }

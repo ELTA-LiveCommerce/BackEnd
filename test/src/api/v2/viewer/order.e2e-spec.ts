@@ -242,6 +242,50 @@ describe('Viewer Order API (e2e)', () => {
       expect(response.body.data.items[0].orderNumber).toBe('ORD20240601123456');
       expect(mockOrderService.getOrdersByUser).toHaveBeenCalledWith('test-user-id', expect.any(Object));
     });
+
+    it('should map REFUND_REQUESTED status to PENDING in orders list', async () => {
+      const mockOrdersResponse = {
+        items: [
+          {
+            id: 'test-order-1',
+            orderNumber: 'ORD20240601123456',
+            status: OrderStatus.PAID,
+            products: [{ productId: 'p1', productName: 'Product 1', quantity: 1, price: 10000 }],
+            totalAmount: 10000,
+            itemCount: 1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'test-order-2',
+            orderNumber: 'ORD20240601123457',
+            status: OrderStatus.REFUND_REQUESTED,
+            products: [{ productId: 'p2', productName: 'Product 2', quantity: 2, price: 15000 }],
+            totalAmount: 30000,
+            itemCount: 1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        total: 2,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      };
+
+      mockOrderService.getOrdersByUser.mockResolvedValue(mockOrdersResponse);
+
+      const response = await request(app.getHttpServer())
+        .get('/v2/viewer/orders')
+        .set('Authorization', `Bearer ${testToken}`)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.items).toHaveLength(2);
+      expect(response.body.data.items[0].status).toBe(OrderStatus.PAID);
+      expect(response.body.data.items[1].status).toBe(OrderStatus.PENDING); // REFUND_REQUESTED mapped to PENDING
+      expect(mockOrderService.getOrdersByUser).toHaveBeenCalledWith('test-user-id', expect.any(Object));
+    });
   });
 
   describe('GET /v2/viewer/orders/:orderId', () => {
@@ -279,6 +323,40 @@ describe('Viewer Order API (e2e)', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.orderNumber).toBe('ORD20240601123456');
+      expect(mockOrderService.getOrderDetail).toHaveBeenCalledWith(orderId, 'test-user-id');
+    });
+
+    it('should map REFUND_REQUESTED status to PENDING', async () => {
+      const orderId = 'test-order-id';
+      const mockOrderDetailResponse = {
+        id: 'test-order-id',
+        orderNumber: 'ORD20240601123456',
+        userId: 'test-user-id',
+        status: OrderStatus.REFUND_REQUESTED,
+        items: [
+          {
+            id: 'test-item-id',
+            productId: 'test-product-id',
+            productName: '테스트 상품',
+            quantity: 1,
+            price: 30000,
+            totalPrice: 30000,
+          },
+        ],
+        totalAmount: 30000,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockOrderService.getOrderDetail.mockResolvedValue(mockOrderDetailResponse);
+
+      const response = await request(app.getHttpServer())
+        .get(`/v2/viewer/orders/${orderId}`)
+        .set('Authorization', `Bearer ${testToken}`)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.status).toBe(OrderStatus.PENDING);
       expect(mockOrderService.getOrderDetail).toHaveBeenCalledWith(orderId, 'test-user-id');
     });
   });

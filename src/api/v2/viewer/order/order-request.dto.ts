@@ -14,10 +14,9 @@ export class OrderItemRequest {
   @Min(1)
   quantity: number;
 
-  @ApiProperty({ description: '상품 옵션 (JSON string)', example: '{"color": "Red", "size": "M"}', required: false })
+  @ApiProperty({ description: '상품 옵션', example: { option: 'Red' }, required: false })
   @IsOptional()
-  @IsString()
-  attributes?: string;
+  attributes?: { option: string };
 }
 
 export class CreateOrderRequest {
@@ -26,6 +25,11 @@ export class CreateOrderRequest {
   @ValidateNested({ each: true })
   @Type(() => OrderItemRequest)
   items: OrderItemRequest[];
+
+  @ApiProperty({ description: '배송지 주소', example: '서울시 강남구 테헤란로 123', required: false })
+  @IsOptional()
+  @IsString()
+  shippingAddress?: string;
 }
 
 export class GetOrdersRequest {

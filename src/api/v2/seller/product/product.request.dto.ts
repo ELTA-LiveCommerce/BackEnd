@@ -10,12 +10,25 @@ import {
   ArrayNotEmpty,
   IsEnum,
   IsBoolean,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { IsDateString, IsInt } from 'class-validator';
 import { SellerProductSearchField } from './search-field.enum';
 import { SellerProductDateField } from './date-field.enum';
 import { ProductStatus } from '../../../../module/product/entity/product.entity';
+
+export class ProductOptionDto {
+  @ApiProperty({ description: '옵션명', example: '사이즈 - L' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({ description: '옵션별 재고 수량', example: 10 })
+  @IsNumber()
+  @Min(0)
+  stockQuantity: number;
+}
 
 export class SellerProductCreateRequestDto {
   @ApiProperty({ description: '상품명', example: '새로운 멋진 상품' })
@@ -62,6 +75,22 @@ export class SellerProductCreateRequestDto {
   @IsBoolean()
   @IsOptional()
   isPublic?: boolean = true;
+
+  @ApiProperty({
+    description: '상품 옵션 목록',
+    type: [ProductOptionDto],
+    required: false,
+    example: [
+      { name: '사이즈 - S', stockQuantity: 10 },
+      { name: '사이즈 - M', stockQuantity: 20 },
+      { name: '사이즈 - L', stockQuantity: 15 },
+    ],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductOptionDto)
+  @IsOptional()
+  options?: ProductOptionDto[];
 }
 
 export class SellerProductUpdateRequestDto {
@@ -118,6 +147,22 @@ export class SellerProductUpdateRequestDto {
   @IsBoolean()
   @IsOptional()
   isPublic?: boolean;
+
+  @ApiProperty({
+    description: '상품 옵션 목록',
+    type: [ProductOptionDto],
+    required: false,
+    example: [
+      { name: '사이즈 - S', stockQuantity: 5 },
+      { name: '사이즈 - M', stockQuantity: 15 },
+      { name: '사이즈 - L', stockQuantity: 10 },
+    ],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductOptionDto)
+  @IsOptional()
+  options?: ProductOptionDto[];
 }
 
 export class SellerProductListRequestDto {

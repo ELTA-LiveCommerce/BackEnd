@@ -1,6 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BroadcastProduct, BroadcastProductStatus } from '@/module/product/entity/broadcast-product.entity';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsArray, ValidateNested, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class ProductOptionDto {
+  @ApiProperty({ description: '옵션명', example: '사이즈 - L' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({ description: '옵션별 재고 수량', example: 10 })
+  @IsNotEmpty()
+  stockQuantity: number;
+}
 
 /**
  * 현재 판매 중인 상품 응답 DTO
@@ -36,6 +48,18 @@ export class CurrentSellingProductDto {
   @ApiProperty({ description: '방송 상품 설명', required: false })
   broadcastDescription?: string;
 
+  @ApiProperty({
+    description: '상품 옵션 목록',
+    type: [ProductOptionDto],
+    required: false,
+    example: [
+      { name: '사이즈 - S', stockQuantity: 10 },
+      { name: '사이즈 - M', stockQuantity: 20 },
+      { name: '사이즈 - L', stockQuantity: 15 },
+    ],
+  })
+  options?: ProductOptionDto[];
+
   /**
    * BroadcastProduct 엔티티로부터 DTO 생성
    */
@@ -53,6 +77,7 @@ export class CurrentSellingProductDto {
     dto.sortOrder = broadcastProduct.sortOrder;
     dto.soldQuantity = broadcastProduct.soldQuantity;
     dto.broadcastDescription = broadcastProduct.broadcastDescription;
+    dto.options = broadcastProduct.product.options;
 
     return dto;
   }
@@ -66,6 +91,22 @@ export class UpdateCurrentSellingProductDto {
   @IsString()
   @IsNotEmpty()
   productId: string;
+
+  @ApiProperty({
+    description: '상품 옵션 목록',
+    type: [ProductOptionDto],
+    required: false,
+    example: [
+      { name: '사이즈 - S', stockQuantity: 5 },
+      { name: '사이즈 - M', stockQuantity: 15 },
+      { name: '사이즈 - L', stockQuantity: 10 },
+    ],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductOptionDto)
+  @IsOptional()
+  options?: ProductOptionDto[];
 }
 
 /**

@@ -86,12 +86,51 @@ export class OrderResponseBody {
   refundedAt?: Date;
 }
 
+export class SelectedOptionResponseBody {
+  @ApiProperty({ description: '상품 ID' })
+  productId: string;
+  
+  @ApiProperty({ description: '상품명' })
+  productName: string;
+  
+  @ApiProperty({ description: '선택한 옵션명' })
+  option: string;
+  
+  @ApiProperty({ description: '수량' })
+  quantity: number;
+}
+
+export class OrderProductResponseBody {
+  @ApiProperty({ description: '상품 ID' })
+  productId: string;
+  
+  @ApiProperty({ description: '상품명' })
+  productName: string;
+  
+  @ApiProperty({ description: '수량' })
+  quantity: number;
+  
+  @ApiProperty({ description: '가격' })
+  price: number;
+  
+  @ApiProperty({ 
+    description: '선택한 옵션들', 
+    type: [String],
+    example: ['사이즈 - L', '색상 - 빨강'],
+    required: false 
+  })
+  selectedOptions?: string[];
+}
+
 export class OrderSummaryResponseBody {
   @ApiProperty({ description: '주문 ID', example: 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6' })
   id: string;
 
   @ApiProperty({ description: '주문 번호', example: 'ORD20240601123456' })
   orderNumber: string;
+
+  @ApiProperty({ type: [OrderProductResponseBody], description: '주문 상품 목록' })
+  products: OrderProductResponseBody[];
 
   @ApiProperty({ enum: OrderStatus, description: '주문 상태', example: OrderStatus.PAID })
   status: OrderStatus;

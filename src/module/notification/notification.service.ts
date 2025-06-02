@@ -444,5 +444,48 @@ export class NotificationService {
     const random = Math.floor(Math.random() * 1000);
     return `REQ-${timestamp}-${random}`;
   }
+
+  /**
+   * 방송 종료 후 구매자에게 주문 총액 알림톡을 전송합니다.
+   * @param phoneNumber 구매자 전화번호
+   * @param params 알림톡 파라미터
+   */
+  async sendBroadcastEndOrderSummary(
+    phoneNumber: string,
+    params: {
+      buyerName: string;
+      totalAmount: number;
+      orderCount: number;
+      broadcastEndTime: string;
+      sellerInfo: {
+        bankName: string;
+        accountNumber: string;
+        accountHolder: string;
+        phoneNumber: string;
+      };
+      dueDate: string;
+    }
+  ): Promise<void> {
+    try {
+      // 기존 입금계좌 알림 템플릿을 사용 (금액만 총합으로 변경)
+      const templateParams = {
+        이름: params.buyerName,
+        상품명: `방송 주문 상품 ${params.orderCount}건`,
+        계좌은행: params.sellerInfo.bankName,
+        계좌번호: params.sellerInfo.accountNumber,
+        계좌주: params.sellerInfo.accountHolder,
+        금액: `${params.totalAmount.toLocaleString()}원`,
+        입금마감날짜: params.dueDate,
+        셀러전화번호: params.sellerInfo.phoneNumber,
+      };
+
+      await this.sendKakaoTalkWithTemplate(this.depositAccountTemplate, phoneNumber, templateParams);
+
+      this.logger.log(`방송 종료 주문 총액 알림톡 발송 완료: ${params.buyerName} (총 ${params.orderCount}건, ${params.totalAmount}원)`);
+    } catch (error) {
+      this.logger.error(`방송 종료 주문 총액 알림톡 발송 실패: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
 }
 

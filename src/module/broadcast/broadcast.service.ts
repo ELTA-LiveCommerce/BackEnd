@@ -16,12 +16,15 @@ import { BroadcastPagedResponseDto } from '@/api/v2/seller/lives/dto/broadcast-p
 import { BroadcastListItemDto } from './dto/broadcast-list-item.dto';
 import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
 import { BroadcastCreateRequestDto } from '@/api/v2/seller/lives/dto/broadcast-create.request.dto';
+import { BroadcastUpdateRequestDto } from '@/api/v2/seller/lives/dto/broadcast-update.request.dto';
+import { UpdateCurrentSellingProductDto } from './dto/current-selling-product.dto';
 import { v4 as uuid } from 'uuid';
 import { Transactional } from '@nestjs-cls/transactional';
 import axios from 'axios';
 import { UserBlockService } from '../user/user-block.service';
 import { NotificationService } from '../notification/notification.service';
 import { UserFollowService } from '../user/user-follow.service';
+import { Order } from '../order/entity/order.entity';
 
 @Injectable()
 export class BroadcastService {
@@ -32,6 +35,7 @@ export class BroadcastService {
     private readonly productRepository: EntityRepository<Product>,
     private readonly em: EntityManager,
     @InjectRepository(Stream) private readonly streamRepository: EntityRepository<Stream>,
+    @InjectRepository(Order) private readonly orderRepository: EntityRepository<Order>,
     private readonly agora: AgoraService,
     private readonly userBlockService: UserBlockService,
     private readonly notificationService: NotificationService,
@@ -78,6 +82,7 @@ export class BroadcastService {
       const productInfos = broadcast.products.getItems().map((bp) => ({
         id: bp.product.id,
         name: bp.product.name,
+        options: bp.product.options,
       }));
 
       return {
@@ -101,6 +106,97 @@ export class BroadcastService {
     });
 
     return result.broadcastListItem;
+  }
+
+  async updateBroadcast(
+    broadcastId: string,
+    sellerId: string,
+    dto: BroadcastUpdateRequestDto,
+  ): Promise<BroadcastListItemDto> {
+    return await this.em.transactional(async (em) => {
+      const broadcast = await em.findOne(
+        Broadcast,
+        { id: broadcastId },
+        { populate: ['seller', 'products.product'] },
+      );
+
+      if (!broadcast) {
+        throw new NotFoundException(`방송 ID ${broadcastId}를 찾을 수 없습니다.`);
+      }
+
+      if (broadcast.seller.id !== sellerId) {
+        throw new ForbiddenException('해당 방송을 수정할 권한이 없습니다.');
+      }
+
+      // 라이브 중인 방송은 수정 불가
+      if (broadcast.isLive) {
+        throw new BadRequestException('라이브 중인 방송은 수정할 수 없습니다.');
+      }
+
+      // 업데이트할 필드가 있는 경우에만 업데이트
+      if (dto.title !== undefined) {
+        broadcast.title = dto.title;
+      }
+
+      if (dto.description !== undefined) {
+        broadcast.description = dto.description;
+      }
+
+      if (dto.scheduledAt !== undefined) {
+        broadcast.scheduledAt = new Date(dto.scheduledAt);
+      }
+
+      if (dto.thumbnailImageUrl !== undefined) {
+        broadcast.thumbnailUrl = dto.thumbnailImageUrl;
+      }
+
+      // 상품 목록 업데이트
+      if (dto.productIds !== undefined) {
+        // 기존 상품 관계 제거
+        broadcast.products.removeAll();
+
+        if (dto.productIds.length > 0) {
+          const products = await em.find(Product, { id: { $in: dto.productIds } });
+          
+          if (products.length !== dto.productIds.length) {
+            const foundProductIds = products.map((p) => p.id);
+            const notFoundProductIds = dto.productIds.filter((id) => !foundProductIds.includes(id));
+            throw new BadRequestException(`다음 상품 ID를 찾을 수 없습니다: ${notFoundProductIds.join(', ')}`);
+          }
+
+          // 새로운 상품 관계 추가
+          for (let i = 0; i < products.length; i++) {
+            const product = products[i];
+            const broadcastProduct = new BroadcastProduct();
+            broadcastProduct.broadcast = broadcast;
+            broadcastProduct.product = product;
+            broadcastProduct.sortOrder = i;
+            broadcast.products.add(broadcastProduct);
+            em.persist(broadcastProduct);
+          }
+        }
+      }
+
+      await em.flush();
+
+      // 응답 DTO 생성
+      const productInfos = broadcast.products.getItems().map((bp) => ({
+        id: bp.product.id,
+        name: bp.product.name,
+        options: bp.product.options,
+      }));
+
+      return new BroadcastListItemDto({
+        id: broadcast.id,
+        title: broadcast.title,
+        description: broadcast.description,
+        status: broadcast.isLive ? 'LIVE' : 'SCHEDULED',
+        thumbnailUrl: broadcast.thumbnailUrl,
+        scheduledAt: broadcast.scheduledAt,
+        products: productInfos,
+        isLive: broadcast.isLive,
+      });
+    });
   }
 
   async findAll(): Promise<Broadcast[]> {
@@ -176,11 +272,13 @@ export class BroadcastService {
                   id: bp.product.id,
                   name: bp.product.name,
                   productImageUrl: bp.product.mainImage,
+                  options: bp.product.options,
                 }))
               : b.products.getItems().map((bp) => ({
                   id: bp.product.id,
                   name: bp.product.name,
                   productImageUrl: bp.product.mainImage,
+                  options: bp.product.options,
                 }))
             : [],
           isLive: b.isLive,
@@ -240,10 +338,12 @@ export class BroadcastService {
               ? b.products.map((bp) => ({
                   id: bp.product.id,
                   name: bp.product.name,
+                  options: bp.product.options,
                 }))
               : b.products.getItems().map((bp) => ({
                   id: bp.product.id,
                   name: bp.product.name,
+                  options: bp.product.options,
                 }))
             : [],
           isLive: b.isLive,
@@ -404,7 +504,12 @@ export class BroadcastService {
 
   /** 방송 종료 -------------------------------------------------------------- */
   async end(broadcastId: string, hostUserId: string) {
-    return this.em.transactional(async (em) => {
+    // 트랜잭션 내에서 필요한 정보를 먼저 가져옴
+    let sellerId: string | undefined;
+    let streamStartedAt: Date | undefined;
+    let streamEndedAt: Date | undefined;
+
+    const result = await this.em.transactional(async (em) => {
       const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
 
       if (!broadcast) {
@@ -439,8 +544,22 @@ export class BroadcastService {
         em.persist(stream);
       }
 
+      // 알림 전송을 위한 정보 저장
+      sellerId = broadcast.seller.id;
+      streamStartedAt = stream.startedAt;
+      streamEndedAt = stream.endedAt!;
+
       return { success: true, message: '방송이 성공적으로 종료되었습니다.' };
     });
+
+    // 트랜잭션 완료 후 알림 전송 (값이 있는 경우에만)
+    if (sellerId && streamStartedAt && streamEndedAt) {
+      this.sendBroadcastEndOrderNotifications(sellerId, streamStartedAt, streamEndedAt).catch(error => {
+        console.error('Failed to send broadcast end order notifications:', error);
+      });
+    }
+
+    return result;
   }
 
   async delete(broadcastId: string, hostUserId: string) {
@@ -519,7 +638,7 @@ export class BroadcastService {
    */
   async updateCurrentSellingProduct(
     broadcastId: string,
-    productId: string,
+    dto: UpdateCurrentSellingProductDto,
     sellerId: string,
   ): Promise<BroadcastProduct> {
     const broadcast = await this.broadcastRepository.findOne({ id: broadcastId }, { populate: ['seller', 'stream'] });
@@ -545,7 +664,7 @@ export class BroadcastService {
     const broadcastProduct = await this.em.findOne(
       BroadcastProduct,
       {
-        product: { id: productId },
+        product: { id: dto.productId },
         broadcast: { id: broadcastId },
       },
       { populate: ['product'] },
@@ -554,7 +673,13 @@ export class BroadcastService {
     console.log('Broadcast Product:', broadcastProduct);
 
     if (!broadcastProduct) {
-      throw new NotFoundException(`해당 방송에 연결된 상품을 찾을 수 없습니다: ${productId}`);
+      throw new NotFoundException(`해당 방송에 연결된 상품을 찾을 수 없습니다: ${dto.productId}`);
+    }
+
+    // options가 제공된 경우 상품 옵션 업데이트
+    if (dto.options !== undefined) {
+      broadcastProduct.product.options = dto.options;
+      await this.em.persistAndFlush(broadcastProduct.product);
     }
 
     // 기존에 판매 중인 상품이 있으면 상태 변경
@@ -865,6 +990,102 @@ export class BroadcastService {
     const displayMinute = minute > 0 ? ` ${minute}분` : '';
 
     return `${month}월 ${day}일 ${period} ${displayHour}시${displayMinute}`;
+  }
+
+  /**
+   * 방송 종료 시 해당 방송 중 주문한 구매자들에게 주문 총액 알림톡을 발송합니다.
+   * @param sellerId 판매자 ID
+   * @param startedAt 방송 시작 시간
+   * @param endedAt 방송 종료 시간
+   */
+  async sendBroadcastEndOrderNotifications(sellerId: string, startedAt: Date, endedAt: Date): Promise<void> {
+    try {
+      // 판매자 정보 조회
+      const seller = await this.em.findOne(User, { id: sellerId });
+      if (!seller) {
+        console.error('판매자 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 방송 시간 동안의 해당 판매자의 주문들을 조회
+      const orders = await this.orderRepository.find(
+        {
+          createdAt: { $gte: startedAt, $lte: endedAt },
+          items: {
+            product: {
+              seller: { id: sellerId }
+            }
+          }
+        },
+        { 
+          populate: ['user', 'items', 'items.product', 'items.product.seller']
+        }
+      );
+
+      // 구매자별로 주문 총액 계산
+      const buyerOrderMap = new Map<string, { user: User; totalAmount: number; orderCount: number }>();
+      
+      for (const order of orders) {
+        // 해당 판매자의 상품만 필터링
+        const sellerItems = order.items.getItems().filter(item => 
+          item.product.seller.id === sellerId
+        );
+        
+        if (sellerItems.length > 0) {
+          const sellerTotal = sellerItems.reduce((sum, item) => sum + item.totalPrice, 0);
+          const userId = order.user.id;
+          
+          if (buyerOrderMap.has(userId)) {
+            const existing = buyerOrderMap.get(userId)!;
+            existing.totalAmount += sellerTotal;
+            existing.orderCount += 1;
+          } else {
+            buyerOrderMap.set(userId, {
+              user: order.user,
+              totalAmount: sellerTotal,
+              orderCount: 1
+            });
+          }
+        }
+      }
+
+      // 입금 마감일을 3일 후로 설정
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 3);
+
+      // 각 구매자에게 알림톡 발송
+      for (const [userId, orderInfo] of buyerOrderMap.entries()) {
+        if (orderInfo.user.phoneNumber) {
+          try {
+            await this.notificationService.sendBroadcastEndOrderSummary(
+              orderInfo.user.phoneNumber,
+              {
+                buyerName: orderInfo.user.name,
+                totalAmount: orderInfo.totalAmount,
+                orderCount: orderInfo.orderCount,
+                broadcastEndTime: this.formatBroadcastDateTime(endedAt),
+                sellerInfo: {
+                  bankName: seller.bankName || '농협은행',
+                  accountNumber: seller.accountNumber || '123-456-789012',
+                  accountHolder: seller.name,
+                  phoneNumber: seller.phoneNumber || '문의전화번호'
+                },
+                dueDate: dueDate.toLocaleDateString('ko-KR')
+              }
+            );
+            
+            console.log(`방송 종료 주문 알림톡 발송 완료: ${orderInfo.user.name} (총 ${orderInfo.orderCount}건, ${orderInfo.totalAmount}원)`);
+          } catch (error) {
+            console.error(`방송 종료 주문 알림톡 발송 실패 (사용자: ${orderInfo.user.name}):`, error);
+          }
+        }
+      }
+
+      console.log(`방송 종료 주문 알림톡을 ${buyerOrderMap.size}명의 구매자에게 발송했습니다.`);
+    } catch (error) {
+      console.error('방송 종료 주문 알림톡 발송 중 오류 발생:', error);
+      throw error;
+    }
   }
 }
 

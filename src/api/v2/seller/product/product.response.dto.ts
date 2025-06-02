@@ -2,6 +2,14 @@ import { BaseResponseV2, PagedResponseV2 } from '@/api/v2/common/base-response.d
 import { Product } from '@/module/product/entity/product.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
+export class ProductOptionResponseDto {
+  @ApiProperty({ description: '옵션명', example: '사이즈 - L' })
+  name: string;
+
+  @ApiProperty({ description: '옵션별 재고 수량', example: 10 })
+  stockQuantity: number;
+}
+
 export class SellerProductResponseBodyDto {
   @ApiProperty({ description: '상품 ID', example: 'product-uuid-123' })
   id: string;
@@ -39,12 +47,34 @@ export class SellerProductResponseBodyDto {
   @ApiProperty({ description: '상품 공개 여부', example: true })
   isPublic: boolean;
 
+  @ApiProperty({ description: '상품 상태', example: 'DEFAULT' })
+  status: string;
+
+  @ApiProperty({
+    description: '상품 옵션 목록',
+    type: [ProductOptionResponseDto],
+    required: false,
+    example: [
+      { name: '사이즈 - S', stockQuantity: 10 },
+      { name: '사이즈 - M', stockQuantity: 20 },
+      { name: '사이즈 - L', stockQuantity: 15 },
+    ],
+  })
+  options?: ProductOptionResponseDto[];
+
   static fromEntity(product: Product): SellerProductResponseBodyDto {
     const dto = new SellerProductResponseBodyDto();
     dto.id = product.id;
     dto.name = product.name;
     dto.price = product.price;
-    dto.stockQuantity = product.stockQuantity;
+    
+    // Calculate stock quantity from options only
+    let totalStock = 0;
+    if (product.options && Array.isArray(product.options)) {
+      totalStock = product.options.reduce((sum, option) => sum + (option.stockQuantity || 0), 0);
+    }
+    dto.stockQuantity = totalStock;
+    
     dto.shortDescription = product.shortDescription;
     dto.description = product.description;
     dto.mainImage = product.mainImage;
@@ -53,6 +83,8 @@ export class SellerProductResponseBodyDto {
     dto.createdAt = product.createdAt;
     dto.updatedAt = product.updatedAt;
     dto.isPublic = product.isPublic;
+    dto.status = product.status;
+    dto.options = product.options;
     return dto;
   }
 }
@@ -86,15 +118,43 @@ export class SellerProductListItemDto {
   @ApiProperty({ description: '상품 공개 여부', example: true })
   isPublic: boolean;
 
+  @ApiProperty({ description: '생성일시' })
+  createdAt: Date;
+
+  @ApiProperty({ description: '상품 상태', example: 'DEFAULT' })
+  status: string;
+
+  @ApiProperty({
+    description: '상품 옵션 목록',
+    type: [ProductOptionResponseDto],
+    required: false,
+    example: [
+      { name: '사이즈 - S', stockQuantity: 10 },
+      { name: '사이즈 - M', stockQuantity: 20 },
+      { name: '사이즈 - L', stockQuantity: 15 },
+    ],
+  })
+  options?: ProductOptionResponseDto[];
+
   static fromEntity(product: Product): SellerProductListItemDto {
     const dto = new SellerProductListItemDto();
     dto.id = product.id;
     dto.name = product.name;
     dto.mainImage = product.mainImage;
-    dto.stockQuantity = product.stockQuantity;
+    
+    // Calculate stock quantity from options only
+    let totalStock = 0;
+    if (product.options && Array.isArray(product.options)) {
+      totalStock = product.options.reduce((sum, option) => sum + (option.stockQuantity || 0), 0);
+    }
+    dto.stockQuantity = totalStock;
+    
     dto.price = product.price;
     dto.description = product.description;
     dto.isPublic = product.isPublic;
+    dto.createdAt = product.createdAt;
+    dto.status = product.status;
+    dto.options = product.options;
     return dto;
   }
 }

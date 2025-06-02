@@ -12,6 +12,7 @@ import { UserRole } from '@/shared/enum/user-role.enum';
 import { CreateOrderDto } from '@/module/order/dto/create-order.dto';
 import { GetOrdersDto } from '@/module/order/dto/get-orders.dto';
 import { UpdateShippingDto } from '@/module/order/dto/update-shipping.dto';
+import { OrderStatus } from '@/shared/enum/order-status.enum';
 
 import { CancelOrderRequest, CreateOrderRequest, GetOrdersRequest, UpdateShippingRequest } from './order-request.dto';
 import {
@@ -33,6 +34,7 @@ export class OrderController {
     private readonly deliveryService: DeliveryService,
   ) {}
 
+
   /**
    * 새로운 주문을 생성합니다.
    */
@@ -45,8 +47,9 @@ export class OrderController {
       items: createOrderRequest.items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
-        attributes: item.attributes,
+        attributes: item.attributes ? JSON.stringify(item.attributes) : undefined,
       })),
+      shippingAddress: createOrderRequest.shippingAddress,
     };
 
     const orderResponseDto = await this.orderService.create(user.id, createOrderDto);
@@ -78,12 +81,19 @@ export class OrderController {
     const items = paginatedOrdersResponseDto.items.map((item) => ({
       id: item.id,
       orderNumber: item.orderNumber,
-      products: item.products.map((product) => ({
-        productId: product.productId,
-        productName: product.productName,
-        quantity: product.quantity,
-        price: product.price,
-      })),
+      products: item.products.map((product) => {
+        // Find all selected options for this product
+        const selectedOptions = item.selectedOptions
+          ?.filter(opt => opt.productId === product.productId)
+          ?.map(opt => opt.option) || [];
+        return {
+          productId: product.productId,
+          productName: product.productName,
+          quantity: product.quantity,
+          price: product.price,
+          selectedOptions: selectedOptions.length > 0 ? selectedOptions : undefined,
+        };
+      }),
       status: item.status,
       totalAmount: item.totalAmount,
       itemCount: item.itemCount,

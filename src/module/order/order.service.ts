@@ -75,7 +75,7 @@ export class OrderService {
     const order = new Order(
       user,
       '계좌이체', // 기본 결제 방법
-      user.address || '주소 미등록', // 유저의 주소 정보 사용, 없으면 기본값
+      createOrderDto.shippingAddress || user.address || '주소 미등록', // 요청의 주소 우선, 없으면 유저의 주소, 없으면 기본값
       undefined, // 메모는 빈 값
     );
 
@@ -85,20 +85,68 @@ export class OrderService {
       { seller: User; products: Array<{ product: Product; quantity: number }> }
     >();
 
+    // 선택된 옵션들을 저장할 배열
+    const selectedOptions: Array<{
+      productId: string;
+      productName: string;
+      option: string;
+      quantity: number;
+    }> = [];
+
     for (const itemDto of createOrderDto.items) {
       const product = await this.productService.findOne(itemDto.productId);
       if (!product) {
         throw new NotFoundException(`Product with id ${itemDto.productId} not found`);
       }
       if (product.stockQuantity < itemDto.quantity) {
-        throw new BadRequestException(`Product ${product.name} is out of stock`);
+        throw new BadRequestException(`상품(${product.name})의 재고가 부족합니다. (현재 재고: ${product.stockQuantity}개)`);
       }
 
-      const orderItem = new OrderItem(order, product, itemDto.quantity, product.price /*, itemDto.attributes*/);
+      const orderItem = new OrderItem(order, product, itemDto.quantity, product.price, itemDto.attributes);
       order.items.add(orderItem);
       this.entityManager.persist(orderItem);
       order.totalAmount += orderItem.totalPrice;
+      
+      // 상품 재고 감소
       product.stockQuantity -= itemDto.quantity;
+      
+      // 옵션이 있는 경우 옵션 재고도 감소
+      if (itemDto.attributes && product.options) {
+        try {
+          const selectedOption = JSON.parse(itemDto.attributes);
+          const updatedOptions = product.options.map(option => {
+            // 선택된 옵션명과 일치하는 옵션의 재고를 감소
+            if (selectedOption.option === option.name) {
+              // 옵션 재고가 충분한지 확인
+              if (option.stockQuantity < itemDto.quantity) {
+                throw new BadRequestException(`선택하신 옵션(${option.name})의 재고가 부족합니다. (현재 재고: ${option.stockQuantity}개)`);
+              }
+              
+              // 선택된 옵션 정보를 배열에 추가
+              selectedOptions.push({
+                productId: product.id,
+                productName: product.name,
+                option: option.name,
+                quantity: itemDto.quantity,
+              });
+              
+              return {
+                ...option,
+                stockQuantity: option.stockQuantity - itemDto.quantity
+              };
+            }
+            return option;
+          });
+          product.options = updatedOptions;
+        } catch (error) {
+          if (error instanceof BadRequestException) {
+            throw error;
+          }
+          // JSON 파싱 에러 시 로깅만 하고 계속 진행
+          console.error('Failed to parse attributes:', error);
+        }
+      }
+      
       this.entityManager.persist(product);
 
       // 판매자별로 상품 정보 분류
@@ -107,6 +155,11 @@ export class OrderService {
         sellerProductMap.set(sellerId, { seller: product.seller, products: [] });
       }
       sellerProductMap.get(sellerId)?.products.push({ product, quantity: itemDto.quantity });
+    }
+
+    // 선택된 옵션들을 order에 저장
+    if (selectedOptions.length > 0) {
+      order.selectedOptions = selectedOptions;
     }
 
     await this.entityManager.persistAndFlush(order);
@@ -133,63 +186,64 @@ export class OrderService {
         transactionId: `TR-${order.orderNumber}-${sellerId.substring(0, 4)}`,
       });
 
-      // 판매자에게 상품 판매 알림톡 발송
-      if (seller.phoneNumber) {
-        try {
-          const productNames = products.map(({ product, quantity }) => `${product.name} (${quantity}개)`).join(', ');
+      // 판매자에게 상품 판매 알림톡 발송 (템플릿 등록 필요)
+      // if (seller.phoneNumber) {
+      //   try {
+      //     const productNames = products.map(({ product, quantity }) => `${product.name} (${quantity}개)`).join(', ');
 
-          await this.notificationService.sendKakaoTalk(
-            'SELLER_ORDER_NOTIFICATION_TEMPLATE', // 실제 템플릿 코드로 변경 필요
-            seller.phoneNumber,
-            {
-              orderNumber: order.orderNumber,
-              buyerName: user.name,
-              productNames: productNames,
-              totalAmount: sellerTotal,
-              orderDate: new Date().toLocaleString('ko-KR'),
-            },
-          );
-        } catch (error) {
-          // 알림톡 발송 실패 시 로깅 (에러를 전파하지 않음)
-          console.error(`Failed to send KakaoTalk notification to seller ${seller.id}:`, error);
-        }
-      }
+      //     await this.notificationService.sendKakaoTalk(
+      //       'SELLER_ORDER_NOTIFICATION_TEMPLATE', // 실제 템플릿 코드로 변경 필요
+      //       seller.phoneNumber,
+      //       {
+      //         orderNumber: order.orderNumber,
+      //         buyerName: user.name,
+      //         productNames: productNames,
+      //         totalAmount: sellerTotal,
+      //         orderDate: new Date().toLocaleString('ko-KR'),
+      //       },
+      //     );
+      //   } catch (error) {
+      //     // 알림톡 발송 실패 시 로깅 (에러를 전파하지 않음)
+      //     console.error(`Failed to send KakaoTalk notification to seller ${seller.id}:`, error);
+      //   }
+      // }
     }
 
+    // 방송 중 주문의 경우 방송 종료 시 일괄 알림톡 발송하므로 개별 알림 비활성화
     // Send notification to user for deposit account info
-    if (user.phoneNumber && order.paymentMethod === '계좌이체') {
-      try {
-        // 입금 마감일을 3일 후로 설정
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 3);
+    // if (user.phoneNumber && order.paymentMethod === '계좌이체') {
+    //   try {
+    //     // 입금 마감일을 3일 후로 설정
+    //     const dueDate = new Date();
+    //     dueDate.setDate(dueDate.getDate() + 3);
 
-        // 상품명들을 합쳐서 하나의 문자열로 만들기 (너무 길면 첫 번째 상품명만 사용)
-        const productNames = savedOrder.items.getItems().map((item) => item.product.name);
-        const productName =
-          productNames.length === 1 ? productNames[0] : `${productNames[0]} 외 ${productNames.length - 1}건`;
+    //     // 상품명들을 합쳐서 하나의 문자열로 만들기 (너무 길면 첫 번째 상품명만 사용)
+    //     const productNames = savedOrder.items.getItems().map((item) => item.product.name);
+    //     const productName =
+    //       productNames.length === 1 ? productNames[0] : `${productNames[0]} 외 ${productNames.length - 1}건`;
 
-        // 첫 번째 상품의 판매자 정보를 가져옴 (여러 판매자가 있을 수 있으므로 추후 개선 필요)
-        const firstItem = savedOrder.items.getItems()[0];
-        const seller = firstItem.product.seller;
+    //     // 첫 번째 상품의 판매자 정보를 가져옴 (여러 판매자가 있을 수 있으므로 추후 개선 필요)
+    //     const firstItem = savedOrder.items.getItems()[0];
+    //     const seller = firstItem.product.seller;
 
-        const depositParams: PaymentNotificationParams = {
-          customerName: user.name || '고객',
-          productName: productName,
-          bankName: seller.bankName || this.configService.get<string>('DEPOSIT_BANK_NAME', '농협은행'),
-          accountNumber:
-            seller.accountNumber || this.configService.get<string>('DEPOSIT_ACCOUNT_NUMBER', '123-456-789012'),
-          accountHolder: seller.name || this.configService.get<string>('DEPOSIT_ACCOUNT_HOLDER', 'ELTA'),
-          amount: `${order.totalAmount.toLocaleString()}원`,
-          dueDate: dueDate.toLocaleDateString('ko-KR'),
-          sellerPhoneNumber: seller.phoneNumber || '임시 전화번호',
-        };
+    //     const depositParams: PaymentNotificationParams = {
+    //       customerName: user.name || '고객',
+    //       productName: productName,
+    //       bankName: seller.bankName || this.configService.get<string>('DEPOSIT_BANK_NAME', '농협은행'),
+    //       accountNumber:
+    //         seller.accountNumber || this.configService.get<string>('DEPOSIT_ACCOUNT_NUMBER', '123-456-789012'),
+    //       accountHolder: seller.name || this.configService.get<string>('DEPOSIT_ACCOUNT_HOLDER', 'ELTA'),
+    //       amount: `${order.totalAmount.toLocaleString()}원`,
+    //       dueDate: dueDate.toLocaleDateString('ko-KR'),
+    //       sellerPhoneNumber: seller.phoneNumber || '임시 전화번호',
+    //     };
 
-        await this.notificationService.sendDepositAccountNotification(user.phoneNumber, depositParams);
-      } catch (error) {
-        // 알림톡 발송 실패 시 로깅 (에러를 전파하지 않음)
-        console.error('Failed to send deposit account notification:', error);
-      }
-    }
+    //     await this.notificationService.sendDepositAccountNotification(user.phoneNumber, depositParams);
+    //   } catch (error) {
+    //     // 알림톡 발송 실패 시 로깅 (에러를 전파하지 않음)
+    //     console.error('Failed to send deposit account notification:', error);
+    //   }
+    // }
 
     const orderItemsData: OrderItemResponseDto[] = savedOrder.items.getItems().map((item) => ({
       id: item.id,
@@ -214,6 +268,7 @@ export class OrderService {
       shippingAddress: savedOrder.shippingAddress,
       shippingCode: savedOrder.shippingCode,
       notes: savedOrder.notes,
+      selectedOptions: savedOrder.selectedOptions,
       createdAt: savedOrder.createdAt,
       updatedAt: savedOrder.updatedAt,
       paidAt: savedOrder.paidAt,
@@ -422,6 +477,7 @@ export class OrderService {
       shippingAddress: order.shippingAddress,
       shippingCode: order.shippingCode,
       notes: order.notes,
+      selectedOptions: order.selectedOptions,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       paidAt: order.paidAt,
@@ -450,6 +506,7 @@ export class OrderService {
       status: order.status,
       totalAmount: order.totalAmount,
       itemCount: order.items.getItems().length,
+      selectedOptions: order.selectedOptions,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       shippingAddress: order.shippingAddress,

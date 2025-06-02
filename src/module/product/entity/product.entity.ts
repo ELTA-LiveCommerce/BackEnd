@@ -84,5 +84,14 @@ export class Product extends BaseEntity {
    */
   @Property({ type: 'boolean', default: true })
   isPublic: boolean = true;
+
+  /**
+   * 상품 옵션 목록
+   */
+  @Property({ type: 'json', nullable: true })
+  options?: Array<{
+    name: string;
+    stockQuantity: number;
+  }>;
 }
 

@@ -4,6 +4,14 @@ import { Product, ProductStatus } from '@/module/product/entity/product.entity';
 import { ProductService } from '@/module/product/product.service';
 import { ApiProperty } from '@nestjs/swagger';
 
+export class ProductOptionDto {
+  @ApiProperty({ description: '옵션명', example: '사이즈 - L' })
+  name: string;
+
+  @ApiProperty({ description: '옵션별 재고 수량', example: 10 })
+  stockQuantity: number;
+}
+
 /**
  * 판매자 검색 결과 항목 DTO
  */
@@ -117,6 +125,18 @@ export class SellerProductItemDto {
   salesCount: number;
   status: ProductStatus;
 
+  @ApiProperty({
+    description: '상품 옵션 목록',
+    type: [ProductOptionDto],
+    required: false,
+    example: [
+      { name: '사이즈 - S', stockQuantity: 10 },
+      { name: '사이즈 - M', stockQuantity: 20 },
+      { name: '사이즈 - L', stockQuantity: 15 },
+    ],
+  })
+  options?: ProductOptionDto[];
+
   static async fromEntity(product: Product, salesCount: number): Promise<SellerProductItemDto> {
     const dto = new SellerProductItemDto();
     dto.id = product.id;
@@ -130,6 +150,9 @@ export class SellerProductItemDto {
 
     // 판매량 구현
     dto.salesCount = salesCount;
+    
+    // 옵션 정보 추가
+    dto.options = product.options;
 
     return dto;
   }

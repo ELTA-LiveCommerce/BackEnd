@@ -102,6 +102,37 @@ export class DepositService {
       item.status = order.status;
       item.customerName = order.user?.name ?? '고객명 없음';
       item.productName = orderItem.product?.name ?? '상품명 없음';
+      item.phoneNumber = order.user?.phoneNumber ?? '';
+      
+      // Return selectedOptions from order as array with only option and quantity
+      if (order.selectedOptions) {
+        try {
+          let options;
+          // Parse if it's a string, otherwise use as is
+          if (typeof order.selectedOptions === 'string') {
+            options = JSON.parse(order.selectedOptions);
+          } else {
+            options = order.selectedOptions;
+          }
+          
+          // Map to include only option and quantity fields
+          if (Array.isArray(options)) {
+            item.selectedOptions = options.map(opt => ({
+              option: opt.option,
+              quantity: opt.quantity
+            }));
+          } else {
+            item.selectedOptions = [];
+          }
+        } catch (error) {
+          // If parsing fails, return empty array
+          item.selectedOptions = [];
+        }
+      } else {
+        // If no selectedOptions, return empty array
+        item.selectedOptions = [];
+      }
+      
       item.createdAt = order.createdAt.toISOString();
       item.updatedAt = order.updatedAt.toISOString();
       return item;

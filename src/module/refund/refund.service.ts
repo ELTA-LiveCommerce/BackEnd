@@ -44,88 +44,84 @@ export class RefundService {
     sellerId: string,
     query: SellerRefundListRequestDto,
   ): Promise<PagedResponseV2<SellerRefundListItemDto>> {
-    const qb = this.refundRepository
-      .createQueryBuilder('r')
-      .select([
-        'r.id',
-        'r.quantity',
-        'r.reason',
-        'r.status',
-        'r.buyerBankName',
-        'r.buyerAccountNumber',
-        'r.returnAddress',
-        'r.createdAt', // For requestedAt field in DTO
-        'p.name as productName', // Alias for product name
-        'p.main_image as productImage', // Alias for product image
-        'b.id as buyerId', // Alias for buyer ID
-      ])
-      .leftJoin('r.product', 'p') // Join with Product
-      .leftJoin('r.buyer', 'b') // Join with User (buyer)
-      .where({ seller: { id: sellerId } });
-
-    // Status filtering
-    if (query.status) {
-      qb.andWhere({ status: query.status });
-    }
-
-    // Dynamic search keyword filtering
-    if (query.searchKeyword) {
-      switch (query.searchField) {
-        case SellerRefundSearchField.PRODUCT_NAME:
-          qb.andWhere({ 'p.name': { $like: `%${query.searchKeyword}%` } });
-          break;
-        case SellerRefundSearchField.BUYER_ID:
-          qb.andWhere({ 'b.id': { $like: `%${query.searchKeyword}%` } });
-          break;
-        case SellerRefundSearchField.REASON:
-          qb.andWhere({ 'r.reason': { $like: `%${query.searchKeyword}%` } });
-          break;
-      }
-    }
-
-    // Dynamic date range filtering
-    const dateField = query.dateField === SellerRefundDateField.UPDATED_AT ? 'r.updatedAt' : 'r.createdAt';
-    if (query.startDate) {
-      qb.andWhere({ [`${dateField} >=`]: query.startDate });
-    }
-    if (query.endDate) {
-      qb.andWhere({ [`${dateField} <=`]: query.endDate });
-    }
-
     // Apply pagination
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const offset = (page - 1) * limit;
 
-    // Apply sorting
-    qb.orderBy({ [dateField]: QueryOrder.DESC });
+    // Build where conditions
+    const where: any = { seller: { id: sellerId } };
+    
+    // Status filtering
+    if (query.status) {
+      where.status = query.status;
+    }
 
-    // Clone for count query before applying limit/offset
-    qb.limit(limit).offset(offset);
+    // Find refunds with all necessary relations populated
+    const [refunds, total] = await this.refundRepository.findAndCount(where, {
+      populate: ['product', 'buyer', 'orderItem', 'orderItem.order'],
+      limit,
+      offset,
+      orderBy: { createdAt: QueryOrder.DESC },
+    });
 
-    const refundMaps = await qb
-      .clone()
-      .orderBy({ [dateField]: QueryOrder.DESC })
-      .limit(limit)
-      .offset(offset)
-      .getResult();
-    const total = await qb.clone().getCount();
-
-    // Map raw results to DTOs (manual mapping due to aliases)
-    const items = refundMaps.map((map: any) => {
-      const dto = new SellerRefundListItemDto();
-      dto.id = map.id;
-      dto.productImage = map.productImage;
-      dto.productName = map.productName;
-      dto.quantity = map.quantity;
-      dto.buyerId = map.buyerId;
-      dto.buyerBankName = map.buyerBankName;
-      dto.buyerAccountNumber = map.buyerAccountNumber;
-      dto.returnAddress = map.returnAddress;
-      dto.reason = map.reason;
-      dto.status = map.status;
-      dto.requestedAt = map.createdAt;
-      return dto;
+    // Map entities to DTOs - create plain objects to ensure proper serialization
+    const items = refunds.map(refund => {
+      // Parse option information from orderItem attributes
+      let options: Array<{ name: string; quantity: number }> = [];
+      
+      if (refund.orderItem?.attributes) {
+        try {
+          const parsedAttributes = JSON.parse(refund.orderItem.attributes);
+          
+          // Handle multiple options
+          if (Array.isArray(parsedAttributes)) {
+            options = parsedAttributes.map(attr => ({
+              name: attr.option || attr.name || '',
+              quantity: attr.quantity || 1
+            }));
+          } else if (typeof parsedAttributes === 'object') {
+            // Handle single option or object format
+            if (parsedAttributes.option || parsedAttributes.name) {
+              options.push({
+                name: parsedAttributes.option || parsedAttributes.name,
+                quantity: parsedAttributes.quantity || refund.quantity
+              });
+            } else {
+              // Handle key-value pairs as options
+              Object.entries(parsedAttributes).forEach(([key, value]) => {
+                options.push({
+                  name: `${key} - ${value}`,
+                  quantity: 1
+                });
+              });
+            }
+          }
+        } catch (error) {
+          // Keep empty array
+        }
+      }
+      
+      // Return plain object matching the interface
+      return {
+        id: refund.id,
+        orderId: refund.orderItem?.order?.id || '',
+        orderNumber: refund.orderItem?.order?.orderNumber || '',
+        reason: refund.reason,
+        status: refund.status,
+        requestDate: refund.createdAt.toISOString(),
+        customerName: refund.buyer?.name || 'N/A',
+        productName: refund.product?.name || 'N/A',
+        amount: refund.orderItem?.totalPrice || 0,
+        options,
+        // Additional fields for backward compatibility
+        productImage: refund.product?.mainImage,
+        quantity: refund.quantity,
+        buyerId: refund.buyer?.id || 'N/A',
+        buyerBankName: refund.buyer?.bankName,
+        buyerAccountNumber: refund.buyer?.bankAccount,
+        returnAddress: refund.returnAddress,
+      };
     });
 
     // Use PagedResponseV2.create

@@ -22,6 +22,21 @@ export class DepositListItemDto {
   @ApiProperty({ description: '상품명', example: '맛있는 사과' })
   productName: string;
 
+  @ApiProperty({ description: '고객 전화번호', example: '010-1234-5678' })
+  phoneNumber: string;
+
+  @ApiProperty({ 
+    description: '선택한 옵션 목록', 
+    example: [
+      { option: '사이즈 - L', quantity: 2 },
+      { option: '사이즈 - 32', quantity: 1 }
+    ], 
+    required: false,
+    type: 'array',
+    isArray: true
+  })
+  selectedOptions?: any[];
+
   @ApiProperty({ description: '생성일시', example: '2023-10-27T10:00:00Z' })
   createdAt: string;
 

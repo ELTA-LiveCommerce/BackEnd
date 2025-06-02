@@ -47,6 +47,14 @@ export class Order extends BaseEntity {
   @Property({ type: 'string', nullable: true })
   notes?: string;
 
+  @Property({ type: 'json', nullable: true })
+  selectedOptions?: Array<{
+    productId: string;
+    productName: string;
+    option: string;
+    quantity: number;
+  }>;
+
   @Property({ type: 'Date', nullable: true })
   paidAt?: Date;
 

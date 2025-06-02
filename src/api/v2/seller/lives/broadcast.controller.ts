@@ -14,6 +14,7 @@ import { UserRole } from '@/shared/enum/user-role.enum';
 import { CurrentUser } from '@/shared/common/decorators/current-user.decorator';
 import { User } from '@/module/user/entity/user.entity';
 import { BroadcastCreateRequestDto } from './dto/broadcast-create.request.dto';
+import { BroadcastUpdateRequestDto } from './dto/broadcast-update.request.dto';
 import { BroadcastResponseDto } from './dto/broadcast.response.dto';
 import {
   UpdateCurrentSellingProductDto,
@@ -54,8 +55,21 @@ export class BroadcastController {
     return new BroadcastResponseDto(createdBroadcastItem);
   }
 
-  // TODO: Add endpoints for update, delete broadcasts
-  // TODO: Add endpoints for create, update, delete broadcasts
+  @Put(':id')
+  @ApiOperation({ summary: '판매자 라이브 방송 정보 수정' })
+  @ApiParam({ name: 'id', description: '방송 ID' })
+  @ApiOkResponse({
+    description: '방송 정보가 성공적으로 수정되었습니다.',
+    type: BroadcastResponseDto,
+  })
+  async updateBroadcast(
+    @Param('id') broadcastId: string,
+    @CurrentUser() seller: User,
+    @Body() updateBroadcastDto: BroadcastUpdateRequestDto,
+  ): Promise<BroadcastResponseDto> {
+    const updatedBroadcastItem = await this.broadcastService.updateBroadcast(broadcastId, seller.id, updateBroadcastDto);
+    return new BroadcastResponseDto(updatedBroadcastItem);
+  }
 
   @Post(':id/start')
   @ApiOperation({ summary: '판매자 라이브 방송 시작' })
@@ -185,7 +199,7 @@ export class BroadcastController {
   ): Promise<ApiResponse<CurrentSellingProductDto>> {
     const updatedProduct = await this.broadcastService.updateCurrentSellingProduct(
       broadcastId,
-      dto.productId,
+      dto,
       seller.id,
     );
 

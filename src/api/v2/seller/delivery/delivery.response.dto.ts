@@ -14,6 +14,18 @@ export class SellerDeliveryListItemDto {
   @ApiProperty({ description: '배송 수량', example: 1 })
   quantity: number;
 
+  @ApiProperty({ 
+    description: '선택한 옵션들', 
+    example: [
+      { option: '사이즈 - L', quantity: 1 },
+      { option: '색상 - 빨강', quantity: 2 }
+    ],
+    required: false,
+    type: 'array',
+    isArray: true
+  })
+  selectedOptions?: any[];
+
   @ApiProperty({ description: '송장번호', example: '1234567890', required: false })
   trackingNumber?: string;
 
@@ -52,6 +64,32 @@ export class SellerDeliveryListItemDto {
     dto.productMainImage = orderItem.product?.mainImage;
     dto.productName = orderItem.product?.name || '상품 정보 없음';
     dto.quantity = orderItem.quantity;
+
+    // Get selected options from order
+    if (order.selectedOptions) {
+      // Filter options for this specific orderItem's product
+      dto.selectedOptions = order.selectedOptions
+        .filter(opt => opt.productId === orderItem.product?.id)
+        .map(opt => ({
+          option: opt.option,
+          quantity: opt.quantity
+        }));
+    } else {
+      // Fallback to parsing from orderItem attributes if order.selectedOptions is not available
+      if (orderItem.attributes) {
+        try {
+          const parsed = JSON.parse(orderItem.attributes);
+          dto.selectedOptions = [{
+            option: parsed.option || parsed.name || '',
+            quantity: orderItem.quantity
+          }];
+        } catch (error) {
+          dto.selectedOptions = [];
+        }
+      } else {
+        dto.selectedOptions = [];
+      }
+    }
 
     dto.trackingNumber = delivery.trackingNumber;
     dto.buyerLoginId = order.user?.loginId || '구매자 정보 없음';

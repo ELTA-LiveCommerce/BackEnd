@@ -23,7 +23,7 @@ import { SellerProductSearchField } from '@/api/v2/seller/product/search-field.e
 import { SellerProductDateField } from '@/api/v2/seller/product/date-field.enum';
 import { BaseRepository } from '@/shared/common/base.repository';
 import { PagedResponseV2 } from '@/api/v2/common/base-response.dto';
-import { SellerProductListItemDto } from './dto/seller-product-list-item.dto';
+import { SellerProductListItemDto } from '@/api/v2/seller/product/product.response.dto';
 import { OrderItem } from '@/module/order/entity/order-item.entity';
 
 @Injectable()
@@ -462,6 +462,7 @@ export class ProductService {
     if (createDto.mainImage) product.mainImage = createDto.mainImage;
     if (createDto.images) product.images = createDto.images;
     if (createDto.isPublic !== undefined) product.isPublic = createDto.isPublic;
+    if (createDto.options) product.options = createDto.options;
 
     await this.productRepository.persistAndFlush(product);
     return product;
@@ -490,6 +491,7 @@ export class ProductService {
     if (updateDto.images !== undefined) product.images = updateDto.images;
     if (updateDto.status !== undefined) product.status = updateDto.status;
     if (updateDto.isPublic !== undefined) product.isPublic = updateDto.isPublic;
+    if (updateDto.options !== undefined) product.options = updateDto.options;
 
     await this.productRepository.persistAndFlush(product);
     return product;
@@ -502,17 +504,15 @@ export class ProductService {
     userId: string,
     query: SellerProductListRequestDto,
   ): Promise<PagedResponseV2<SellerProductListItemDto>> {
-    const qb: QueryBuilder<Product> = this.em
-      .createQueryBuilder(Product, 'p')
-      .where({ seller: { id: userId } });
+    const where: any = { seller: { id: userId } };
 
     if (query.searchKeyword) {
       switch (query.searchField) {
         case SellerProductSearchField.NAME:
-          qb.andWhere({ name: { $like: `%${query.searchKeyword}%` } });
+          where.name = { $like: `%${query.searchKeyword}%` };
           break;
         case SellerProductSearchField.DESCRIPTION:
-          qb.andWhere({ description: { $like: `%${query.searchKeyword}%` } });
+          where.description = { $like: `%${query.searchKeyword}%` };
           break;
       }
     }
@@ -522,32 +522,28 @@ export class ProductService {
       [SellerProductDateField.UPDATED_AT]: 'updatedAt',
     };
     const dateField = dateFieldMap[query.dateField ?? SellerProductDateField.CREATED_AT];
+    
     if (query.startDate) {
-      qb.andWhere({ [`${dateField} >=`]: query.startDate });
+      where[dateField] = where[dateField] || {};
+      where[dateField].$gte = new Date(query.startDate);
     }
     if (query.endDate) {
-      qb.andWhere({ [`${dateField} <=`]: query.endDate });
+      where[dateField] = where[dateField] || {};
+      where[dateField].$lte = new Date(query.endDate);
     }
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const offset = (page - 1) * limit;
 
-    qb.orderBy({ [dateField]: QueryOrder.DESC });
-
-    const totalPromise = qb.clone().getCount();
-
-    const listPromise = qb
-      .orderBy({ [dateField]: QueryOrder.DESC })
-      .limit(limit)
-      .offset(offset)
-      .getResultList();
-
-    const [productMaps, total] = await Promise.all([listPromise, totalPromise]);
-
-    const items = productMaps.map((map: any) => {
-      return SellerProductListItemDto.fromEntity(map as Product);
+    const [products, total] = await this.productRepository.findAndCount(where, {
+      orderBy: { [dateField]: QueryOrder.DESC },
+      limit,
+      offset,
+      populate: ['seller'],
     });
+
+    const items = products.map(product => SellerProductListItemDto.fromEntity(product));
 
     return PagedResponseV2.create(items, total, page, limit);
   }
